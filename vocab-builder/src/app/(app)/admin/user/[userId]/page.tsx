@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
+import { initializeFirebase } from '@/lib/firebase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -18,20 +19,46 @@ import {
     Calendar
 } from 'lucide-react';
 import Link from 'next/link';
-import {
-    getUserDebates,
-    getUserPosts,
-    getUserTokenUsage,
-    getUserSavedPhrases,
-    UserDebate,
-    UserPost,
-    UserTokenUsage
-} from '@/lib/firestore';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
 import type { UserProfile } from '@/types';
 
 const ADMIN_EMAIL = 'ducanhcontactonfb@gmail.com';
+
+interface UserDebate {
+    id: string;
+    topic: string;
+    topicAngle: string;
+    createdAt: Date;
+    status: string;
+    phrasesTotal: number;
+    phrasesUsed: number;
+    phrasesNatural: number;
+    turnsCount: number;
+}
+
+interface UserPost {
+    id: string;
+    title?: string;
+    content: string;
+    isArticle: boolean;
+    createdAt: Date;
+    commentCount: number;
+    repostCount: number;
+}
+
+interface UserTokenUsage {
+    endpoint: string;
+    totalTokens: number;
+    callCount: number;
+    avgTokensPerCall: number;
+}
+
+interface UserPhrase {
+    id: string;
+    phrase: string;
+    meaning: string;
+    createdAt: Date;
+    usageCount: number;
+}
 
 export default function AdminUserPage() {
     const params = useParams();
@@ -44,7 +71,7 @@ export default function AdminUserPage() {
     const [activeTab, setActiveTab] = useState<'phrases' | 'debates' | 'posts' | 'tokens'>('phrases');
 
     // User data
-    const [phrases, setPhrases] = useState<Array<{ id: string; phrase: string; meaning: string; createdAt: Date; usageCount: number }>>([]);
+    const [phrases, setPhrases] = useState<UserPhrase[]>([]);
     const [debates, setDebates] = useState<UserDebate[]>([]);
     const [posts, setPosts] = useState<UserPost[]>([]);
     const [tokens, setTokens] = useState<{ total: number; calls: number; byEndpoint: UserTokenUsage[] } | null>(null);
@@ -58,35 +85,133 @@ export default function AdminUserPage() {
     }, [user, authLoading, isAdmin, router]);
 
     useEffect(() => {
-        if (!userId || !isAdmin || !db) return;
+        if (!userId || !isAdmin) return;
 
         const loadUserData = async () => {
-            if (!db) return;
             setLoading(true);
             try {
+                // Initialize Firebase dynamically
+                const { db } = await initializeFirebase();
+                if (!db) {
+                    console.error('Failed to initialize Firebase');
+                    setLoading(false);
+                    return;
+                }
+
+                // Dynamic import of Firestore functions
+                const { doc, getDoc, collection, query, where, orderBy, limit, getDocs } = await import('firebase/firestore');
+
                 // Load user profile
                 const userDoc = await getDoc(doc(db, 'users', userId));
                 if (userDoc.exists()) {
                     setUserProfile({ uid: userDoc.id, ...userDoc.data() } as UserProfile);
                 }
 
-                // Load all user data in parallel
-                const [phrasesData, debatesData, postsData] = await Promise.all([
-                    getUserSavedPhrases(userId),
-                    getUserDebates(userId),
-                    getUserPosts(userId),
-                ]);
-
+                // Load saved phrases
+                const phrasesRef = collection(db, 'savedPhrases');
+                const phrasesQuery = query(
+                    phrasesRef,
+                    where('userId', '==', userId),
+                    orderBy('createdAt', 'desc'),
+                    limit(100)
+                );
+                const phrasesSnapshot = await getDocs(phrasesQuery);
+                const phrasesData = phrasesSnapshot.docs.map(doc => {
+                    const data = doc.data();
+                    return {
+                        id: doc.id,
+                        phrase: data.phrase || '',
+                        meaning: data.meaning || '',
+                        createdAt: data.createdAt?.toDate() || new Date(),
+                        usageCount: data.usageCount || 0,
+                    };
+                });
                 setPhrases(phrasesData);
+
+                // Load debates
+                const debatesRef = collection(db, 'debates');
+                const debatesQuery = query(
+                    debatesRef,
+                    where('userId', '==', userId),
+                    orderBy('createdAt', 'desc'),
+                    limit(50)
+                );
+                const debatesSnapshot = await getDocs(debatesQuery);
+                const debatesData = debatesSnapshot.docs.map(doc => {
+                    const data = doc.data();
+                    const phrasesList = data.phrases || [];
+                    return {
+                        id: doc.id,
+                        topic: data.topic || 'Untitled',
+                        topicAngle: data.topicAngle || '',
+                        createdAt: data.createdAt?.toDate() || new Date(),
+                        status: data.status || 'unknown',
+                        phrasesTotal: phrasesList.length,
+                        phrasesUsed: phrasesList.filter((p: { used?: boolean }) => p.used).length,
+                        phrasesNatural: phrasesList.filter((p: { status?: string }) => p.status === 'natural').length,
+                        turnsCount: (data.turns || []).length,
+                    };
+                });
                 setDebates(debatesData);
+
+                // Load posts
+                const postsRef = collection(db, 'posts');
+                const postsQuery = query(
+                    postsRef,
+                    where('authorId', '==', userId),
+                    orderBy('createdAt', 'desc'),
+                    limit(50)
+                );
+                const postsSnapshot = await getDocs(postsQuery);
+                const postsData = postsSnapshot.docs.map(doc => {
+                    const data = doc.data();
+                    return {
+                        id: doc.id,
+                        title: data.title,
+                        content: data.content || '',
+                        isArticle: data.isArticle || false,
+                        createdAt: data.createdAt?.toDate() || new Date(),
+                        commentCount: data.commentCount || 0,
+                        repostCount: data.repostCount || 0,
+                    };
+                });
                 setPosts(postsData);
 
                 // Load token usage if we have email
                 if (userDoc.exists()) {
                     const email = userDoc.data().email;
                     if (email) {
-                        const tokensData = await getUserTokenUsage(email);
-                        setTokens(tokensData);
+                        const usageRef = collection(db, 'tokenUsage');
+                        const usageQuery = query(usageRef, where('userEmail', '==', email));
+                        const usageSnapshot = await getDocs(usageQuery);
+
+                        const byEndpoint: Record<string, { tokens: number; calls: number }> = {};
+                        let total = 0;
+                        let calls = 0;
+
+                        usageSnapshot.docs.forEach(doc => {
+                            const data = doc.data();
+                            const endpoint = data.endpoint || 'unknown';
+                            const tokenCount = data.totalTokens || 0;
+                            total += tokenCount;
+                            calls += 1;
+                            if (!byEndpoint[endpoint]) {
+                                byEndpoint[endpoint] = { tokens: 0, calls: 0 };
+                            }
+                            byEndpoint[endpoint].tokens += tokenCount;
+                            byEndpoint[endpoint].calls += 1;
+                        });
+
+                        setTokens({
+                            total,
+                            calls,
+                            byEndpoint: Object.entries(byEndpoint).map(([endpoint, stats]) => ({
+                                endpoint,
+                                totalTokens: stats.tokens,
+                                callCount: stats.calls,
+                                avgTokensPerCall: stats.calls > 0 ? Math.round(stats.tokens / stats.calls) : 0,
+                            })),
+                        });
                     }
                 }
             } catch (error) {
