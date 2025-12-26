@@ -3,8 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { initializeFirebase } from '@/lib/firebase';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -63,9 +62,23 @@ export default function DebateHistoryDetailPage() {
 
     useEffect(() => {
         async function loadDebate() {
-            if (!debateId || !db) return;
+            if (!debateId) {
+                setLoading(false);
+                return;
+            }
 
             try {
+                // Initialize Firebase dynamically
+                const { db } = await initializeFirebase();
+                if (!db) {
+                    console.error('Failed to initialize Firebase');
+                    setLoading(false);
+                    return;
+                }
+
+                // Dynamic import of Firestore functions
+                const { doc, getDoc } = await import('firebase/firestore');
+
                 const debateRef = doc(db, 'debates', debateId);
                 const snapshot = await getDoc(debateRef);
 
@@ -190,7 +203,7 @@ export default function DebateHistoryDetailPage() {
                 </CardContent>
             </Card>
 
-            {/* Translated Phrases (Vietnamese → English) */}
+            {/* Translated Phrases */}
             {debate.assistedPhrases.length > 0 && (
                 <Card className="mb-6 border-blue-200 bg-blue-50/30">
                     <CardContent className="pt-4">

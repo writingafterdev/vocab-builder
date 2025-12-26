@@ -124,7 +124,7 @@ export interface DebateTurn {
     userMessage: string;
     phrasesUsedThisTurn: string[];
     opponentResponse: string;
-    timestamp: Timestamp;
+    timestamp: Timestamp | Date | string;  // Support REST API format
 }
 
 export interface DebateSession {

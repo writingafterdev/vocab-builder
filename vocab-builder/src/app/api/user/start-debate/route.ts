@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { collection, addDoc, Timestamp } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { addDocument, serverTimestamp } from '@/lib/firestore-rest';
 import { logTokenUsage } from '@/lib/db/token-tracking';
 
 /**
@@ -156,7 +155,7 @@ Return JSON only:
             };
         }
 
-        // Create debate session in Firestore
+        // Create debate session using REST API
         const debateData = {
             userId,
             topic: parsed.topic || 'Open Discussion',
@@ -175,19 +174,15 @@ Return JSON only:
             opponentPosition: parsed.opponentPosition || '',
             turns: [],
             status: 'active',
-            isScheduled,  // true = from /practice (SRS), false = from /vocab (on-demand)
-            createdAt: Timestamp.now(),
+            isScheduled,
+            createdAt: serverTimestamp(),
         };
 
-        if (!db) {
-            return NextResponse.json({ error: 'Database not configured' }, { status: 500 });
-        }
-
-        const docRef = await addDoc(collection(db, 'debates'), debateData);
+        const docId = await addDocument('debates', debateData);
 
         return NextResponse.json({
             success: true,
-            debateId: docRef.id,
+            debateId: docId,
             topic: debateData.topic,
             topicAngle: angle,
             background: debateData.backgroundContent,

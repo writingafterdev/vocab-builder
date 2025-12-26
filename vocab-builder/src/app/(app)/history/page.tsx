@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth-context';
-import { collection, query, where, orderBy, getDocs } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { initializeFirebase } from '@/lib/firebase';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -37,9 +36,23 @@ export default function HistoryPage() {
 
     useEffect(() => {
         async function loadHistory() {
-            if (!user || !db) return;
+            if (!user) {
+                setLoading(false);
+                return;
+            }
 
             try {
+                // Initialize Firebase dynamically
+                const { db } = await initializeFirebase();
+                if (!db) {
+                    console.error('Failed to initialize Firebase');
+                    setLoading(false);
+                    return;
+                }
+
+                // Dynamic import of Firestore functions
+                const { collection, query, where, orderBy, getDocs } = await import('firebase/firestore');
+
                 const debatesRef = collection(db, 'debates');
                 const q = query(
                     debatesRef,

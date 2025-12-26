@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { doc, getDoc, updateDoc, Timestamp } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { getDocument, updateDocument, serverTimestamp } from '@/lib/firestore-rest';
 import type { DebateSession, DebatePhrase, DebateTurn } from '@/lib/db/types';
 import { logTokenUsage } from '@/lib/db/token-tracking';
 
@@ -40,33 +39,28 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
 
-        if (!db) {
-            return NextResponse.json({ error: 'Database not configured' }, { status: 500 });
-        }
+        // Get debate session using REST API
+        const debateData = await getDocument('debates', debateId);
 
-        // Get debate session from Firestore
-        const debateRef = doc(db, 'debates', debateId);
-        const debateSnap = await getDoc(debateRef);
-
-        if (!debateSnap.exists()) {
+        if (!debateData) {
             return NextResponse.json({ error: 'Debate not found' }, { status: 404 });
         }
 
-        const debate = debateSnap.data() as DebateSession;
+        const debate = debateData as unknown as DebateSession;
 
         if (debate.status !== 'active') {
             return NextResponse.json({ error: 'Debate is not active' }, { status: 400 });
         }
 
-        const turnNumber = debate.turns.length + 1;
+        const turnNumber = (debate.turns?.length || 0) + 1;
         const maxTurns = 3;
 
         // Get remaining phrases
-        const remainingPhrases = debate.phrases.filter(p => !p.used);
-        const allPhrases = debate.phrases;
+        const remainingPhrases = (debate.phrases || []).filter(p => !p.used);
+        const allPhrases = debate.phrases || [];
 
         // Build conversation history for context
-        const conversationHistory = debate.turns.map(t =>
+        const conversationHistory = (debate.turns || []).map(t =>
             `User: ${t.userMessage}\nOpponent: ${t.opponentResponse}`
         ).join('\n\n');
 
@@ -102,15 +96,14 @@ TASKS:
 
    **IMPORTANT - BE FLEXIBLE when matching phrases:**
    - Accept British/American spelling variations (learnt/learned, colour/color, realise/realize)
-   - Accept minor tense variations if the core phrase is present (e.g., "I learn this the hard way" counts for "I learned this the hard way")
-   - Accept minor word form changes (e.g., "learning" for "learn")
-   - **CRITICAL: Accept phrases embedded in longer expressions** (e.g., "have a nuanced view" counts for "nuanced view", "it pops into my head" counts for "pops into")
+   - Accept minor tense variations if the core phrase is present
+   - Accept minor word form changes
+   - **CRITICAL: Accept phrases embedded in longer expressions**
    - If the CORE WORDS of the phrase appear together in the message, even with extra words around them, it COUNTS as used
    - Focus on MEANING, not exact character-by-character match
 
 2. Generate an opponent counter-response that:
    - STRATEGICALLY positions the learner so they'll NEED to use the remaining phrases to respond
-   - Challenges their argument in a way that the remaining phrases are the natural way to respond
    - Is casual, conversational, Gen Z-friendly (not academic)
    - Is 2-3 sentences max
    - Stays in character as ${debate.opponentPersona}
@@ -122,7 +115,7 @@ Return JSON only:
         {"phrase": "...", "status": "natural", "feedback": "Good use!"},
         {"phrase": "...", "status": "forced", "feedback": "This sounds awkward because..."}
     ],
-    "opponentResponse": "A strategic response that FORCES the learner into a corner where using the remaining phrases is the most natural way to respond..."
+    "opponentResponse": "A strategic response..."
 }`;
 
         const response = await fetch(DEEPSEEK_URL, {
@@ -174,7 +167,7 @@ Return JSON only:
         }
 
         // Update phrase statuses based on evaluations
-        const updatedPhrases: DebatePhrase[] = debate.phrases.map(p => {
+        const updatedPhrases: DebatePhrase[] = allPhrases.map(p => {
             const evaluation = parsed.phraseEvaluations?.find(
                 (e: PhraseEvaluation) => e.phrase.toLowerCase() === p.phrase.toLowerCase()
             );
@@ -199,7 +192,7 @@ Return JSON only:
                 ?.filter((e: PhraseEvaluation) => e.status !== 'missing')
                 ?.map((e: PhraseEvaluation) => e.phrase) || [],
             opponentResponse: parsed.opponentResponse || '',
-            timestamp: Timestamp.now(),
+            timestamp: serverTimestamp(),
         };
 
         // Check if debate should end
@@ -207,13 +200,17 @@ Return JSON only:
         const isLastTurn = turnNumber >= maxTurns;
         const shouldEnd = allPhrasesUsed || isLastTurn;
 
-        // Update Firestore
-        await updateDoc(debateRef, {
+        // Update using REST API
+        const updateData: Record<string, unknown> = {
             phrases: updatedPhrases,
-            turns: [...debate.turns, newTurn],
+            turns: [...(debate.turns || []), newTurn],
             status: shouldEnd ? 'completed' : 'active',
-            ...(shouldEnd && { completedAt: Timestamp.now() }),
-        });
+        };
+        if (shouldEnd) {
+            updateData.completedAt = serverTimestamp();
+        }
+
+        await updateDocument('debates', debateId, updateData);
 
         const phrasesRemaining = updatedPhrases.filter(p => !p.used).length;
 

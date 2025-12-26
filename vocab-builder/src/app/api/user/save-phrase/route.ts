@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { doc, setDoc, Timestamp, collection } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { addDocument, queryCollection, serverTimestamp } from '@/lib/firestore-rest';
 
 /**
  * Save a new phrase to user's vocab bank
@@ -22,10 +21,6 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
         }
 
-        if (!db) {
-            return NextResponse.json({ error: 'Database not configured' }, { status: 500 });
-        }
-
         const body: SavePhraseRequest = await request.json();
         const { phrase, meaning, context } = body;
 
@@ -37,17 +32,16 @@ export async function POST(request: NextRequest) {
         let resolvedUserId = userId;
         if (!resolvedUserId && userEmail) {
             try {
-                const { collection: colRef, query, where, getDocs } = await import('firebase/firestore');
-                const usersRef = colRef(db, 'users');
-                const q = query(usersRef, where('email', '==', userEmail));
-                const userSnapshot = await getDocs(q);
+                // Query users collection for email using REST API
+                const users = await queryCollection('users');
+                const matchingUser = users.find(u => u.email === userEmail);
 
-                if (userSnapshot.empty) {
+                if (!matchingUser) {
                     console.log('User not found for email:', userEmail);
                     return NextResponse.json({ error: `User not found for email: ${userEmail}` }, { status: 404 });
                 }
 
-                resolvedUserId = userSnapshot.docs[0].id;
+                resolvedUserId = matchingUser.id as string;
             } catch (lookupError) {
                 console.error('User lookup error:', lookupError);
                 return NextResponse.json({ error: `User lookup failed: ${lookupError}` }, { status: 500 });
@@ -61,17 +55,11 @@ export async function POST(request: NextRequest) {
 
         console.log('Saving phrase for user:', resolvedUserId, 'phrase:', phrase);
 
-        // Create new phrase document
-        const phraseRef = doc(collection(db, 'savedPhrases'));
-        const now = Timestamp.now();
-
         // First review in 1 day (not immediately)
         const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate() + 1);
-        const nextReview = Timestamp.fromDate(tomorrow);
 
-        await setDoc(phraseRef, {
-            id: phraseRef.id,
+        const phraseData = {
             userId: resolvedUserId,
             phrase: phrase.trim(),
             meaning: meaning.trim(),
@@ -81,9 +69,9 @@ export async function POST(request: NextRequest) {
             usedForGeneration: false,
             usageCount: 0,
             practiceCount: 0,
-            createdAt: now,
+            createdAt: serverTimestamp(),
             learningStep: 0,
-            nextReviewDate: nextReview,  // First review tomorrow
+            nextReviewDate: tomorrow.toISOString(),
             lastReviewDate: null,
             contexts: [{
                 id: `ctx_${Date.now()}`,
@@ -95,11 +83,13 @@ export async function POST(request: NextRequest) {
                 lastPracticed: null,
             }],
             currentContextIndex: 0,
-        });
+        };
+
+        const phraseId = await addDocument('savedPhrases', phraseData);
 
         return NextResponse.json({
             success: true,
-            phraseId: phraseRef.id,
+            phraseId: phraseId,
         });
 
     } catch (error) {
