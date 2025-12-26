@@ -198,7 +198,7 @@ export interface DetailedTokenEntry {
 export async function getDetailedTokenUsage(limitCount: number = 100): Promise<DetailedTokenEntry[]> {
     try {
         const records = await queryCollection('tokenUsage', { limit: limitCount });
-        return records.map(data => ({
+        const entries = records.map(data => ({
             id: data.id as string,
             userId: (data.userId as string) || 'unknown',
             userEmail: (data.userEmail as string) || 'unknown',
@@ -209,6 +209,9 @@ export async function getDetailedTokenUsage(limitCount: number = 100): Promise<D
             totalTokens: (data.totalTokens as number) || 0,
             createdAt: data.createdAt instanceof Date ? data.createdAt : new Date(data.createdAt as string),
         }));
+        // Sort by createdAt descending (newest first)
+        entries.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+        return entries;
     } catch (error) {
         console.error('Failed to get detailed token usage:', error);
         return [];

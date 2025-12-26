@@ -93,7 +93,7 @@ export default function DebateHistoryDetailPage() {
                         phrases: data.phrases || [],
                         turns: data.turns || [],
                         assistedPhrases: data.assistedPhrases || [],
-                        createdAt: data.createdAt?.toDate() || new Date(),
+                        createdAt: data.createdAt?.toDate?.() || new Date(),
                         status: data.status || 'completed',
                     });
                 }
