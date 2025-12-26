@@ -51,32 +51,37 @@ export default function HistoryPage() {
                 }
 
                 // Dynamic import of Firestore functions
-                const { collection, query, where, orderBy, getDocs } = await import('firebase/firestore');
+                const { collection, query, where, limit, getDocs } = await import('firebase/firestore');
 
+                // Simple query - filter status on client to avoid composite index issues
                 const debatesRef = collection(db, 'debates');
                 const q = query(
                     debatesRef,
                     where('userId', '==', user.uid),
-                    where('status', '==', 'completed'),
-                    orderBy('createdAt', 'desc')
+                    limit(100)
                 );
 
                 const snapshot = await getDocs(q);
-                const items: DebateHistoryItem[] = snapshot.docs.map(doc => {
-                    const data = doc.data();
-                    const phrases = data.phrases || [];
-                    return {
-                        id: doc.id,
-                        topic: data.topic || 'Untitled',
-                        topicAngle: data.topicAngle || '',
-                        createdAt: data.createdAt?.toDate() || new Date(),
-                        status: data.status,
-                        phrasesTotal: phrases.length,
-                        phrasesUsed: phrases.filter((p: { used: boolean }) => p.used).length,
-                        phrasesNatural: phrases.filter((p: { status: string }) => p.status === 'natural').length,
-                        turnsCount: (data.turns || []).length,
-                    };
-                });
+                const items: DebateHistoryItem[] = snapshot.docs
+                    .map(doc => {
+                        const data = doc.data();
+                        const phrases = data.phrases || [];
+                        return {
+                            id: doc.id,
+                            topic: data.topic || 'Untitled',
+                            topicAngle: data.topicAngle || '',
+                            createdAt: data.createdAt?.toDate?.() || new Date(),
+                            status: data.status,
+                            phrasesTotal: phrases.length,
+                            phrasesUsed: phrases.filter((p: { used: boolean }) => p.used).length,
+                            phrasesNatural: phrases.filter((p: { status: string }) => p.status === 'natural').length,
+                            turnsCount: (data.turns || []).length,
+                        };
+                    })
+                    // Filter completed on client side to avoid composite index
+                    .filter(d => d.status === 'completed')
+                    // Sort on client side
+                    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
                 setDebates(items);
             } catch (error) {

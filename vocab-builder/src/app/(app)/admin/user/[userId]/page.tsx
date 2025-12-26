@@ -99,7 +99,7 @@ export default function AdminUserPage() {
                 }
 
                 // Dynamic import of Firestore functions
-                const { doc, getDoc, collection, query, where, orderBy, limit, getDocs } = await import('firebase/firestore');
+                const { doc, getDoc, collection, query, where, limit, getDocs } = await import('firebase/firestore');
 
                 // Load user profile
                 const userDoc = await getDoc(doc(db, 'users', userId));
@@ -107,112 +107,131 @@ export default function AdminUserPage() {
                     setUserProfile({ uid: userDoc.id, ...userDoc.data() } as UserProfile);
                 }
 
-                // Load saved phrases
-                const phrasesRef = collection(db, 'savedPhrases');
-                const phrasesQuery = query(
-                    phrasesRef,
-                    where('userId', '==', userId),
-                    orderBy('createdAt', 'desc'),
-                    limit(100)
-                );
-                const phrasesSnapshot = await getDocs(phrasesQuery);
-                const phrasesData = phrasesSnapshot.docs.map(doc => {
-                    const data = doc.data();
-                    return {
-                        id: doc.id,
-                        phrase: data.phrase || '',
-                        meaning: data.meaning || '',
-                        createdAt: data.createdAt?.toDate() || new Date(),
-                        usageCount: data.usageCount || 0,
-                    };
-                });
-                setPhrases(phrasesData);
+                // Load saved phrases (simple query without orderBy to avoid index issues)
+                try {
+                    const phrasesRef = collection(db, 'savedPhrases');
+                    const phrasesQuery = query(
+                        phrasesRef,
+                        where('userId', '==', userId),
+                        limit(100)
+                    );
+                    const phrasesSnapshot = await getDocs(phrasesQuery);
+                    const phrasesData = phrasesSnapshot.docs.map(docSnap => {
+                        const data = docSnap.data();
+                        return {
+                            id: docSnap.id,
+                            phrase: data.phrase || '',
+                            meaning: data.meaning || '',
+                            createdAt: data.createdAt?.toDate?.() || new Date(),
+                            usageCount: data.usageCount || 0,
+                        };
+                    });
+                    // Sort on client side
+                    phrasesData.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+                    setPhrases(phrasesData);
+                } catch (err) {
+                    console.error('Error loading phrases:', err);
+                }
 
-                // Load debates
-                const debatesRef = collection(db, 'debates');
-                const debatesQuery = query(
-                    debatesRef,
-                    where('userId', '==', userId),
-                    orderBy('createdAt', 'desc'),
-                    limit(50)
-                );
-                const debatesSnapshot = await getDocs(debatesQuery);
-                const debatesData = debatesSnapshot.docs.map(doc => {
-                    const data = doc.data();
-                    const phrasesList = data.phrases || [];
-                    return {
-                        id: doc.id,
-                        topic: data.topic || 'Untitled',
-                        topicAngle: data.topicAngle || '',
-                        createdAt: data.createdAt?.toDate() || new Date(),
-                        status: data.status || 'unknown',
-                        phrasesTotal: phrasesList.length,
-                        phrasesUsed: phrasesList.filter((p: { used?: boolean }) => p.used).length,
-                        phrasesNatural: phrasesList.filter((p: { status?: string }) => p.status === 'natural').length,
-                        turnsCount: (data.turns || []).length,
-                    };
-                });
-                setDebates(debatesData);
+                // Load debates (simple query without orderBy)
+                try {
+                    const debatesRef = collection(db, 'debates');
+                    const debatesQuery = query(
+                        debatesRef,
+                        where('userId', '==', userId),
+                        limit(50)
+                    );
+                    const debatesSnapshot = await getDocs(debatesQuery);
+                    const debatesData = debatesSnapshot.docs.map(docSnap => {
+                        const data = docSnap.data();
+                        const phrasesList = data.phrases || [];
+                        return {
+                            id: docSnap.id,
+                            topic: data.topic || 'Untitled',
+                            topicAngle: data.topicAngle || '',
+                            createdAt: data.createdAt?.toDate?.() || new Date(),
+                            status: data.status || 'unknown',
+                            phrasesTotal: phrasesList.length,
+                            phrasesUsed: phrasesList.filter((p: { used?: boolean }) => p.used).length,
+                            phrasesNatural: phrasesList.filter((p: { status?: string }) => p.status === 'natural').length,
+                            turnsCount: (data.turns || []).length,
+                        };
+                    });
+                    // Sort on client side
+                    debatesData.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+                    setDebates(debatesData);
+                } catch (err) {
+                    console.error('Error loading debates:', err);
+                }
 
-                // Load posts
-                const postsRef = collection(db, 'posts');
-                const postsQuery = query(
-                    postsRef,
-                    where('authorId', '==', userId),
-                    orderBy('createdAt', 'desc'),
-                    limit(50)
-                );
-                const postsSnapshot = await getDocs(postsQuery);
-                const postsData = postsSnapshot.docs.map(doc => {
-                    const data = doc.data();
-                    return {
-                        id: doc.id,
-                        title: data.title,
-                        content: data.content || '',
-                        isArticle: data.isArticle || false,
-                        createdAt: data.createdAt?.toDate() || new Date(),
-                        commentCount: data.commentCount || 0,
-                        repostCount: data.repostCount || 0,
-                    };
-                });
-                setPosts(postsData);
+                // Load posts (simple query without orderBy)
+                try {
+                    const postsRef = collection(db, 'posts');
+                    const postsQuery = query(
+                        postsRef,
+                        where('authorId', '==', userId),
+                        limit(50)
+                    );
+                    const postsSnapshot = await getDocs(postsQuery);
+                    const postsData = postsSnapshot.docs.map(docSnap => {
+                        const data = docSnap.data();
+                        return {
+                            id: docSnap.id,
+                            title: data.title,
+                            content: data.content || '',
+                            isArticle: data.isArticle || false,
+                            createdAt: data.createdAt?.toDate?.() || new Date(),
+                            commentCount: data.commentCount || 0,
+                            repostCount: data.repostCount || 0,
+                        };
+                    });
+                    // Sort on client side
+                    postsData.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+                    setPosts(postsData);
+                } catch (err) {
+                    console.error('Error loading posts:', err);
+                }
 
                 // Load token usage if we have email
-                if (userDoc.exists()) {
-                    const email = userDoc.data().email;
-                    if (email) {
-                        const usageRef = collection(db, 'tokenUsage');
-                        const usageQuery = query(usageRef, where('userEmail', '==', email));
-                        const usageSnapshot = await getDocs(usageQuery);
+                try {
+                    if (userDoc.exists()) {
+                        const email = userDoc.data().email;
+                        if (email) {
+                            const usageRef = collection(db, 'tokenUsage');
+                            const usageQuery = query(usageRef, where('userEmail', '==', email));
+                            const usageSnapshot = await getDocs(usageQuery);
 
-                        const byEndpoint: Record<string, { tokens: number; calls: number }> = {};
-                        let total = 0;
-                        let calls = 0;
+                            const byEndpoint: Record<string, { tokens: number; calls: number }> = {};
+                            let total = 0;
+                            let calls = 0;
 
-                        usageSnapshot.docs.forEach(doc => {
-                            const data = doc.data();
-                            const endpoint = data.endpoint || 'unknown';
-                            const tokenCount = data.totalTokens || 0;
-                            total += tokenCount;
-                            calls += 1;
-                            if (!byEndpoint[endpoint]) {
-                                byEndpoint[endpoint] = { tokens: 0, calls: 0 };
-                            }
-                            byEndpoint[endpoint].tokens += tokenCount;
-                            byEndpoint[endpoint].calls += 1;
-                        });
+                            usageSnapshot.docs.forEach(docSnap => {
+                                const data = docSnap.data();
+                                const endpoint = data.endpoint || 'unknown';
+                                const tokenCount = data.totalTokens || 0;
+                                total += tokenCount;
+                                calls += 1;
+                                if (!byEndpoint[endpoint]) {
+                                    byEndpoint[endpoint] = { tokens: 0, calls: 0 };
+                                }
+                                byEndpoint[endpoint].tokens += tokenCount;
+                                byEndpoint[endpoint].calls += 1;
+                            });
 
-                        setTokens({
-                            total,
-                            calls,
-                            byEndpoint: Object.entries(byEndpoint).map(([endpoint, stats]) => ({
-                                endpoint,
-                                totalTokens: stats.tokens,
-                                callCount: stats.calls,
-                                avgTokensPerCall: stats.calls > 0 ? Math.round(stats.tokens / stats.calls) : 0,
-                            })),
-                        });
+                            setTokens({
+                                total,
+                                calls,
+                                byEndpoint: Object.entries(byEndpoint).map(([endpoint, stats]) => ({
+                                    endpoint,
+                                    totalTokens: stats.tokens,
+                                    callCount: stats.calls,
+                                    avgTokensPerCall: stats.calls > 0 ? Math.round(stats.tokens / stats.calls) : 0,
+                                })),
+                            });
+                        }
                     }
+                } catch (err) {
+                    console.error('Error loading token usage:', err);
                 }
             } catch (error) {
                 console.error('Error loading user data:', error);
