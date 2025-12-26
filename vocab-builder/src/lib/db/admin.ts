@@ -122,50 +122,6 @@ export async function getAdminStats(): Promise<{
     };
 }
 
-// ============ SEED DATA ============
-
-export async function seedInitialPosts(): Promise<void> {
-    const firestore = checkDb();
-    const postsRef = collection(firestore, 'posts');
-
-    const existingPosts = await getDocs(query(postsRef, limit(1)));
-    if (!existingPosts.empty) {
-        return;
-    }
-
-    const seedPosts = [
-        {
-            authorId: 'system',
-            authorName: 'Learning Bot',
-            authorUsername: 'learningbot',
-            content: 'Just had a breakthrough moment today when I finally understood the concept. Sometimes you just need to take a step back and see the bigger picture.',
-            highlightedPhrases: ['breakthrough moment', 'step back'],
-            type: 'ai' as const,
-            isArticle: false,
-            commentCount: 0,
-            repostCount: 0,
-        },
-        {
-            authorId: 'system',
-            authorName: 'Daily Wisdom',
-            authorUsername: 'dailywisdom',
-            content: 'The key to learning is not just acquiring knowledge, but knowing how to apply it. Every setback is a setup for a comeback.',
-            highlightedPhrases: ['acquiring knowledge', 'setback', 'comeback'],
-            type: 'admin' as const,
-            isArticle: false,
-            commentCount: 0,
-            repostCount: 0,
-        },
-    ];
-
-    for (const post of seedPosts) {
-        await addDoc(postsRef, {
-            ...post,
-            createdAt: serverTimestamp(),
-        });
-    }
-}
-
 // ============ POSTS WITH COMMENTS ============
 
 interface ImportComment {

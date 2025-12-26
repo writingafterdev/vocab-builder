@@ -290,13 +290,6 @@ export async function reviewPhrases(phraseIds: string[]): Promise<void> {
 }
 
 /**
- * Legacy wrapper for backward compatibility
- */
-export async function markPhrasesAsUsed(phraseIds: string[]): Promise<void> {
-    return reviewPhrases(phraseIds);
-}
-
-/**
  * Get all user's saved phrases
  */
 export async function getUserPhrases(userId: string, count: number = 50): Promise<SavedPhrase[]> {
@@ -312,102 +305,4 @@ export async function getUserPhrases(userId: string, count: number = 50): Promis
 
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as SavedPhrase[];
-}
-
-/**
- * Create a personalized AI-generated post for a user
- */
-export async function createPersonalizedPost(
-    userId: string,
-    content: string,
-    usedPhrases: string[],
-    options?: {
-        type?: 'post' | 'article' | 'post_with_comments';
-        title?: string;
-        comments?: Array<{ author: string; content: string }>;
-        userName?: string;
-        userUsername?: string;
-    }
-): Promise<string> {
-    const firestore = checkDb();
-    const postsRef = collection(firestore, 'posts');
-
-    const isArticle = options?.type === 'article';
-
-    const postData: Record<string, unknown> = {
-        authorId: userId,
-        authorName: 'user',
-        authorUsername: 'user',
-        source: 'ai-generated',
-        content,
-        highlightedPhrases: usedPhrases,
-        type: 'ai',
-        isArticle,
-        title: isArticle ? (options?.title || 'AI Generated Article') : undefined,
-        generatedForUserId: userId,
-        commentCount: options?.comments?.length || 0,
-        repostCount: 0,
-        createdAt: serverTimestamp(),
-    };
-
-    Object.keys(postData).forEach(key => {
-        if (postData[key] === undefined) delete postData[key];
-    });
-
-    const docRef = await addDoc(postsRef, postData);
-
-    if (options?.comments && options.comments.length > 0) {
-        const commentsRef = collection(firestore, 'comments');
-        const redditPrefixes = ['curious', 'random', 'daily', 'just_a', 'the_real', 'totally', 'not_a'];
-        const redditSuffixes = ['learner', 'reader', 'thinker', 'observer', 'human', 'bot_maybe', 'person'];
-
-        const generateRedditUsername = (displayName: string) => {
-            const prefix = redditPrefixes[Math.floor(Math.random() * redditPrefixes.length)];
-            const suffix = redditSuffixes[Math.floor(Math.random() * redditSuffixes.length)];
-            const num = Math.floor(Math.random() * 999);
-            const baseName = displayName.toLowerCase().replace(/\s/g, '_');
-            const styles = [
-                `${baseName}_${num}`,
-                `${prefix}_${baseName}`,
-                `${baseName}${suffix}${num}`,
-                `u_${baseName}_${Math.floor(Math.random() * 99)}`,
-            ];
-            return styles[Math.floor(Math.random() * styles.length)];
-        };
-
-        for (const comment of options.comments) {
-            const redditUsername = generateRedditUsername(comment.author);
-            await addDoc(commentsRef, {
-                postId: docRef.id,
-                authorId: 'ai-commenter',
-                authorName: comment.author,
-                authorUsername: redditUsername,
-                content: comment.content,
-                likeCount: Math.floor(Math.random() * 50),
-                replyCount: 0,
-                parentId: null,
-                createdAt: serverTimestamp(),
-            });
-        }
-    }
-
-    return docRef.id;
-}
-
-/**
- * Get personalized posts for a user's feed
- */
-export async function getPersonalizedPosts(userId: string, count: number = 10): Promise<Post[]> {
-    const firestore = checkDb();
-    const postsRef = collection(firestore, 'posts');
-
-    const q = query(
-        postsRef,
-        where('generatedForUserId', '==', userId),
-        orderBy('createdAt', 'desc'),
-        limit(count)
-    );
-
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Post[];
 }
