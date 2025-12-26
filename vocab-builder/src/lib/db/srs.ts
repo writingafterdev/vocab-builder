@@ -1,0 +1,413 @@
+/**
+ * Spaced Repetition System (SRS) domain module
+ */
+import {
+    collection,
+    doc,
+    addDoc,
+    getDoc,
+    getDocs,
+    updateDoc,
+    query,
+    where,
+    orderBy,
+    limit,
+    increment,
+    serverTimestamp,
+    Timestamp,
+} from 'firebase/firestore';
+import { checkDb } from './core';
+import type { SavedPhrase, Post } from './types';
+import { DEFAULT_LEARNING_CYCLE } from './types';
+
+// Daily limit for phrase saving (optimal learning)
+export const DAILY_PHRASE_LIMIT = 15;
+
+/**
+ * Get count of phrases saved today by user
+ */
+export async function getTodaySaveCount(userId: string): Promise<number> {
+    const firestore = checkDb();
+    const phrasesRef = collection(firestore, 'savedPhrases');
+
+    // Get start of today (midnight)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayTimestamp = Timestamp.fromDate(today);
+
+    const q = query(
+        phrasesRef,
+        where('userId', '==', userId),
+        where('createdAt', '>=', todayTimestamp)
+    );
+
+    const snapshot = await getDocs(q);
+    return snapshot.size;
+}
+
+/**
+ * Check if user can save more phrases today
+ */
+export async function canSavePhraseToday(userId: string): Promise<{ canSave: boolean; saved: number; remaining: number }> {
+    const saved = await getTodaySaveCount(userId);
+    const remaining = Math.max(0, DAILY_PHRASE_LIMIT - saved);
+    return { canSave: remaining > 0, saved, remaining };
+}
+
+/**
+ * Save a phrase to user's vocabulary bank
+ * @throws Error if daily limit reached
+ */
+export async function savePhrase(
+    userId: string,
+    phrase: string,
+    meaning: string,
+    context: string,
+    usage: 'spoken' | 'written' | 'neutral' = 'neutral',
+    sourcePostId?: string
+): Promise<{ phraseId: string; totalPhrases: number; todayCount: number }> {
+    // Check daily limit first
+    const { canSave, saved } = await canSavePhraseToday(userId);
+    if (!canSave) {
+        throw new Error(`Daily limit reached (${DAILY_PHRASE_LIMIT} phrases/day). Come back tomorrow!`);
+    }
+
+    const firestore = checkDb();
+    const phrasesRef = collection(firestore, 'savedPhrases');
+
+    const now = Timestamp.now();
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(0, 0, 0, 0); // Reset to midnight
+
+    const docRef = await addDoc(phrasesRef, {
+        userId,
+        phrase,
+        meaning,
+        context,
+        usage,
+        sourcePostId: sourcePostId || null,
+        usedForGeneration: false,
+        usageCount: 0,
+        createdAt: now,
+        learningStep: 0,
+        nextReviewDate: Timestamp.fromDate(tomorrow),
+        // Contextualized Learning - will be populated async
+        contexts: [],
+        currentContextIndex: 0,
+    });
+
+    const totalQuery = query(phrasesRef, where('userId', '==', userId));
+    const totalSnapshot = await getDocs(totalQuery);
+
+    // Update user's learning streak
+    const { updateUserStreak } = await import('./users');
+    await updateUserStreak(userId);
+
+    return {
+        phraseId: docRef.id,
+        totalPhrases: totalSnapshot.size,
+        todayCount: saved + 1,
+    };
+}
+
+/**
+ * Update mastery level for a specific context of a phrase
+ */
+export async function updateContextMastery(
+    phraseId: string,
+    contextId: string,
+    newMasteryLevel: number
+): Promise<void> {
+    const firestore = checkDb();
+    const docRef = doc(firestore, 'savedPhrases', phraseId);
+
+    const docSnap = await getDoc(docRef);
+    if (!docSnap.exists()) {
+        throw new Error('Phrase not found');
+    }
+
+    const data = docSnap.data() as SavedPhrase;
+    const contexts = data.contexts || [];
+
+    // Find and update the specific context
+    const updatedContexts = contexts.map(ctx => {
+        if (ctx.id === contextId) {
+            return {
+                ...ctx,
+                masteryLevel: newMasteryLevel,
+                lastPracticed: Timestamp.now(),
+            };
+        }
+        return ctx;
+    });
+
+    // Check if next context should be unlocked (current context mastered)
+    const currentIndex = data.currentContextIndex || 0;
+    let newContextIndex = currentIndex;
+
+    if (newMasteryLevel >= 3 && currentIndex < updatedContexts.length - 1) {
+        // Unlock next context
+        updatedContexts[currentIndex + 1] = {
+            ...updatedContexts[currentIndex + 1],
+            unlocked: true,
+        };
+        newContextIndex = currentIndex + 1;
+    }
+
+    await updateDoc(docRef, {
+        contexts: updatedContexts,
+        currentContextIndex: newContextIndex,
+    });
+}
+
+/**
+ * Check if a phrase is fully mastered (Option B: Comprehensive)
+ * Requires BOTH:
+ * 1. SRS learningStep >= masteryThreshold (6)
+ * 2. All unlocked contexts have masteryLevel >= 3
+ */
+export function isPhraseFullyMastered(phrase: SavedPhrase): boolean {
+    const { learningStep, contexts } = phrase;
+    const { masteryThreshold } = DEFAULT_LEARNING_CYCLE;
+
+    // Check SRS requirement
+    if (learningStep < masteryThreshold) {
+        return false;
+    }
+
+    // Check context mastery requirement
+    const unlockedContexts = (contexts || []).filter(ctx => ctx.unlocked);
+
+    // If no contexts unlocked yet, only SRS matters
+    if (unlockedContexts.length === 0) {
+        return true;
+    }
+
+    // All unlocked contexts must be mastered (masteryLevel >= 3)
+    return unlockedContexts.every(ctx => ctx.masteryLevel >= 3);
+}
+
+/**
+ * Get review type for a learning step
+ * Even steps = passive (reading), Odd steps = active (exercises)
+ */
+export function getReviewType(step: number): 'passive' | 'active' {
+    return step % 2 === 0 ? 'passive' : 'active';
+}
+
+/**
+ * Get phrases due for review (SRS) - returns all due phrases
+ */
+export async function getDuePhrases(userId: string, limitCount: number = 20): Promise<SavedPhrase[]> {
+    const firestore = checkDb();
+    const phrasesRef = collection(firestore, 'savedPhrases');
+
+    // Check against END of today (so anything due anytime today shows up now)
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    const endOfToday = Timestamp.fromDate(today);
+
+    const q = query(
+        phrasesRef,
+        where('userId', '==', userId),
+        where('nextReviewDate', '<=', endOfToday),
+        orderBy('nextReviewDate', 'asc'),
+        limit(limitCount)
+    );
+
+    try {
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as SavedPhrase[];
+    } catch (e) {
+        console.warn("Index might be missing for getDuePhrases, falling back to client filtering", e);
+        const fallbackQ = query(
+            phrasesRef,
+            where('userId', '==', userId),
+            orderBy('createdAt', 'asc'),
+            limit(100)
+        );
+        const snapshot = await getDocs(fallbackQ);
+        const all = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as SavedPhrase[];
+
+        // Use standard JS date comparison for fallback
+        const endOfTodayMillis = today.getTime();
+
+        return all.filter(p => p.nextReviewDate && p.nextReviewDate.toMillis() <= endOfTodayMillis)
+            .sort((a, b) => (a.nextReviewDate?.toMillis() || 0) - (b.nextReviewDate?.toMillis() || 0))
+            .slice(0, limitCount);
+    }
+}
+
+/**
+ * Get due phrases split by review type
+ */
+export async function getDuePhrasesbyType(userId: string): Promise<{
+    passive: SavedPhrase[];
+    active: SavedPhrase[];
+}> {
+    const allDue = await getDuePhrases(userId, 50);
+
+    // Filter out fully mastered phrases (Option B: SRS + Context mastery)
+    const notMastered = allDue.filter(p => !isPhraseFullyMastered(p));
+
+    return {
+        passive: notMastered.filter(p => getReviewType(p.learningStep) === 'passive'),
+        active: notMastered.filter(p => getReviewType(p.learningStep) === 'active'),
+    };
+}
+
+/**
+ * Mark phrases as reviewed - implements SRS interval logic
+ */
+export async function reviewPhrases(phraseIds: string[]): Promise<void> {
+    const firestore = checkDb();
+    const learningCycle = DEFAULT_LEARNING_CYCLE;
+    const now = Timestamp.now();
+
+    for (const id of phraseIds) {
+        const docRef = doc(firestore, 'savedPhrases', id);
+        const docSnap = await getDoc(docRef);
+
+        if (docSnap.exists()) {
+            const data = docSnap.data() as SavedPhrase;
+            const currentStep = data.learningStep || 0;
+            const nextStep = Math.min(currentStep + 1, learningCycle.intervals.length - 1);
+            const daysToAdd = learningCycle.intervals[nextStep];
+            const nextDate = new Date();
+            nextDate.setDate(nextDate.getDate() + daysToAdd);
+            nextDate.setHours(0, 0, 0, 0); // Reset to midnight
+
+            await updateDoc(docRef, {
+                usedForGeneration: true,
+                usageCount: increment(1),
+                learningStep: nextStep,
+                lastReviewDate: now,
+                nextReviewDate: Timestamp.fromDate(nextDate)
+            });
+        }
+    }
+}
+
+/**
+ * Legacy wrapper for backward compatibility
+ */
+export async function markPhrasesAsUsed(phraseIds: string[]): Promise<void> {
+    return reviewPhrases(phraseIds);
+}
+
+/**
+ * Get all user's saved phrases
+ */
+export async function getUserPhrases(userId: string, count: number = 50): Promise<SavedPhrase[]> {
+    const firestore = checkDb();
+    const phrasesRef = collection(firestore, 'savedPhrases');
+
+    const q = query(
+        phrasesRef,
+        where('userId', '==', userId),
+        orderBy('createdAt', 'desc'),
+        limit(count)
+    );
+
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as SavedPhrase[];
+}
+
+/**
+ * Create a personalized AI-generated post for a user
+ */
+export async function createPersonalizedPost(
+    userId: string,
+    content: string,
+    usedPhrases: string[],
+    options?: {
+        type?: 'post' | 'article' | 'post_with_comments';
+        title?: string;
+        comments?: Array<{ author: string; content: string }>;
+        userName?: string;
+        userUsername?: string;
+    }
+): Promise<string> {
+    const firestore = checkDb();
+    const postsRef = collection(firestore, 'posts');
+
+    const isArticle = options?.type === 'article';
+
+    const postData: Record<string, unknown> = {
+        authorId: userId,
+        authorName: 'user',
+        authorUsername: 'user',
+        source: 'ai-generated',
+        content,
+        highlightedPhrases: usedPhrases,
+        type: 'ai',
+        isArticle,
+        title: isArticle ? (options?.title || 'AI Generated Article') : undefined,
+        generatedForUserId: userId,
+        commentCount: options?.comments?.length || 0,
+        repostCount: 0,
+        createdAt: serverTimestamp(),
+    };
+
+    Object.keys(postData).forEach(key => {
+        if (postData[key] === undefined) delete postData[key];
+    });
+
+    const docRef = await addDoc(postsRef, postData);
+
+    if (options?.comments && options.comments.length > 0) {
+        const commentsRef = collection(firestore, 'comments');
+        const redditPrefixes = ['curious', 'random', 'daily', 'just_a', 'the_real', 'totally', 'not_a'];
+        const redditSuffixes = ['learner', 'reader', 'thinker', 'observer', 'human', 'bot_maybe', 'person'];
+
+        const generateRedditUsername = (displayName: string) => {
+            const prefix = redditPrefixes[Math.floor(Math.random() * redditPrefixes.length)];
+            const suffix = redditSuffixes[Math.floor(Math.random() * redditSuffixes.length)];
+            const num = Math.floor(Math.random() * 999);
+            const baseName = displayName.toLowerCase().replace(/\s/g, '_');
+            const styles = [
+                `${baseName}_${num}`,
+                `${prefix}_${baseName}`,
+                `${baseName}${suffix}${num}`,
+                `u_${baseName}_${Math.floor(Math.random() * 99)}`,
+            ];
+            return styles[Math.floor(Math.random() * styles.length)];
+        };
+
+        for (const comment of options.comments) {
+            const redditUsername = generateRedditUsername(comment.author);
+            await addDoc(commentsRef, {
+                postId: docRef.id,
+                authorId: 'ai-commenter',
+                authorName: comment.author,
+                authorUsername: redditUsername,
+                content: comment.content,
+                likeCount: Math.floor(Math.random() * 50),
+                replyCount: 0,
+                parentId: null,
+                createdAt: serverTimestamp(),
+            });
+        }
+    }
+
+    return docRef.id;
+}
+
+/**
+ * Get personalized posts for a user's feed
+ */
+export async function getPersonalizedPosts(userId: string, count: number = 10): Promise<Post[]> {
+    const firestore = checkDb();
+    const postsRef = collection(firestore, 'posts');
+
+    const q = query(
+        postsRef,
+        where('generatedForUserId', '==', userId),
+        orderBy('createdAt', 'desc'),
+        limit(count)
+    );
+
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Post[];
+}

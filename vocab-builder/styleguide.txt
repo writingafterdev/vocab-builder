@@ -1,0 +1,1346 @@
+# Ellipsus Design System Style Guide
+
+## Overview
+
+Ellipsus is a collaborative writing tool with a clean, modern, and writer-focused design system. The aesthetic emphasizes clarity, creativity, and approachability while maintaining professional polish. The design language uses soft, pastel-inspired colors, generous whitespace, and thoughtful typography to create an inviting environment for creative writers.
+
+**Design Philosophy:**
+- Writer-first: Clean, distraction-free interfaces
+- Playful yet professional: Warm tones with modern sophistication
+- Accessibility-focused: High contrast ratios, readable typography
+- Creative expression: Colorful accents without overwhelming the content
+- Collaborative: Visual language that encourages community
+
+---
+
+## Color Palette
+
+### Primary Colors
+
+**Background Colors:**
+- **White/Light:** `#FFFFFF` - Primary background (light mode)
+- **Off-white/Cream:** `#FDFCFB` - Secondary background surfaces
+- **Light Gray:** `#F7F7F7` - Subtle section backgrounds
+
+**Dark Mode Variants:**
+- **Dark Background:** `#0A0A0A` to `#121212` - Primary dark mode background
+- **Dark Surface:** `#1A1A1A` to `#1E1E1E` - Elevated surfaces
+- **Ultra Dark:** Deep ink-black (`#000000` or near-black) for ultra dark theme
+
+### Accent Colors
+
+**Primary Brand Color:**
+- **Coral/Peach:** `#FF6B6B` to `#FF8585` - Primary CTA buttons, links
+- Variations: `#FF4F4F` (darker), `#FF9999` (lighter)
+
+**Secondary Accent:**
+- **Soft Purple/Lavender:** `#9B87F5` to `#B8A5FF` - Secondary actions, highlights
+- **Teal/Cyan:** `#4ECDC4` to `#45B7B8` - Tertiary accents, success states
+
+### Theme-Specific Palettes
+
+**Sepia Theme:**
+- Base: `#F4ECD8` (parchment beige)
+- Text: `#3E2723` (dark brown)
+- Accents: `#8D6E63` (warm brown)
+
+**Nature Theme:**
+- Base: `#E8F5E9` (light green)
+- Deep Green: `#2E5C3B` to `#1B5E20`
+- Accent: `#4CAF50`
+
+**Ultra Dark Theme:**
+- Background: `#000000` to `#0D0D0D`
+- Surface: `#1A1A1A`
+- Text: `#E0E0E0`
+
+### Text Colors
+
+**Nine Hue System (5 shades each):**
+The platform supports nine distinct color hues for text formatting, each with five shade variations from light to dark:
+
+- Red family
+- Orange family
+- Yellow family
+- Green family
+- Cyan family
+- Blue family
+- Purple family
+- Pink family
+- Gray family
+
+**Default Text Colors:**
+- Primary text: `#1A1A1A` to `#2D2D2D` (light mode)
+- Secondary text: `#666666` to `#757575`
+- Tertiary text: `#999999` to `#AAAAAA`
+- Disabled text: `#CCCCCC`
+
+### Semantic Colors
+
+**Interactive States:**
+- **Link Blue:** `#2E7CF6` to `#4A90E2`
+- **Link Hover:** `#1E5FB8` (darker)
+- **Visited Link:** `#7B68EE` (purple tone)
+
+**Feedback Colors:**
+- **Success:** `#4CAF50` to `#66BB6A` (green)
+- **Warning:** `#FF9800` to `#FFA726` (orange)
+- **Error:** `#F44336` to `#EF5350` (red)
+- **Info:** `#2196F3` to `#42A5F5` (blue)
+
+### Borders & Dividers
+
+- **Light Border:** `#E0E0E0` to `#EEEEEE`
+- **Medium Border:** `#CCCCCC` to `#D6D6D6`
+- **Strong Border:** `#999999` to `#AAAAAA`
+
+---
+
+## Typography
+
+### Font Families
+
+**Primary Fonts:**
+- **Sans-serif (UI & Body):** System font stack
+  - `"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif`
+  
+**Secondary Fonts (Editor):**
+- **Serif (Editorial):** Used for headings and creative emphasis
+  - `"Merriweather", "Georgia", "Cambria", "Times New Roman", serif`
+  - Alternative: `"Lora", "Crimson Text", serif`
+
+**Monospace (Code):**
+- `"Fira Code", "Monaco", "Consolas", "Courier New", monospace`
+
+### Font Weights
+
+**Weight Scale:**
+- **Light:** `300` - Rarely used, special cases
+- **Regular:** `400` - Body text, default
+- **Medium:** `500` - Subtle emphasis, labels
+- **Semibold:** `600` - Subheadings, important UI elements
+- **Bold:** `700` - Headings, strong emphasis
+- **Extrabold:** `800` - Hero text, major headings (rarely used)
+
+### Typography Scale
+
+**Display Scale (Hero/Marketing):**
+- **Hero XL:** `64px / 4rem` - Line height: `1.1` - Weight: `700-800`
+- **Hero L:** `48px / 3rem` - Line height: `1.15` - Weight: `700`
+- **Hero M:** `40px / 2.5rem` - Line height: `1.2` - Weight: `700`
+
+**Heading Scale:**
+- **H1:** `32px / 2rem` - Line height: `1.25` - Weight: `700`
+- **H2:** `28px / 1.75rem` - Line height: `1.3` - Weight: `600-700`
+- **H3:** `24px / 1.5rem` - Line height: `1.35` - Weight: `600`
+- **H4:** `20px / 1.25rem` - Line height: `1.4` - Weight: `600`
+- **H5:** `18px / 1.125rem` - Line height: `1.4` - Weight: `600`
+- **H6:** `16px / 1rem` - Line height: `1.5` - Weight: `600`
+
+**Body Text Scale:**
+- **Lead/Intro:** `20px / 1.25rem` - Line height: `1.6` - Weight: `400`
+- **Body Large:** `18px / 1.125rem` - Line height: `1.65` - Weight: `400`
+- **Body Regular:** `16px / 1rem` - Line height: `1.7` - Weight: `400` - **Default**
+- **Body Small:** `14px / 0.875rem` - Line height: `1.6` - Weight: `400`
+- **Caption:** `12px / 0.75rem` - Line height: `1.5` - Weight: `400-500`
+
+**Granular Formatting Options:**
+Users can customize:
+- Font family
+- Font size (custom values)
+- Font weight (300-800)
+- Line height (adjustable)
+- Letter spacing (tracking)
+- Word spacing
+- Paragraph spacing
+
+### Text Emphasis Styles
+
+**Inline Formatting:**
+- **Bold:** `font-weight: 700`
+- **Italic:** `font-style: italic`
+- **Underline:** `text-decoration: underline`
+- **Strikethrough:** `text-decoration: line-through`
+- **Code inline:** Monospace font, subtle background
+
+**Special Text Treatments:**
+- **Quotations:** Increased left padding, italic, gray text
+- **Captions:** Smaller size, reduced opacity
+- **Labels/Tags:** Uppercase, letter-spacing, reduced size
+- **Em dash support:** Proper typography for creative writing
+
+---
+
+## Spacing System
+
+### Base Unit
+**8-Point Grid System:** All spacing uses multiples of 8px for consistent rhythm and pixel-perfect rendering.
+
+### Spacing Scale
+
+**Micro Spacing:**
+- `4px / 0.25rem` - xs: Minimal gaps (icon-to-text, tight grouping)
+- `8px / 0.5rem` - sm: Small padding, compact elements
+- `12px / 0.75rem` - base: Default small spacing
+
+**Standard Spacing:**
+- `16px / 1rem` - md: Default element spacing
+- `24px / 1.5rem` - lg: Comfortable element separation
+- `32px / 2rem` - xl: Section padding, card spacing
+- `40px / 2.5rem` - 2xl: Generous section spacing
+
+**Large Spacing:**
+- `48px / 3rem` - 3xl: Major section gaps
+- `64px / 4rem` - 4xl: Hero section padding
+- `80px / 5rem` - 5xl: Extra large sections
+- `96px / 6rem` - 6xl: Maximum section spacing
+- `128px / 8rem` - 7xl: Extreme spacing (landing pages)
+
+### Component-Specific Spacing
+
+**Button Padding:**
+- Small: `8px 16px` (vertical × horizontal)
+- Medium: `12px 24px`
+- Large: `16px 32px`
+- Extra Large: `20px 40px`
+
+**Card/Panel Padding:**
+- Compact: `16px`
+- Default: `24px`
+- Comfortable: `32px`
+- Spacious: `48px`
+
+**Container Widths:**
+- Full: `100%`
+- XL Container: `1280px`
+- Large Container: `1024px`
+- Medium Container: `768px`
+- Small Container: `640px`
+
+**Margin/Padding Conventions:**
+- Use margin-bottom for vertical rhythm
+- Use padding for internal component spacing
+- Maintain consistent gaps between similar elements
+
+---
+
+## Component Styles
+
+### Buttons
+
+**Primary Button:**
+```css
+background: #FF6B6B; /* Coral primary */
+color: #FFFFFF;
+padding: 12px 24px;
+border-radius: 8px;
+font-weight: 600;
+font-size: 16px;
+border: none;
+cursor: pointer;
+transition: all 0.2s ease;
+box-shadow: 0 2px 8px rgba(255, 107, 107, 0.2);
+```
+
+**Primary Hover:**
+```css
+background: #FF4F4F;
+transform: translateY(-1px);
+box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
+```
+
+**Primary Active:**
+```css
+background: #E55555;
+transform: translateY(0);
+box-shadow: 0 1px 4px rgba(255, 107, 107, 0.2);
+```
+
+**Secondary Button:**
+```css
+background: transparent;
+color: #1A1A1A;
+padding: 12px 24px;
+border-radius: 8px;
+border: 2px solid #E0E0E0;
+font-weight: 600;
+font-size: 16px;
+transition: all 0.2s ease;
+```
+
+**Secondary Hover:**
+```css
+border-color: #FF6B6B;
+color: #FF6B6B;
+background: rgba(255, 107, 107, 0.05);
+```
+
+**Ghost/Text Button:**
+```css
+background: transparent;
+color: #666666;
+padding: 8px 16px;
+border: none;
+font-weight: 500;
+transition: color 0.2s ease;
+```
+
+**Button Variants:**
+- Small: `8px 16px`, `14px` font
+- Medium: `12px 24px`, `16px` font (default)
+- Large: `16px 32px`, `18px` font
+- Icon buttons: Square, `40px × 40px`, centered icon
+
+### Input Fields
+
+**Text Input:**
+```css
+background: #FFFFFF;
+border: 2px solid #E0E0E0;
+border-radius: 8px;
+padding: 12px 16px;
+font-size: 16px;
+color: #1A1A1A;
+transition: border-color 0.2s ease;
+```
+
+**Input Focus:**
+```css
+border-color: #FF6B6B;
+outline: none;
+box-shadow: 0 0 0 4px rgba(255, 107, 107, 0.1);
+```
+
+**Input States:**
+- Error: Red border (`#F44336`), error message below
+- Success: Green border (`#4CAF50`)
+- Disabled: Gray background (`#F7F7F7`), reduced opacity
+
+### Cards
+
+**Basic Card:**
+```css
+background: #FFFFFF;
+border-radius: 12px;
+padding: 24px;
+box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+border: 1px solid #F0F0F0;
+transition: all 0.3s ease;
+```
+
+**Card Hover:**
+```css
+box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+transform: translateY(-2px);
+```
+
+**Card Variants:**
+- Compact: `16px` padding
+- Default: `24px` padding
+- Spacious: `32px` padding
+- Featured: Stronger shadow, accent border
+
+### Navigation
+
+**Top Navigation Bar:**
+```css
+height: 64px;
+background: #FFFFFF;
+border-bottom: 1px solid #E0E0E0;
+padding: 0 24px;
+display: flex;
+align-items: center;
+justify-content: space-between;
+position: sticky;
+top: 0;
+z-index: 100;
+backdrop-filter: blur(8px);
+background: rgba(255, 255, 255, 0.95);
+```
+
+**Nav Links:**
+```css
+color: #666666;
+font-weight: 500;
+padding: 8px 16px;
+border-radius: 6px;
+transition: all 0.2s ease;
+```
+
+**Nav Link Hover:**
+```css
+color: #1A1A1A;
+background: #F7F7F7;
+```
+
+**Dropdown Menu:**
+```css
+background: #FFFFFF;
+border-radius: 12px;
+box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+padding: 8px;
+min-width: 200px;
+border: 1px solid #E0E0E0;
+```
+
+### Comments System
+
+**Comment Bubble:**
+```css
+background: #FFF9E6; /* Light yellow highlight */
+padding: 12px 16px;
+border-radius: 8px;
+border-left: 3px solid #FFB800;
+margin: 8px 0;
+```
+
+**Comment Thread:**
+- Nested indentation: `24px` per level
+- Avatar: `32px` circle
+- Timestamp: `12px`, gray text
+- Rich text support: Bold, italic, lists, links
+
+**GIF Support:**
+- Inline GIF display in comments
+- Max width: `300px`
+- Rounded corners: `8px`
+
+### Modals & Overlays
+
+**Modal Container:**
+```css
+background: #FFFFFF;
+border-radius: 16px;
+max-width: 600px;
+padding: 32px;
+box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+position: relative;
+```
+
+**Modal Backdrop:**
+```css
+background: rgba(0, 0, 0, 0.5);
+backdrop-filter: blur(4px);
+```
+
+**Bottom Sheet (Mobile):**
+```css
+background: #FFFFFF;
+border-radius: 16px 16px 0 0;
+padding: 24px;
+max-height: 90vh;
+box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+```
+
+### Format Panel
+
+**Panel Container:**
+```css
+width: 320px;
+background: #FFFFFF;
+border-left: 1px solid #E0E0E0;
+padding: 16px;
+height: 100vh;
+overflow-y: auto;
+```
+
+**Color Picker:**
+- Grid layout: 5 columns
+- Color swatch: `32px × 32px`, `4px` border-radius
+- Hover: Scale `1.1`, subtle shadow
+- Selected: Bold border, checkmark indicator
+
+---
+
+## Shadows & Elevation
+
+### Shadow Scale
+
+**Elevation Levels:**
+
+**Level 0 (Flat):**
+```css
+box-shadow: none;
+```
+
+**Level 1 (Subtle):**
+```css
+box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+```
+
+**Level 2 (Card):**
+```css
+box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+```
+
+**Level 3 (Raised):**
+```css
+box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+```
+
+**Level 4 (Modal):**
+```css
+box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+```
+
+**Level 5 (Popover):**
+```css
+box-shadow: 0 12px 48px rgba(0, 0, 0, 0.15);
+```
+
+**Level 6 (Overlay):**
+```css
+box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+```
+
+### Colored Shadows
+
+**Brand Shadows (for CTAs):**
+```css
+/* Coral primary button */
+box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
+
+/* Purple accent */
+box-shadow: 0 4px 12px rgba(155, 135, 245, 0.25);
+
+/* Success green */
+box-shadow: 0 4px 12px rgba(76, 175, 80, 0.25);
+```
+
+### Inner Shadows
+
+**Input Focus:**
+```css
+box-shadow: inset 0 0 0 2px rgba(255, 107, 107, 0.2);
+```
+
+**Pressed State:**
+```css
+box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+```
+
+---
+
+## Animations & Transitions
+
+### Timing Functions
+
+**Standard Easing:**
+```css
+transition-timing-function: cubic-bezier(0.4, 0.0, 0.2, 1);
+/* Material Design standard */
+```
+
+**Ease-out (Entering):**
+```css
+transition-timing-function: cubic-bezier(0.0, 0.0, 0.2, 1);
+```
+
+**Ease-in (Exiting):**
+```css
+transition-timing-function: cubic-bezier(0.4, 0.0, 1, 1);
+```
+
+**Ease-in-out (Smooth):**
+```css
+transition-timing-function: cubic-bezier(0.4, 0.0, 0.6, 1);
+```
+
+### Duration Scale
+
+- **Instant:** `50ms` - Micro-interactions
+- **Fast:** `100ms` - Hovers, simple state changes
+- **Normal:** `200ms` - Standard transitions (default)
+- **Smooth:** `300ms` - Card movements, expansions
+- **Slow:** `500ms` - Complex animations, page transitions
+- **Cinematic:** `800ms+` - Hero animations, special effects
+
+### Common Transitions
+
+**Button Hover:**
+```css
+transition: all 0.2s cubic-bezier(0.4, 0.0, 0.2, 1);
+/* Changes: background, transform, box-shadow */
+```
+
+**Card Hover:**
+```css
+transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+/* Changes: box-shadow, transform */
+```
+
+**Fade In:**
+```css
+animation: fadeIn 0.3s ease-out forwards;
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+```
+
+**Slide Up (Mobile sheets):**
+```css
+animation: slideUp 0.3s cubic-bezier(0.4, 0.0, 0.2, 1) forwards;
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+```
+
+**Scale In:**
+```css
+animation: scaleIn 0.2s cubic-bezier(0.0, 0.0, 0.2, 1) forwards;
+
+@keyframes scaleIn {
+  from { 
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to { 
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+```
+
+### Micro-interactions
+
+**Checkbox/Toggle:**
+```css
+/* Check animation */
+transition: all 0.15s ease-out;
+/* Includes: transform scale, opacity, background */
+```
+
+**Loading Spinner:**
+```css
+animation: spin 1s linear infinite;
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+```
+
+**Pulse (Notification):**
+```css
+animation: pulse 2s cubic-bezier(0.4, 0.0, 0.6, 1) infinite;
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+```
+
+### Page Transitions
+
+**Fade Navigation:**
+- Exit: Fade out `200ms`
+- Enter: Fade in `300ms` with `100ms` delay
+
+**Scroll Animations:**
+- Parallax: Elements move at different speeds
+- Fade in on scroll: Triggered at 80% viewport visibility
+- Slide in: From bottom, `300ms` staggered by `100ms`
+
+---
+
+## Border Radius
+
+### Radius Scale
+
+**Micro Radius:**
+- `2px / 0.125rem` - Tiny elements, badges
+- `4px / 0.25rem` - Small buttons, tags
+
+**Standard Radius:**
+- `6px / 0.375rem` - Input fields, small cards
+- `8px / 0.5rem` - Buttons, medium cards (most common)
+- `12px / 0.75rem` - Large cards, panels
+
+**Large Radius:**
+- `16px / 1rem` - Modals, major containers
+- `20px / 1.25rem` - Feature cards
+- `24px / 1.5rem` - Hero elements
+
+**Circular:**
+- `50%` or `9999px` - Avatars, icon buttons, pills
+
+### Component-Specific Radius
+
+**Buttons:** `8px`
+**Input Fields:** `8px`
+**Cards:** `12px`
+**Modals:** `16px`
+**Avatars:** `50%` (circular)
+**Pills/Tags:** `9999px` (fully rounded)
+**Dropdowns:** `12px`
+**Tooltips:** `6px`
+**Images (feature):** `12px-16px`
+**Mobile sheets:** `16px 16px 0 0` (top corners only)
+
+---
+
+## Opacity & Transparency
+
+### Opacity Scale
+
+**Visibility Levels:**
+- `0` - Hidden (display: none preferred)
+- `0.05` - Nearly invisible, subtle backgrounds
+- `0.1` - Very faint overlays
+- `0.15` - Subtle hover states
+- `0.2` - Faint accent backgrounds
+- `0.3` - Disabled states, ghost elements
+- `0.4` - Secondary icons
+- `0.5` - Muted content
+- `0.6` - Deemphasized text
+- `0.7` - Secondary text (preferred minimum for text)
+- `0.8` - Slight emphasis reduction
+- `0.9` - Nearly full opacity
+- `1` - Full opacity (default)
+
+### Common Use Cases
+
+**Text Opacity:**
+- Primary text: `1.0`
+- Secondary text: `0.7-0.8`
+- Tertiary/helper text: `0.5-0.6`
+- Disabled text: `0.3-0.4`
+
+**Background Transparency:**
+- Modal backdrop: `rgba(0, 0, 0, 0.5)`
+- Hover overlay: `rgba(0, 0, 0, 0.05)`
+- Accent background: `rgba(255, 107, 107, 0.1)`
+- Glassmorphism: `rgba(255, 255, 255, 0.95)` with `backdrop-filter`
+
+**Icon Opacity:**
+- Active icons: `1.0`
+- Inactive icons: `0.4-0.5`
+- Disabled icons: `0.2-0.3`
+
+### Backdrop Effects
+
+**Blur + Transparency:**
+```css
+background: rgba(255, 255, 255, 0.95);
+backdrop-filter: blur(8px);
+-webkit-backdrop-filter: blur(8px);
+```
+
+**Dark Overlay:**
+```css
+background: rgba(0, 0, 0, 0.5);
+backdrop-filter: blur(4px);
+```
+
+---
+
+## Common Tailwind CSS Usage in Project
+
+While the exact implementation varies, here are common Tailwind patterns that align with the Ellipsus design system:
+
+### Layout
+
+```html
+<!-- Container patterns -->
+<div class="container mx-auto px-6 lg:px-8 max-w-7xl">
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+<!-- Flexbox patterns -->
+<div class="flex items-center justify-between">
+<div class="flex flex-col gap-4">
+```
+
+### Spacing
+
+```html
+<!-- Padding -->
+<div class="p-6 md:p-8 lg:p-12">
+<div class="px-4 py-6">
+
+<!-- Margin -->
+<div class="mt-8 mb-6">
+<div class="space-y-4"> <!-- Vertical spacing between children -->
+<div class="space-x-2"> <!-- Horizontal spacing between children -->
+
+<!-- Gap in flex/grid -->
+<div class="flex gap-4">
+<div class="grid gap-6">
+```
+
+### Typography
+
+```html
+<!-- Headings -->
+<h1 class="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight">
+<h2 class="text-2xl md:text-3xl font-semibold">
+<h3 class="text-xl font-semibold">
+
+<!-- Body text -->
+<p class="text-base leading-relaxed text-gray-700">
+<p class="text-lg leading-loose max-w-2xl"> <!-- Lead paragraph -->
+<p class="text-sm text-gray-600"> <!-- Secondary text -->
+
+<!-- Font weights -->
+<span class="font-light"> <!-- 300 -->
+<span class="font-normal"> <!-- 400 -->
+<span class="font-medium"> <!-- 500 -->
+<span class="font-semibold"> <!-- 600 -->
+<span class="font-bold"> <!-- 700 -->
+```
+
+### Colors
+
+```html
+<!-- Text colors -->
+<p class="text-gray-900"> <!-- Primary -->
+<p class="text-gray-600"> <!-- Secondary -->
+<p class="text-gray-400"> <!-- Tertiary -->
+
+<!-- Brand colors (custom classes) -->
+<button class="bg-coral-500 text-white">
+<span class="text-purple-500">
+
+<!-- Backgrounds -->
+<div class="bg-white">
+<div class="bg-gray-50">
+<div class="bg-gray-100">
+```
+
+### Buttons
+
+```html
+<!-- Primary button -->
+<button class="bg-coral-500 hover:bg-coral-600 text-white font-semibold px-6 py-3 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg hover:-translate-y-0.5">
+
+<!-- Secondary button -->
+<button class="bg-transparent border-2 border-gray-300 hover:border-coral-500 hover:text-coral-500 font-semibold px-6 py-3 rounded-lg transition-colors duration-200">
+
+<!-- Ghost button -->
+<button class="text-gray-600 hover:text-gray-900 px-4 py-2 transition-colors duration-200">
+```
+
+### Cards
+
+```html
+<div class="bg-white rounded-xl p-6 shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border border-gray-100">
+```
+
+### Borders & Radius
+
+```html
+<!-- Border radius -->
+<div class="rounded-md"> <!-- 6px -->
+<div class="rounded-lg"> <!-- 8px -->
+<div class="rounded-xl"> <!-- 12px -->
+<div class="rounded-2xl"> <!-- 16px -->
+<div class="rounded-full"> <!-- Circular -->
+
+<!-- Borders -->
+<div class="border border-gray-200">
+<div class="border-2 border-gray-300">
+<div class="border-b border-gray-200"> <!-- Bottom only -->
+```
+
+### Shadows
+
+```html
+<div class="shadow-sm"> <!-- Subtle -->
+<div class="shadow"> <!-- Default -->
+<div class="shadow-md"> <!-- Medium -->
+<div class="shadow-lg"> <!-- Large -->
+<div class="shadow-xl"> <!-- Extra large -->
+<div class="shadow-2xl"> <!-- Maximum -->
+```
+
+### Responsive Design
+
+```html
+<!-- Mobile-first approach -->
+<div class="text-base md:text-lg lg:text-xl">
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+<div class="p-4 md:p-6 lg:p-8">
+<div class="hidden md:block"> <!-- Hide on mobile -->
+<div class="md:hidden"> <!-- Show only on mobile -->
+```
+
+### Opacity & Transparency
+
+```html
+<div class="opacity-0"> <!-- Hidden -->
+<div class="opacity-50"> <!-- 50% -->
+<div class="opacity-70"> <!-- 70% -->
+<div class="opacity-100"> <!-- Fully visible -->
+
+<div class="bg-opacity-95"> <!-- 95% background opacity -->
+<div class="bg-white/95"> <!-- Modern syntax: 95% opacity -->
+```
+
+### Transitions
+
+```html
+<div class="transition-all duration-200 ease-out">
+<div class="transition-colors duration-300">
+<div class="transition-transform duration-200 hover:scale-105">
+```
+
+---
+
+## Example Component Reference Design Code
+
+### Hero Section
+
+```html
+<section class="relative bg-gradient-to-br from-white via-pink-50 to-purple-50 py-20 md:py-32">
+  <div class="container mx-auto px-6 max-w-6xl">
+    <div class="text-center space-y-6">
+      <!-- Main heading -->
+      <h1 class="text-5xl md:text-6xl lg:text-7xl font-bold leading-tight text-gray-900">
+        Ellipsus is a collaborative writing tool made for 
+        <span class="text-coral-500">creativity.</span>
+      </h1>
+      
+      <!-- Subheading -->
+      <p class="text-lg md:text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+        Made for creative writers. Plenty of tools are made for memos, notes, and to-do lists. 
+        <em class="font-semibold text-gray-900">That's not us.</em>
+      </p>
+      
+      <!-- CTA Button -->
+      <div class="pt-4">
+        <button class="bg-coral-500 hover:bg-coral-600 text-white font-semibold text-lg px-8 py-4 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl hover:-translate-y-1 active:translate-y-0">
+          Join for free
+        </button>
+      </div>
+      
+      <!-- Device badges -->
+      <div class="flex items-center justify-center gap-4 pt-8">
+        <img src="device-icon-1.png" alt="Desktop" class="w-12 h-12 opacity-70 hover:opacity-100 transition-opacity">
+        <img src="device-icon-2.png" alt="Mobile" class="w-12 h-12 opacity-70 hover:opacity-100 transition-opacity">
+        <img src="device-icon-3.png" alt="Tablet" class="w-12 h-12 opacity-70 hover:opacity-100 transition-opacity">
+      </div>
+    </div>
+  </div>
+</section>
+```
+
+### Feature Card Grid
+
+```html
+<section class="py-16 bg-white">
+  <div class="container mx-auto px-6 max-w-7xl">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+      
+      <!-- Feature Card 1 -->
+      <div class="bg-white rounded-xl p-8 shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-2 border border-gray-100">
+        <div class="w-16 h-16 bg-coral-100 rounded-xl flex items-center justify-center mb-6">
+          <svg class="w-8 h-8 text-coral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <!-- Icon SVG path -->
+          </svg>
+        </div>
+        <h3 class="text-2xl font-semibold text-gray-900 mb-4">
+          Stay in control with connected drafts
+        </h3>
+        <p class="text-gray-600 leading-relaxed">
+          Keep your drafts organized and connected throughout your creative process.
+        </p>
+      </div>
+      
+      <!-- Feature Card 2 -->
+      <div class="bg-white rounded-xl p-8 shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-2 border border-gray-100">
+        <div class="w-16 h-16 bg-purple-100 rounded-xl flex items-center justify-center mb-6">
+          <svg class="w-8 h-8 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <!-- Icon SVG path -->
+          </svg>
+        </div>
+        <h3 class="text-2xl font-semibold text-gray-900 mb-4">
+          Keep feedback focused with comments + drafts
+        </h3>
+        <p class="text-gray-600 leading-relaxed">
+          Collaborate seamlessly with inline comments and version control.
+        </p>
+      </div>
+      
+      <!-- Feature Card 3 -->
+      <div class="bg-white rounded-xl p-8 shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-2 border border-gray-100">
+        <div class="w-16 h-16 bg-teal-100 rounded-xl flex items-center justify-center mb-6">
+          <svg class="w-8 h-8 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <!-- Icon SVG path -->
+          </svg>
+        </div>
+        <h3 class="text-2xl font-semibold text-gray-900 mb-4">
+          Write, draft, merge, repeat
+        </h3>
+        <p class="text-gray-600 leading-relaxed">
+          An iterative workflow designed for creative perfection.
+        </p>
+      </div>
+      
+    </div>
+  </div>
+</section>
+```
+
+### Navigation Header
+
+```html
+<nav class="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-200">
+  <div class="container mx-auto px-6">
+    <div class="flex items-center justify-between h-16">
+      
+      <!-- Logo -->
+      <div class="flex items-center gap-2">
+        <svg class="w-8 h-8 text-coral-500" viewBox="0 0 24 24">
+          <!-- Logo SVG -->
+        </svg>
+        <span class="text-xl font-bold text-gray-900">Ellipsus</span>
+      </div>
+      
+      <!-- Desktop Navigation -->
+      <div class="hidden md:flex items-center gap-8">
+        <a href="#product" class="text-gray-600 hover:text-gray-900 font-medium transition-colors">
+          Product
+        </a>
+        <a href="#resources" class="text-gray-600 hover:text-gray-900 font-medium transition-colors">
+          Resources
+        </a>
+        <a href="#about" class="text-gray-600 hover:text-gray-900 font-medium transition-colors">
+          About
+        </a>
+      </div>
+      
+      <!-- CTA Buttons -->
+      <div class="flex items-center gap-3">
+        <button class="hidden md:inline-block text-gray-700 hover:text-gray-900 font-medium px-4 py-2 rounded-lg hover:bg-gray-100 transition-all">
+          Log in
+        </button>
+        <button class="bg-coral-500 hover:bg-coral-600 text-white font-semibold px-6 py-2 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg">
+          Sign up
+        </button>
+      </div>
+      
+    </div>
+  </div>
+</nav>
+```
+
+### Comment Thread Component
+
+```html
+<div class="space-y-4 p-4">
+  
+  <!-- Single Comment -->
+  <div class="flex gap-3">
+    <!-- Avatar -->
+    <img src="avatar.jpg" alt="User" class="w-10 h-10 rounded-full flex-shrink-0">
+    
+    <!-- Comment Content -->
+    <div class="flex-1">
+      <div class="bg-yellow-50 border-l-4 border-yellow-400 rounded-lg p-4">
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-2">
+          <div class="flex items-center gap-2">
+            <span class="font-semibold text-gray-900">Jane Doe</span>
+            <span class="text-xs text-gray-500">2 hours ago</span>
+          </div>
+          <button class="text-gray-400 hover:text-gray-600">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <!-- More icon -->
+            </svg>
+          </button>
+        </div>
+        
+        <!-- Comment Text -->
+        <p class="text-gray-800 leading-relaxed">
+          This paragraph could use more <strong>emotional depth</strong>. Consider adding sensory details about the setting.
+        </p>
+        
+        <!-- Optional GIF -->
+        <img src="reaction.gif" alt="Reaction" class="mt-3 rounded-lg max-w-xs">
+      </div>
+      
+      <!-- Reply Button -->
+      <button class="text-sm text-gray-500 hover:text-coral-500 font-medium mt-2 transition-colors">
+        Reply
+      </button>
+    </div>
+  </div>
+  
+  <!-- Nested Reply -->
+  <div class="flex gap-3 ml-12">
+    <img src="avatar2.jpg" alt="User" class="w-10 h-10 rounded-full flex-shrink-0">
+    <div class="flex-1">
+      <div class="bg-gray-50 rounded-lg p-4">
+        <div class="flex items-center justify-between mb-2">
+          <div class="flex items-center gap-2">
+            <span class="font-semibold text-gray-900">John Smith</span>
+            <span class="text-xs text-gray-500">1 hour ago</span>
+          </div>
+        </div>
+        <p class="text-gray-800 leading-relaxed">
+          Great suggestion! I'll work on that in the next draft.
+        </p>
+      </div>
+    </div>
+  </div>
+  
+</div>
+```
+
+### Text Editor Toolbar
+
+```html
+<div class="flex items-center gap-1 p-2 bg-white border-b border-gray-200 shadow-sm">
+  
+  <!-- Format Group -->
+  <div class="flex items-center gap-0.5 pr-2 border-r border-gray-300">
+    <button class="w-9 h-9 flex items-center justify-center rounded hover:bg-gray-100 text-gray-700 hover:text-gray-900 transition-colors" title="Bold">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <!-- Bold icon -->
+      </svg>
+    </button>
+    <button class="w-9 h-9 flex items-center justify-center rounded hover:bg-gray-100 text-gray-700 hover:text-gray-900 transition-colors" title="Italic">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <!-- Italic icon -->
+      </svg>
+    </button>
+    <button class="w-9 h-9 flex items-center justify-center rounded hover:bg-gray-100 text-gray-700 hover:text-gray-900 transition-colors" title="Underline">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <!-- Underline icon -->
+      </svg>
+    </button>
+  </div>
+  
+  <!-- Heading Dropdown -->
+  <div class="flex items-center gap-0.5 pr-2 border-r border-gray-300">
+    <button class="px-3 h-9 flex items-center gap-1 rounded hover:bg-gray-100 text-gray-700 hover:text-gray-900 transition-colors font-medium text-sm">
+      <span>Heading</span>
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <!-- Chevron down -->
+      </svg>
+    </button>
+  </div>
+  
+  <!-- Color Picker -->
+  <div class="flex items-center gap-0.5 pr-2 border-r border-gray-300">
+    <button class="w-9 h-9 flex items-center justify-center rounded hover:bg-gray-100 transition-colors" title="Text color">
+      <div class="w-5 h-5 rounded border-2 border-gray-300 bg-gradient-to-br from-red-400 via-purple-400 to-blue-400"></div>
+    </button>
+    <button class="w-9 h-9 flex items-center justify-center rounded hover:bg-gray-100 transition-colors" title="Highlight">
+      <svg class="w-5 h-5 text-yellow-500" fill="currentColor" viewBox="0 0 24 24">
+        <!-- Highlighter icon -->
+      </svg>
+    </button>
+  </div>
+  
+  <!-- Alignment -->
+  <div class="flex items-center gap-0.5">
+    <button class="w-9 h-9 flex items-center justify-center rounded hover:bg-gray-100 text-gray-700 transition-colors" title="Align left">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <!-- Align left icon -->
+      </svg>
+    </button>
+    <button class="w-9 h-9 flex items-center justify-center rounded hover:bg-gray-100 text-gray-700 transition-colors" title="Align center">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <!-- Align center icon -->
+      </svg>
+    </button>
+  </div>
+  
+</div>
+```
+
+### Modal Dialog
+
+```html
+<!-- Backdrop -->
+<div class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+  
+  <!-- Modal Container -->
+  <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 relative animate-scale-in">
+    
+    <!-- Close Button -->
+    <button class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    </button>
+    
+    <!-- Modal Header -->
+    <div class="mb-6">
+      <h2 class="text-2xl font-bold text-gray-900 mb-2">
+        Share your project
+      </h2>
+      <p class="text-gray-600">
+        Invite collaborators to join your creative work.
+      </p>
+    </div>
+    
+    <!-- Modal Content -->
+    <div class="space-y-4 mb-6">
+      <input 
+        type="email" 
+        placeholder="Enter email address" 
+        class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-coral-500 focus:outline-none focus:ring-4 focus:ring-coral-100 transition-all"
+      >
+      
+      <select class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-coral-500 focus:outline-none focus:ring-4 focus:ring-coral-100 transition-all appearance-none bg-white">
+        <option>Can edit</option>
+        <option>Can comment</option>
+        <option>Can view</option>
+      </select>
+    </div>
+    
+    <!-- Modal Actions -->
+    <div class="flex gap-3">
+      <button class="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition-colors">
+        Cancel
+      </button>
+      <button class="flex-1 px-6 py-3 bg-coral-500 hover:bg-coral-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all">
+        Send invite
+      </button>
+    </div>
+    
+  </div>
+</div>
+```
+
+### Tag/Badge Components
+
+```html
+<!-- Status Badge -->
+<span class="inline-flex items-center gap-1.5 px-3 py-1 bg-green-100 text-green-700 text-sm font-medium rounded-full">
+  <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+    <circle cx="10" cy="10" r="4"/>
+  </svg>
+  Published
+</span>
+
+<!-- Draft Badge -->
+<span class="inline-flex items-center gap-1.5 px-3 py-1 bg-yellow-100 text-yellow-700 text-sm font-medium rounded-full">
+  <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+    <circle cx="10" cy="10" r="4"/>
+  </svg>
+  Draft
+</span>
+
+<!-- Label Tags -->
+<div class="flex flex-wrap gap-2">
+  <span class="px-2.5 py-1 bg-purple-100 text-purple-700 text-xs font-medium rounded-md">
+    Fiction
+  </span>
+  <span class="px-2.5 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-md">
+    Chapter 5
+  </span>
+  <span class="px-2.5 py-1 bg-pink-100 text-pink-700 text-xs font-medium rounded-md">
+    Needs review
+  </span>
+</div>
+```
+
+---
+
+## Accessibility Considerations
+
+### Color Contrast
+- All text meets WCAG AA standards (4.5:1 for normal text, 3:1 for large text)
+- Interactive elements have sufficient contrast in all states
+- Error states use both color and icons/text to convey meaning
+
+### Focus States
+```css
+/* Keyboard focus indicator */
+:focus-visible {
+  outline: 2px solid #FF6B6B;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+```
+
+### Screen Readers
+- Semantic HTML elements used throughout
+- ARIA labels for icon buttons
+- Skip navigation links available
+- Proper heading hierarchy maintained
+
+### Motion Preferences
+```css
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+```
+
+---
+
+## Responsive Breakpoints
+
+### Breakpoint System
+- **Mobile:** `< 640px` (sm)
+- **Tablet:** `640px - 768px` (md)
+- **Desktop:** `768px - 1024px` (lg)
+- **Large Desktop:** `1024px - 1280px` (xl)
+- **Extra Large:** `> 1280px` (2xl)
+
+### Responsive Patterns
+- Mobile-first approach
+- Stack cards vertically on mobile
+- Hamburger menu below 768px
+- Reduce padding/margins on small screens
+- Adjust font sizes proportionally
+
+---
+
+## Additional Design Tokens
+
+### Icon Sizes
+- XS: `12px / 16px`
+- SM: `16px / 20px`
+- MD: `20px / 24px` (default)
+- LG: `24px / 32px`
+- XL: `32px / 40px`
+
+### Avatar Sizes
+- XS: `24px`
+- SM: `32px`
+- MD: `40px`
+- LG: `48px`
+- XL: `64px`
+- 2XL: `96px`
+
+### Z-Index Scale
+- Base: `0`
+- Dropdown: `10`
+- Sticky: `50`
+- Fixed: `100`
+- Modal backdrop: `900`
+- Modal: `1000`
+- Tooltip: `1100`
+- Toast: `1200`
+
+---
+
+## Writing & Content Guidelines
+
+### Tone of Voice
+- Friendly and approachable
+- Encouraging creativity
+- Professional but not stuffy
+- Empowering language
+- Clear and concise
+
+### Microcopy Examples
+- Buttons: "Join for free", "Get started", "Save changes"
+- Empty states: "Your canvas awaits" instead of "No documents"
+- Errors: "Oops, something went wrong" + helpful context
+- Success: "Draft saved!" instead of generic confirmations
+
+---
+
+This style guide provides a comprehensive foundation for maintaining design consistency across the Ellipsus platform. The system emphasizes creativity, collaboration, and writer-focused experiences while maintaining modern design standards and accessibility best practices.

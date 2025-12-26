@@ -1,0 +1,135 @@
+/**
+ * Posts domain module
+ */
+import {
+    collection,
+    doc,
+    addDoc,
+    getDoc,
+    getDocs,
+    query,
+    where,
+    orderBy,
+    limit,
+    serverTimestamp,
+} from 'firebase/firestore';
+import { checkDb } from './core';
+import type { Post } from './types';
+
+/**
+ * Get posts for a user's feed
+ * Shows all public posts + AI-generated posts for the specific user
+ */
+export async function getPosts(limitCount = 20, userId?: string): Promise<Post[]> {
+    const firestore = checkDb();
+    const postsRef = collection(firestore, 'posts');
+
+    // Simple query - get all posts ordered by date
+    // Client-side filter for personalized content is safer than complex Firestore or() queries
+    const q = query(
+        postsRef,
+        orderBy('createdAt', 'desc'),
+        limit(limitCount * 2) // Get extra to filter
+    );
+
+    const snapshot = await getDocs(q);
+    let posts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Post));
+
+    // Filter out AI posts that belong to other users
+    if (userId) {
+        posts = posts.filter(post => {
+            // Show all non-AI posts (admin, user)
+            if (!post.generatedForUserId) return true;
+            // Show AI posts only if they belong to current user
+            return post.generatedForUserId === userId;
+        });
+    } else {
+        // No user logged in - only show public posts
+        posts = posts.filter(post => !post.generatedForUserId);
+    }
+
+    return posts.slice(0, limitCount);
+}
+
+/**
+ * Get all posts (admin/debug only)
+ */
+export async function getAllPosts(limitCount = 20): Promise<Post[]> {
+    const firestore = checkDb();
+    const postsRef = collection(firestore, 'posts');
+    const q = query(postsRef, orderBy('createdAt', 'desc'), limit(limitCount));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Post));
+}
+
+export async function getPost(postId: string): Promise<Post | null> {
+    const firestore = checkDb();
+    const postRef = doc(firestore, 'posts', postId);
+    const snapshot = await getDoc(postRef);
+    if (!snapshot.exists()) return null;
+    return { id: snapshot.id, ...snapshot.data() } as Post;
+}
+
+export async function createPost(data: Omit<Post, 'id' | 'createdAt' | 'commentCount' | 'repostCount'>): Promise<string> {
+    const firestore = checkDb();
+    const postsRef = collection(firestore, 'posts');
+    const docRef = await addDoc(postsRef, {
+        ...data,
+        commentCount: 0,
+        repostCount: 0,
+        createdAt: serverTimestamp(),
+    });
+    return docRef.id;
+}
+
+// Article-specific interface
+export interface ArticleInput {
+    title: string;
+    content: string;
+    coverImage?: string;
+    highlightedPhrases?: string[];
+    authorName?: string;
+    authorUsername?: string;
+    source?: string;
+    caption?: string;
+    translatedTitle?: string;
+    translatedContent?: string;
+    originalUrl?: string;
+}
+
+export async function createArticle(article: ArticleInput): Promise<string> {
+    const postData: Parameters<typeof createPost>[0] = {
+        authorId: 'system',
+        authorName: article.authorName || 'English Academy',
+        authorUsername: article.authorUsername || 'englishacademy',
+        source: article.source || article.authorUsername || 'admin',
+        content: article.content,
+        highlightedPhrases: article.highlightedPhrases || [],
+        type: 'admin',
+        isArticle: true,
+        title: article.title,
+        coverImage: article.coverImage,
+        originalUrl: article.originalUrl,
+    };
+
+    if (article.translatedTitle) {
+        postData.translatedTitle = article.translatedTitle;
+    }
+    if (article.translatedContent) {
+        postData.translatedContent = article.translatedContent;
+    }
+    if (article.caption) {
+        postData.caption = article.caption;
+    }
+
+    return createPost(postData);
+}
+
+export async function importArticles(articles: ArticleInput[]): Promise<string[]> {
+    const ids: string[] = [];
+    for (const article of articles) {
+        const id = await createArticle(article);
+        ids.push(id);
+    }
+    return ids;
+}

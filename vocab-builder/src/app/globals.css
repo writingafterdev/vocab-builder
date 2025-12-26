@@ -1,0 +1,185 @@
+@import "tailwindcss";
+
+@plugin "tailwindcss-animate";
+@plugin "@tailwindcss/typography";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  /* Serif is default, sans for UI elements */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-merriweather), Georgia, serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
+
+  /* Make serif the default */
+  --default-font-family: var(--font-serif);
+
+  --animate-shine: shine 1.5s ease-in-out infinite;
+  --animate-shimmer: shimmer 2s linear infinite;
+
+  @keyframes shine {
+    from {
+      background-position: 0 0;
+    }
+
+    to {
+      background-position: -200% 0;
+    }
+  }
+
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+
+    100% {
+      background-position: 200% 0;
+    }
+  }
+}
+
+:root {
+  /* Font families - defined here so body can reference them */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-garamond), Georgia, serif;
+  /* Juana for display headings only */
+  --font-display: var(--font-juana), Georgia, serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
+
+  /* Design System Colors */
+  --background: #FDFCFB;
+  /* Off-white/Cream */
+  --foreground: #1A1A1A;
+  /* Primary Text */
+
+  --card: #FFFFFF;
+  --card-foreground: #1A1A1A;
+
+  --popover: #FFFFFF;
+  --popover-foreground: #1A1A1A;
+
+  --primary: #FF6B6B;
+  /* Coral */
+  --primary-foreground: #FFFFFF;
+
+  --secondary: #9B87F5;
+  /* Soft Purple */
+  --secondary-foreground: #FFFFFF;
+
+  --muted: #F7F7F7;
+  /* Light Gray */
+  --muted-foreground: #666666;
+  /* Secondary Text */
+
+  --accent: #4ECDC4;
+  /* Teal/Cyan */
+  --accent-foreground: #FFFFFF;
+
+  --destructive: #F44336;
+  --destructive-foreground: #FFFFFF;
+
+  --border: #E0E0E0;
+  --input: #E0E0E0;
+  --ring: #FF6B6B;
+
+  --radius: 0.5rem;
+  /* 8px */
+
+  /* Ellipsus specific custom vars */
+  --coral: #FF6B6B;
+  --cream: #FDFCFB;
+  --teal: #4ECDC4;
+}
+
+/* Notebook Paper Pattern */
+.paper-pattern {
+  background-color: #fdfcfb;
+  background-image: linear-gradient(#e0dbd3 1px, transparent 1px);
+  background-size: 100% 2rem;
+  /* Lines every 2rem */
+  position: relative;
+}
+
+.paper-pattern::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 4rem;
+  /* Margin position */
+  width: 2px;
+  background-color: rgba(255, 99, 71, 0.1);
+  /* Subtle red margin line */
+  z-index: 0;
+  pointer-events: none;
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .paper-pattern::before {
+    display: block;
+  }
+}
+
+.dark {
+  --background: #0A0A0A;
+  --foreground: #E0E0E0;
+
+  --card: #1A1A1A;
+  --card-foreground: #E0E0E0;
+
+  --popover: #1A1A1A;
+  --popover-foreground: #E0E0E0;
+
+  --primary: #FF6B6B;
+  --primary-foreground: #FFFFFF;
+
+  --secondary: #9B87F5;
+  --secondary-foreground: #FFFFFF;
+
+  --muted: #1E1E1E;
+  --muted-foreground: #AAAAAA;
+
+  --accent: #4ECDC4;
+  --accent-foreground: #FFFFFF;
+
+  --destructive: #EF5350;
+  --destructive-foreground: #FFFFFF;
+
+  --border: #333333;
+  --input: #333333;
+  --ring: #FF6B6B;
+}
+
+@layer base {
+  * {
+    border-color: hsl(var(--border));
+    outline-color: hsl(var(--ring) / 0.5);
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-serif);
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  ::selection {
+    background-color: hsl(var(--primary) / 0.2);
+    color: var(--primary);
+  }
+}
+
+@layer utilities {
+  .font-serif {
+    font-family: var(--font-serif);
+  }
+
+  .font-sans {
+    font-family: var(--font-sans);
+  }
+
+  .font-article {
+    font-family: var(--font-garamond), Georgia, serif;
+  }
+}

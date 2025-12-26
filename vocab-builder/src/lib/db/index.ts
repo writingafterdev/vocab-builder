@@ -1,0 +1,19 @@
+/**
+ * Database module exports
+ * Re-exports all domain-specific functions for backward compatibility
+ */
+
+// Core utilities
+export { checkDb, db } from './core';
+
+// Domain modules
+export * from './posts';
+export * from './comments';
+export * from './social';
+export * from './srs';
+export * from './users';
+export * from './admin';
+
+// Types
+export type { Post, Comment, Repost, Like, SavedPhrase, LearningCycleSettings } from './types';
+export { DEFAULT_LEARNING_CYCLE } from './types';
