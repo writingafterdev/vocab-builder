@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ArrowLeft, CheckCircle, Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import { getDuePhrasesbyType, SavedPhrase, reviewPhrases, updateContextMastery } from '@/lib/firestore';
+import { getDuePhrasesbyType, reviewPhrases, updateContextMastery } from '@/lib/db/srs';
+import { SavedPhrase } from '@/lib/db/types';
 import ContextualExercise from '@/components/exercises/contextual-exercise';
 import { toast } from 'sonner';
 

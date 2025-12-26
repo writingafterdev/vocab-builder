@@ -45,22 +45,11 @@ import Link from 'next/link';
 import Image from 'next/image';
 import TextHighlighter from '@/components/text-highlighter';
 import { getSourceLogo } from '@/lib/sources';
-import {
-    getPosts,
-    getComments,
-    getReplies,
-    createPost,
-    createPostWithComments,
-    repostPost,
-    likeComment,
-    addComment,
-    Post as PostType,
-    Comment as CommentType,
-    getBatchUserReposts,
-    getBatchUserLikes,
-    updateComment,
-    deleteComment
-} from '@/lib/firestore';
+import { addComment, updateComment, deleteComment, getComments, getReplies } from '@/lib/db/comments';
+import { getBatchUserReposts, getBatchUserLikes, repostPost, likeComment } from '@/lib/db/social';
+import { createPost, getPosts } from '@/lib/db/posts';
+import { createPostWithComments } from '@/lib/db/admin';
+import type { Post as PostType, Comment as CommentType } from '@/lib/db/types';
 import { Timestamp } from 'firebase/firestore';
 
 interface PostWithComments extends PostType {
@@ -630,7 +619,7 @@ function DailyReviewCard({ userId, userProfile, onReviewComplete }: { userId: st
 
     useEffect(() => {
         const loadDuePhrases = async () => {
-            const { getDuePhrases } = await import('@/lib/firestore');
+            const { getDuePhrases } = await import('@/lib/db/srs');
             const phrases = await getDuePhrases(userId, 10);
             setDuePhrases(phrases);
         };

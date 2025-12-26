@@ -360,7 +360,7 @@ export default function TextHighlighter({
 
         try {
             // Import dynamically to avoid SSR issues
-            const { savePhrase, DAILY_PHRASE_LIMIT } = await import('@/lib/firestore');
+            const { savePhrase, DAILY_PHRASE_LIMIT } = await import('@/lib/db/srs');
 
             // Save the phrase to Firestore
             const { phraseId, todayCount } = await savePhrase(userId, data.phrase, data.meaning, data.context, data.usage || 'neutral');

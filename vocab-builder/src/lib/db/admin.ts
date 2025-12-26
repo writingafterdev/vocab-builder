@@ -16,7 +16,7 @@ import {
     limit,
     serverTimestamp,
 } from 'firebase/firestore';
-import { checkDb } from './core';
+import { getDbAsync } from './core';
 import type { Post, LearningCycleSettings } from './types';
 import { DEFAULT_LEARNING_CYCLE } from './types';
 import type { UserProfile } from '@/types';
@@ -24,7 +24,7 @@ import type { UserProfile } from '@/types';
 // ============ SETTINGS ============
 
 export async function getLearningCycleSettings(): Promise<LearningCycleSettings> {
-    const firestore = checkDb();
+    const firestore = await getDbAsync();
     const settingsRef = doc(firestore, 'settings', 'learningCycle');
     const snapshot = await getDoc(settingsRef);
 
@@ -37,7 +37,7 @@ export async function getLearningCycleSettings(): Promise<LearningCycleSettings>
 }
 
 export async function updateLearningCycleSettings(settings: LearningCycleSettings): Promise<void> {
-    const firestore = checkDb();
+    const firestore = await getDbAsync();
     const settingsRef = doc(firestore, 'settings', 'learningCycle');
     await setDoc(settingsRef, settings);
 }
@@ -45,7 +45,7 @@ export async function updateLearningCycleSettings(settings: LearningCycleSetting
 // ============ ADMIN CRUD ============
 
 export async function getAllUsers(): Promise<UserProfile[]> {
-    const firestore = checkDb();
+    const firestore = await getDbAsync();
     const usersRef = collection(firestore, 'users');
     const q = query(usersRef, orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
@@ -53,7 +53,7 @@ export async function getAllUsers(): Promise<UserProfile[]> {
 }
 
 export async function deletePost(postId: string): Promise<void> {
-    const firestore = checkDb();
+    const firestore = await getDbAsync();
     const postRef = doc(firestore, 'posts', postId);
     await deleteDoc(postRef);
 
@@ -75,7 +75,7 @@ export async function deletePost(postId: string): Promise<void> {
 }
 
 export async function updatePost(postId: string, data: Partial<Omit<Post, 'id' | 'createdAt'>>): Promise<void> {
-    const firestore = checkDb();
+    const firestore = await getDbAsync();
     const postRef = doc(firestore, 'posts', postId);
     await updateDoc(postRef, data);
 }
@@ -88,7 +88,7 @@ export async function getAdminStats(): Promise<{
     totalPhrases: number;
     totalTokens: number;
 }> {
-    const firestore = checkDb();
+    const firestore = await getDbAsync();
 
     const usersSnapshot = await getDocs(collection(firestore, 'users'));
     const postsSnapshot = await getDocs(collection(firestore, 'posts'));
@@ -143,7 +143,7 @@ interface PostWithCommentsInput {
 }
 
 export async function createPostWithComments(input: PostWithCommentsInput): Promise<string> {
-    const firestore = checkDb();
+    const firestore = await getDbAsync();
     const postsRef = collection(firestore, 'posts');
 
     const postDoc = await addDoc(postsRef, {
@@ -198,7 +198,7 @@ export interface UserDebate {
 }
 
 export async function getUserDebates(userId: string): Promise<UserDebate[]> {
-    const firestore = checkDb();
+    const firestore = await getDbAsync();
     const debatesRef = collection(firestore, 'debates');
     const q = query(
         debatesRef,
@@ -235,7 +235,7 @@ export interface UserPost {
 }
 
 export async function getUserPosts(userId: string): Promise<UserPost[]> {
-    const firestore = checkDb();
+    const firestore = await getDbAsync();
     const postsRef = collection(firestore, 'posts');
     const q = query(
         postsRef,
@@ -270,7 +270,11 @@ export async function getUserTokenUsage(userEmail: string): Promise<{
     calls: number;
     byEndpoint: UserTokenUsage[];
 }> {
-    const firestore = checkDb();
+    // This uses REST API under the hood if possible, but here we might be mixing patterns
+    // Actually token tracking uses firestore-rest.ts directly in token-tracking.ts.
+    // But this function is in admin.ts, let's see if it uses checkDb.
+    // Yes it likely does if it queries 'tokenUsage' collection.
+    const firestore = await getDbAsync();
     const usageRef = collection(firestore, 'tokenUsage');
     const q = query(usageRef, where('userEmail', '==', userEmail));
     const snapshot = await getDocs(q);
@@ -311,7 +315,7 @@ export async function getUserSavedPhrases(userId: string): Promise<Array<{
     createdAt: Date;
     usageCount: number;
 }>> {
-    const firestore = checkDb();
+    const firestore = await getDbAsync();
     const phrasesRef = collection(firestore, 'savedPhrases');
     const q = query(
         phrasesRef,

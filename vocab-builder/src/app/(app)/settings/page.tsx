@@ -18,7 +18,7 @@ import {
     AlertCircle,
     RefreshCw
 } from 'lucide-react';
-import { updateUserProfile, checkUsernameAvailable, updateCommentsUsername } from '@/lib/firestore';
+import { updateUserProfile, checkUsernameAvailable, updateCommentsUsername } from '@/lib/db/users';
 import { toast } from 'sonner';
 
 export default function SettingsPage() {

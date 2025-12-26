@@ -8,7 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Pencil, ArrowLeft, Loader2, MessageSquare } from 'lucide-react';
 import Link from 'next/link';
-import { getDuePhrasesbyType, SavedPhrase } from '@/lib/firestore';
+import { getDuePhrasesbyType } from '@/lib/db/srs';
+import type { SavedPhrase } from '@/lib/db/types';
 import { toast } from 'sonner';
 
 interface PhraseCluster {

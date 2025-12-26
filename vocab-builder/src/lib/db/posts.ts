@@ -13,7 +13,7 @@ import {
     limit,
     serverTimestamp,
 } from 'firebase/firestore';
-import { checkDb } from './core';
+import { getDbAsync } from './core';
 import type { Post } from './types';
 
 /**
@@ -21,7 +21,7 @@ import type { Post } from './types';
  * Shows all public posts + AI-generated posts for the specific user
  */
 export async function getPosts(limitCount = 20, userId?: string): Promise<Post[]> {
-    const firestore = checkDb();
+    const firestore = await getDbAsync();
     const postsRef = collection(firestore, 'posts');
 
     // Simple query - get all posts ordered by date
@@ -55,7 +55,7 @@ export async function getPosts(limitCount = 20, userId?: string): Promise<Post[]
  * Get all posts (admin/debug only)
  */
 export async function getAllPosts(limitCount = 20): Promise<Post[]> {
-    const firestore = checkDb();
+    const firestore = await getDbAsync();
     const postsRef = collection(firestore, 'posts');
     const q = query(postsRef, orderBy('createdAt', 'desc'), limit(limitCount));
     const snapshot = await getDocs(q);
@@ -63,7 +63,7 @@ export async function getAllPosts(limitCount = 20): Promise<Post[]> {
 }
 
 export async function getPost(postId: string): Promise<Post | null> {
-    const firestore = checkDb();
+    const firestore = await getDbAsync();
     const postRef = doc(firestore, 'posts', postId);
     const snapshot = await getDoc(postRef);
     if (!snapshot.exists()) return null;
@@ -71,7 +71,7 @@ export async function getPost(postId: string): Promise<Post | null> {
 }
 
 export async function createPost(data: Omit<Post, 'id' | 'createdAt' | 'commentCount' | 'repostCount'>): Promise<string> {
-    const firestore = checkDb();
+    const firestore = await getDbAsync();
     const postsRef = collection(firestore, 'posts');
     const docRef = await addDoc(postsRef, {
         ...data,

@@ -25,12 +25,19 @@ export async function getDbAsync(): Promise<Firestore> {
 // Legacy sync exports - these will NOT WORK in Cloudflare Workers
 // Kept for backward compatibility with code that hasn't been migrated yet
 import { db } from '../firebase';
+
+/**
+ * @deprecated usage of 'db' directly is unsafe in Cloudflare Workers.
+ * Use getDbAsync() instead.
+ */
 export { db };
 
 /**
- * @deprecated Use getDbAsync() instead for Cloudflare Workers compatibility
+ * @deprecated Use getDbAsync() instead for Cloudflare Workers compatibility.
+ * This sync check will fail if the app is bundled for edge runtime.
  */
 export const checkDb = () => {
     if (!db) throw new Error('Firestore not initialized - use getDbAsync() for client components');
     return db;
 };
+

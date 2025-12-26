@@ -14,11 +14,11 @@ import {
     increment,
     serverTimestamp,
 } from 'firebase/firestore';
-import { checkDb } from './core';
+import { getDbAsync } from './core';
 import type { Comment } from './types';
 
 export async function getComments(postId: string): Promise<Comment[]> {
-    const firestore = checkDb();
+    const firestore = await getDbAsync();
     const commentsRef = collection(firestore, 'comments');
     const q = query(
         commentsRef,
@@ -31,7 +31,7 @@ export async function getComments(postId: string): Promise<Comment[]> {
 }
 
 export async function getReplies(commentId: string): Promise<Comment[]> {
-    const firestore = checkDb();
+    const firestore = await getDbAsync();
     const commentsRef = collection(firestore, 'comments');
     const q = query(
         commentsRef,
@@ -51,7 +51,7 @@ export async function addComment(
     content: string,
     parentId?: string
 ): Promise<string> {
-    const firestore = checkDb();
+    const firestore = await getDbAsync();
     const commentsRef = collection(firestore, 'comments');
 
     const docRef = await addDoc(commentsRef, {
@@ -85,7 +85,7 @@ export async function addComment(
 }
 
 export async function updateComment(commentId: string, newContent: string): Promise<void> {
-    const firestore = checkDb();
+    const firestore = await getDbAsync();
     const commentRef = doc(firestore, 'comments', commentId);
     await updateDoc(commentRef, {
         content: newContent,
@@ -94,7 +94,7 @@ export async function updateComment(commentId: string, newContent: string): Prom
 }
 
 export async function deleteComment(commentId: string, postId: string, parentId?: string): Promise<void> {
-    const firestore = checkDb();
+    const firestore = await getDbAsync();
     const commentRef = doc(firestore, 'comments', commentId);
     await deleteDoc(commentRef);
 
@@ -123,7 +123,7 @@ export async function deleteComment(commentId: string, postId: string, parentId?
 }
 
 export async function getUserComments(userId: string): Promise<Comment[]> {
-    const firestore = checkDb();
+    const firestore = await getDbAsync();
     const commentsRef = collection(firestore, 'comments');
     const q = query(commentsRef, where('authorId', '==', userId), orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);

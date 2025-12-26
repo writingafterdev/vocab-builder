@@ -1,7 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getPost, getComments, Post, Comment, addComment, repostPost, hasUserReposted, getReplies, updateComment, deleteComment, updatePost, saveArticle, unsaveArticle, isArticleSaved, likeComment, getBatchUserLikes } from '@/lib/firestore';
+import { getPost, createPost } from '@/lib/db/posts';
+import { createPostWithComments, updatePost } from '@/lib/db/admin';
+import { getComments, getReplies, addComment, updateComment, deleteComment } from '@/lib/db/comments';
+import { repostPost, hasUserReposted, likeComment, getBatchUserLikes } from '@/lib/db/social';
+import { saveArticle, unsaveArticle, isArticleSaved } from '@/lib/db/bookmarks';
+import { Post, Comment } from '@/lib/db/types';
 import { ArrowLeft, MessageCircle, Heart, Share2, FileText, Repeat2, MoreHorizontal, MoreVertical, Trash2, Loader2, Bookmark } from 'lucide-react';
 import {
     DropdownMenu,

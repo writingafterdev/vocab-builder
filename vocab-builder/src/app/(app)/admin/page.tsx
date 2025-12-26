@@ -37,28 +37,23 @@ import {
     Loader2
 } from 'lucide-react';
 import Link from 'next/link';
+import { getPosts, createPost, createArticle, ArticleInput } from '@/lib/db/posts';
 import {
-    getPosts,
     getAllUsers,
     deletePost,
-    createArticle,
-    createPost,
     createPostWithComments,
     getAdminStats,
     getLearningCycleSettings,
     updateLearningCycleSettings,
-    Post,
-    ArticleInput,
-    LearningCycleSettings,
-    DEFAULT_LEARNING_CYCLE,
     getUserDebates,
     getUserPosts,
     getUserTokenUsage,
     getUserSavedPhrases,
     UserDebate,
     UserPost,
-    UserTokenUsage
-} from '@/lib/firestore';
+    UserTokenUsage,
+} from '@/lib/db/admin';
+import { Post, LearningCycleSettings, DEFAULT_LEARNING_CYCLE } from '@/lib/db/types';
 import { Timestamp } from 'firebase/firestore';
 import type { UserProfile } from '@/types';
 import { RichTextEditor } from '@/components/rich-text-editor';

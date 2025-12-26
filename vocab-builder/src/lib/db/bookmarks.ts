@@ -12,7 +12,7 @@ import {
     orderBy,
     Timestamp,
 } from 'firebase/firestore';
-import { checkDb } from './core';
+import { getDbAsync } from './core';
 
 export interface SavedArticle {
     id: string;
@@ -25,7 +25,7 @@ export interface SavedArticle {
  * Save article for later reading
  */
 export async function saveArticle(userId: string, postId: string): Promise<string> {
-    const firestore = checkDb();
+    const firestore = await getDbAsync();
     const savedRef = collection(firestore, 'savedArticles');
 
     // Check if already saved
@@ -52,7 +52,7 @@ export async function saveArticle(userId: string, postId: string): Promise<strin
  * Remove saved article
  */
 export async function unsaveArticle(userId: string, postId: string): Promise<void> {
-    const firestore = checkDb();
+    const firestore = await getDbAsync();
     const savedRef = collection(firestore, 'savedArticles');
 
     const q = query(
@@ -71,7 +71,7 @@ export async function unsaveArticle(userId: string, postId: string): Promise<voi
  * Check if article is saved by user
  */
 export async function isArticleSaved(userId: string, postId: string): Promise<boolean> {
-    const firestore = checkDb();
+    const firestore = await getDbAsync();
     const savedRef = collection(firestore, 'savedArticles');
 
     const q = query(
@@ -88,7 +88,7 @@ export async function isArticleSaved(userId: string, postId: string): Promise<bo
  * Get all saved articles for a user
  */
 export async function getSavedArticles(userId: string): Promise<SavedArticle[]> {
-    const firestore = checkDb();
+    const firestore = await getDbAsync();
     const savedRef = collection(firestore, 'savedArticles');
 
     const q = query(
@@ -108,7 +108,7 @@ export async function getSavedArticles(userId: string): Promise<SavedArticle[]> 
  * Get count of saved articles for a user
  */
 export async function getSavedArticleCount(userId: string): Promise<number> {
-    const firestore = checkDb();
+    const firestore = await getDbAsync();
     const savedRef = collection(firestore, 'savedArticles');
 
     const q = query(savedRef, where('userId', '==', userId));

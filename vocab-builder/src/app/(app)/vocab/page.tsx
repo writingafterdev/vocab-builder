@@ -158,7 +158,7 @@ export default function VocabBankPage() {
                 return;
             }
             try {
-                const { getUserPhrases } = await import('@/lib/firestore');
+                const { getUserPhrases } = await import('@/lib/db/srs');
                 const savedPhrases = await getUserPhrases(user.uid);
                 const displayPhrases: Phrase[] = savedPhrases.map(sp => ({
                     id: sp.id,

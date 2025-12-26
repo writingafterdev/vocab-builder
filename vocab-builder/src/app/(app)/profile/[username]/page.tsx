@@ -25,7 +25,11 @@ import {
     BookOpen,
     Flame
 } from 'lucide-react';
-import { getUserComments, getUserReposts, getPost, Repost, updateComment, deleteComment, getSavedArticles, unsaveArticle, SavedArticle } from '@/lib/firestore';
+import { getUserComments, updateComment, deleteComment } from '@/lib/db/comments';
+import { getUserReposts } from '@/lib/db/social';
+import { getPost } from '@/lib/db/posts';
+import { getSavedArticles, unsaveArticle, SavedArticle } from '@/lib/db/bookmarks';
+import { Repost } from '@/lib/db/types';
 import { Timestamp } from 'firebase/firestore';
 import Link from 'next/link';
 import {

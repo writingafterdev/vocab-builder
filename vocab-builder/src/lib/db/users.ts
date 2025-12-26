@@ -11,7 +11,7 @@ import {
     where,
     serverTimestamp,
 } from 'firebase/firestore';
-import { checkDb } from './core';
+import { getDbAsync } from './core';
 import type { UserSettings } from '@/types';
 
 export async function updateUserProfile(
@@ -23,7 +23,7 @@ export async function updateUserProfile(
         settings?: Partial<UserSettings>;
     }
 ): Promise<void> {
-    const firestore = checkDb();
+    const firestore = await getDbAsync();
     const userRef = doc(firestore, 'users', userId);
 
     const updateData: Record<string, unknown> = { ...data };
@@ -38,7 +38,7 @@ export async function updateUserProfile(
 }
 
 export async function checkUsernameAvailable(username: string, currentUserId: string): Promise<boolean> {
-    const firestore = checkDb();
+    const firestore = await getDbAsync();
     const usersRef = collection(firestore, 'users');
     const q = query(usersRef, where('username', '==', username.toLowerCase()));
     const snapshot = await getDocs(q);
@@ -48,7 +48,7 @@ export async function checkUsernameAvailable(username: string, currentUserId: st
 }
 
 export async function updateCommentsUsername(authorId: string, newUsername: string): Promise<void> {
-    const firestore = checkDb();
+    const firestore = await getDbAsync();
     const commentsRef = collection(firestore, 'comments');
     const q = query(commentsRef, where('authorId', '==', authorId));
     const snapshot = await getDocs(q);
@@ -67,7 +67,7 @@ export async function updateCommentsUsername(authorId: string, newUsername: stri
  * Call this when user saves a phrase or completes a practice session
  */
 export async function updateUserStreak(userId: string): Promise<void> {
-    const firestore = checkDb();
+    const firestore = await getDbAsync();
     const userRef = doc(firestore, 'users', userId);
     const userSnap = await getDoc(userRef);
 

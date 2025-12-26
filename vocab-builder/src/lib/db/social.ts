@@ -14,13 +14,13 @@ import {
     increment,
     serverTimestamp,
 } from 'firebase/firestore';
-import { checkDb } from './core';
+import { getDbAsync } from './core';
 import type { Repost } from './types';
 
 // ============ LIKES ============
 
 export async function likeComment(commentId: string, userId: string): Promise<void> {
-    const firestore = checkDb();
+    const firestore = await getDbAsync();
     const likesRef = collection(firestore, 'commentLikes');
     const q = query(likesRef, where('commentId', '==', commentId), where('userId', '==', userId));
     const snapshot = await getDocs(q);
@@ -43,7 +43,7 @@ export async function likeComment(commentId: string, userId: string): Promise<vo
 }
 
 export async function hasUserLikedComment(commentId: string, userId: string): Promise<boolean> {
-    const firestore = checkDb();
+    const firestore = await getDbAsync();
     const likesRef = collection(firestore, 'commentLikes');
     const q = query(likesRef, where('commentId', '==', commentId), where('userId', '==', userId));
     const snapshot = await getDocs(q);
@@ -57,7 +57,7 @@ export async function hasUserLikedComment(commentId: string, userId: string): Pr
 export async function getBatchUserLikes(commentIds: string[], userId: string): Promise<Set<string>> {
     if (!commentIds.length || !userId) return new Set();
 
-    const firestore = checkDb();
+    const firestore = await getDbAsync();
     const likesRef = collection(firestore, 'commentLikes');
 
     // Firestore 'in' queries support up to 30 items
@@ -87,7 +87,7 @@ export async function getBatchUserLikes(commentIds: string[], userId: string): P
 // ============ REPOSTS ============
 
 export async function repostPost(postId: string, userId: string): Promise<void> {
-    const firestore = checkDb();
+    const firestore = await getDbAsync();
     const repostsRef = collection(firestore, 'reposts');
     const q = query(repostsRef, where('postId', '==', postId), where('userId', '==', userId));
     const snapshot = await getDocs(q);
@@ -110,7 +110,7 @@ export async function repostPost(postId: string, userId: string): Promise<void> 
 }
 
 export async function hasUserReposted(postId: string, userId: string): Promise<boolean> {
-    const firestore = checkDb();
+    const firestore = await getDbAsync();
     const repostsRef = collection(firestore, 'reposts');
     const q = query(repostsRef, where('postId', '==', postId), where('userId', '==', userId));
     const snapshot = await getDocs(q);
@@ -123,7 +123,7 @@ export async function hasUserReposted(postId: string, userId: string): Promise<b
 export async function getBatchUserReposts(postIds: string[], userId: string): Promise<Set<string>> {
     if (!postIds.length || !userId) return new Set();
 
-    const firestore = checkDb();
+    const firestore = await getDbAsync();
     const repostsRef = collection(firestore, 'reposts');
 
     // Firestore 'in' queries support up to 30 items
@@ -151,7 +151,7 @@ export async function getBatchUserReposts(postIds: string[], userId: string): Pr
 }
 
 export async function getUserReposts(userId: string): Promise<Repost[]> {
-    const firestore = checkDb();
+    const firestore = await getDbAsync();
     const repostsRef = collection(firestore, 'reposts');
     const q = query(repostsRef, where('userId', '==', userId), orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);

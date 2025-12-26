@@ -16,7 +16,7 @@ import {
     serverTimestamp,
     Timestamp,
 } from 'firebase/firestore';
-import { checkDb } from './core';
+import { getDbAsync } from './core';
 import type { SavedPhrase, Post } from './types';
 import { DEFAULT_LEARNING_CYCLE } from './types';
 
@@ -27,7 +27,7 @@ export const DAILY_PHRASE_LIMIT = 15;
  * Get count of phrases saved today by user
  */
 export async function getTodaySaveCount(userId: string): Promise<number> {
-    const firestore = checkDb();
+    const firestore = await getDbAsync();
     const phrasesRef = collection(firestore, 'savedPhrases');
 
     // Get start of today (midnight)
@@ -72,7 +72,7 @@ export async function savePhrase(
         throw new Error(`Daily limit reached (${DAILY_PHRASE_LIMIT} phrases/day). Come back tomorrow!`);
     }
 
-    const firestore = checkDb();
+    const firestore = await getDbAsync();
     const phrasesRef = collection(firestore, 'savedPhrases');
 
     const now = Timestamp.now();
@@ -119,7 +119,7 @@ export async function updateContextMastery(
     contextId: string,
     newMasteryLevel: number
 ): Promise<void> {
-    const firestore = checkDb();
+    const firestore = await getDbAsync();
     const docRef = doc(firestore, 'savedPhrases', phraseId);
 
     const docSnap = await getDoc(docRef);
@@ -200,7 +200,7 @@ export function getReviewType(step: number): 'passive' | 'active' {
  * Get phrases due for review (SRS) - returns all due phrases
  */
 export async function getDuePhrases(userId: string, limitCount: number = 20): Promise<SavedPhrase[]> {
-    const firestore = checkDb();
+    const firestore = await getDbAsync();
     const phrasesRef = collection(firestore, 'savedPhrases');
 
     // Check against END of today (so anything due anytime today shows up now)
@@ -260,8 +260,9 @@ export async function getDuePhrasesbyType(userId: string): Promise<{
 /**
  * Mark phrases as reviewed - implements SRS interval logic
  */
+// Mark phrases as reviewed - implements SRS interval logic
 export async function reviewPhrases(phraseIds: string[]): Promise<void> {
-    const firestore = checkDb();
+    const firestore = await getDbAsync();
     const learningCycle = DEFAULT_LEARNING_CYCLE;
     const now = Timestamp.now();
 
@@ -293,7 +294,7 @@ export async function reviewPhrases(phraseIds: string[]): Promise<void> {
  * Get all user's saved phrases
  */
 export async function getUserPhrases(userId: string, count: number = 50): Promise<SavedPhrase[]> {
-    const firestore = checkDb();
+    const firestore = await getDbAsync();
     const phrasesRef = collection(firestore, 'savedPhrases');
 
     const q = query(
