@@ -1,17 +1,7 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import {
-    User,
-    signInWithPopup,
-    signInWithRedirect,
-    getRedirectResult,
-    signOut as firebaseSignOut,
-    onAuthStateChanged,
-    GoogleAuthProvider
-} from 'firebase/auth';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { auth, db } from '@/lib/firebase';
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
+import type { User } from 'firebase/auth';
 
 interface UserProfile {
     uid: string;
@@ -61,84 +51,107 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Skip if Firebase is not initialized (SSR or no API key)
-        if (!auth || !db) {
+        // Only run on client
+        if (typeof window === 'undefined') {
             setLoading(false);
             return;
         }
 
-        const unsubscribe = onAuthStateChanged(auth, async (user) => {
-            setUser(user);
+        let unsubscribe: (() => void) | undefined;
 
-            if (user && db) {
-                // Fetch or create user profile
-                const userRef = doc(db, 'users', user.uid);
-                const userSnap = await getDoc(userRef);
+        // Dynamically import and initialize Firebase
+        const initAuth = async () => {
+            try {
+                const { initializeFirebase } = await import('@/lib/firebase');
+                const { auth, db } = await initializeFirebase();
 
-                if (userSnap.exists()) {
-                    // Update last active
-                    await setDoc(userRef, { lastActiveAt: serverTimestamp() }, { merge: true });
-                    setProfile(userSnap.data() as UserProfile);
-                } else {
-                    // Create new user profile
-                    const newProfile: Omit<UserProfile, 'createdAt' | 'lastActiveAt'> & {
-                        createdAt: ReturnType<typeof serverTimestamp>;
-                        lastActiveAt: ReturnType<typeof serverTimestamp>;
-                    } = {
-                        uid: user.uid,
-                        email: user.email || '',
-                        displayName: user.displayName || '',
-                        username: user.email?.split('@')[0] || `user${Date.now()}`,
-                        bio: '',
-                        photoURL: user.photoURL || '',
-                        role: 'user',
-                        createdAt: serverTimestamp(),
-                        lastActiveAt: serverTimestamp(),
-                        stats: {
-                            totalPhrases: 0,
-                            totalComments: 0,
-                            totalReposts: 0,
-                            currentStreak: 0,
-                            longestStreak: 0,
-                            lastStudyDate: null,
-                        },
-                        subscription: {
-                            status: 'trial',
-                            plan: null,
-                            trialEndsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-                            currentPeriodEnd: null,
-                        },
-                        settings: {
-                            dailyGoal: 10,
-                            preferredStyles: ['twitter', 'instagram'],
-                            notificationsEnabled: true,
-                        },
-                    };
-
-                    await setDoc(userRef, newProfile);
-                    setProfile(newProfile as unknown as UserProfile);
+                if (!auth || !db) {
+                    setLoading(false);
+                    return;
                 }
-            } else {
-                setProfile(null);
+
+                const { onAuthStateChanged } = await import('firebase/auth');
+                const { doc, getDoc, setDoc, serverTimestamp } = await import('firebase/firestore');
+
+                unsubscribe = onAuthStateChanged(auth, async (user) => {
+                    setUser(user);
+
+                    if (user && db) {
+                        const userRef = doc(db, 'users', user.uid);
+                        const userSnap = await getDoc(userRef);
+
+                        if (userSnap.exists()) {
+                            await setDoc(userRef, { lastActiveAt: serverTimestamp() }, { merge: true });
+                            setProfile(userSnap.data() as UserProfile);
+                        } else {
+                            const newProfile = {
+                                uid: user.uid,
+                                email: user.email || '',
+                                displayName: user.displayName || '',
+                                username: user.email?.split('@')[0] || `user${Date.now()}`,
+                                bio: '',
+                                photoURL: user.photoURL || '',
+                                role: 'user' as const,
+                                createdAt: serverTimestamp(),
+                                lastActiveAt: serverTimestamp(),
+                                stats: {
+                                    totalPhrases: 0,
+                                    totalComments: 0,
+                                    totalReposts: 0,
+                                    currentStreak: 0,
+                                    longestStreak: 0,
+                                    lastStudyDate: null,
+                                },
+                                subscription: {
+                                    status: 'trial' as const,
+                                    plan: null,
+                                    trialEndsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+                                    currentPeriodEnd: null,
+                                },
+                                settings: {
+                                    dailyGoal: 10,
+                                    preferredStyles: ['twitter', 'instagram'],
+                                    notificationsEnabled: true,
+                                },
+                            };
+
+                            await setDoc(userRef, newProfile);
+                            setProfile(newProfile as unknown as UserProfile);
+                        }
+                    } else {
+                        setProfile(null);
+                    }
+
+                    setLoading(false);
+                });
+            } catch (error) {
+                console.error('Failed to initialize Firebase:', error);
+                setLoading(false);
             }
+        };
 
-            setLoading(false);
-        });
+        initAuth();
 
-        return () => unsubscribe();
+        return () => {
+            if (unsubscribe) unsubscribe();
+        };
     }, []);
 
-    const signInWithGoogle = async () => {
+    const signInWithGoogle = useCallback(async () => {
+        const { initializeFirebase } = await import('@/lib/firebase');
+        const { auth } = await initializeFirebase();
+
         if (!auth) {
             throw new Error('Firebase not initialized');
         }
+
+        const { signInWithPopup, signInWithRedirect, GoogleAuthProvider } = await import('firebase/auth');
         const provider = new GoogleAuthProvider();
+
         try {
-            // Try popup first, fallback to redirect
             await signInWithPopup(auth, provider);
         } catch (error: unknown) {
             const firebaseError = error as { code?: string };
-            // If popup blocked or failed, try redirect
             if (firebaseError.code === 'auth/popup-blocked' ||
                 firebaseError.code === 'auth/cancelled-popup-request' ||
                 firebaseError.code === 'auth/popup-closed-by-user') {
@@ -147,28 +160,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 throw error;
             }
         }
-    };
+    }, []);
 
-    const signOut = async () => {
+    const signOut = useCallback(async () => {
+        const { initializeFirebase } = await import('@/lib/firebase');
+        const { auth } = await initializeFirebase();
+
         if (!auth) {
             throw new Error('Firebase not initialized');
         }
-        try {
-            await firebaseSignOut(auth);
-        } catch (error) {
-            console.error('Error signing out:', error);
-            throw error;
-        }
-    };
 
-    const refreshProfile = async () => {
-        if (!user || !db) return;
+        const { signOut: firebaseSignOut } = await import('firebase/auth');
+        await firebaseSignOut(auth);
+    }, []);
+
+    const refreshProfile = useCallback(async () => {
+        if (!user) return;
+
+        const { initializeFirebase } = await import('@/lib/firebase');
+        const { db } = await initializeFirebase();
+
+        if (!db) return;
+
+        const { doc, getDoc } = await import('firebase/firestore');
         const userRef = doc(db, 'users', user.uid);
         const userSnap = await getDoc(userRef);
+
         if (userSnap.exists()) {
             setProfile(userSnap.data() as UserProfile);
         }
-    };
+    }, [user]);
 
     return (
         <AuthContext.Provider value={{ user, profile, loading, signInWithGoogle, signOut, refreshProfile }}>
