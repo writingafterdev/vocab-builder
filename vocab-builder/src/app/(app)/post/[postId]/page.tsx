@@ -434,7 +434,7 @@ export default function PostPage() {
                 userUsername={profile?.username}
             >
                 {DialogComponent}
-                <div className="max-w-3xl mx-auto py-6 px-4 font-sans">
+                <div className="max-w-4xl mx-auto py-6 px-4 font-sans">
                     <Link href="/feed" className="inline-block mb-6">
                         <Button variant="ghost" size="sm" className="text-neutral-500">
                             <ArrowLeft className="h-4 w-4 mr-2" />

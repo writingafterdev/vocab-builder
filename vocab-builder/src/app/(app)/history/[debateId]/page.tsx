@@ -16,9 +16,12 @@ import {
     User,
     Bot,
     Calendar,
-    Languages
+    Languages,
+    Plus
 } from 'lucide-react';
 import Link from 'next/link';
+import CollocationSelectionModal from '@/components/collocation-selection-modal';
+import { toast } from 'sonner';
 
 interface DebatePhrase {
     phrase: string;
@@ -59,6 +62,10 @@ export default function DebateHistoryDetailPage() {
 
     const [loading, setLoading] = useState(true);
     const [debate, setDebate] = useState<DebateData | null>(null);
+
+    // Modal state for saving phrases
+    const [modalOpen, setModalOpen] = useState(false);
+    const [selectedPhrase, setSelectedPhrase] = useState<{ english: string; context: string } | null>(null);
 
     useEffect(() => {
         async function loadDebate() {
@@ -149,144 +156,213 @@ export default function DebateHistoryDetailPage() {
     }
 
     return (
-        <div className="max-w-3xl mx-auto py-6 px-4 font-sans">
-            {/* Header */}
-            <div className="flex items-center gap-4 mb-6">
-                <Link href="/history">
-                    <Button variant="ghost" size="sm" className="text-neutral-500 hover:text-neutral-900">
-                        <ArrowLeft className="h-4 w-4 mr-2" />
-                        Back
-                    </Button>
-                </Link>
-            </div>
-
-            {/* Title & Meta */}
-            <div className="mb-6">
-                <h1 className="text-xl font-bold text-neutral-900 mb-2">{debate.topic}</h1>
-                <div className="flex items-center gap-2 text-sm text-neutral-400">
-                    <Calendar className="h-4 w-4" />
-                    {debate.createdAt.toLocaleDateString('en-US', {
-                        weekday: 'long',
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                    })}
+        <>
+            <div className="max-w-3xl mx-auto py-6 px-4 font-sans">
+                {/* Header */}
+                <div className="flex items-center gap-4 mb-6">
+                    <Link href="/history">
+                        <Button variant="ghost" size="sm" className="text-neutral-500 hover:text-neutral-900">
+                            <ArrowLeft className="h-4 w-4 mr-2" />
+                            Back
+                        </Button>
+                    </Link>
                 </div>
-            </div>
 
-            {/* Phrase Results */}
-            <Card className="mb-6 border-neutral-200">
-                <CardContent className="pt-4">
-                    <h3 className="text-xs font-medium text-neutral-400 uppercase tracking-wider mb-3">
-                        Phrases Practiced
-                    </h3>
-                    <div className="flex flex-wrap gap-2">
-                        {debate.phrases.map((p, i) => (
-                            <Badge
-                                key={i}
-                                variant="secondary"
-                                className={`
+                {/* Title & Meta */}
+                <div className="mb-6">
+                    <h1 className="text-xl font-bold text-neutral-900 mb-2">{debate.topic}</h1>
+                    <div className="flex items-center gap-2 text-sm text-neutral-400">
+                        <Calendar className="h-4 w-4" />
+                        {debate.createdAt.toLocaleDateString('en-US', {
+                            weekday: 'long',
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                        })}
+                    </div>
+                </div>
+
+                {/* Phrase Results */}
+                <Card className="mb-6 border-neutral-200">
+                    <CardContent className="pt-4">
+                        <h3 className="text-xs font-medium text-neutral-400 uppercase tracking-wider mb-3">
+                            Phrases Practiced
+                        </h3>
+                        <div className="flex flex-wrap gap-2">
+                            {debate.phrases.map((p, i) => (
+                                <Badge
+                                    key={i}
+                                    variant="secondary"
+                                    className={`
                                     px-3 py-1.5 text-sm font-medium
                                     ${p.status === 'natural'
-                                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                        : p.status === 'forced'
-                                            ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                                            : 'bg-neutral-100 text-neutral-500 border border-neutral-200'
-                                    }
+                                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                            : p.status === 'forced'
+                                                ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                                : 'bg-neutral-100 text-neutral-500 border border-neutral-200'
+                                        }
                                 `}
-                            >
-                                {getStatusIcon(p.status)}
-                                <span className="ml-1.5">{p.phrase}</span>
-                            </Badge>
-                        ))}
-                    </div>
-                </CardContent>
-            </Card>
-
-            {/* Translated Phrases */}
-            {debate.assistedPhrases.length > 0 && (
-                <Card className="mb-6 border-blue-200 bg-blue-50/30">
-                    <CardContent className="pt-4">
-                        <h3 className="text-xs font-medium text-blue-600 uppercase tracking-wider mb-3 flex items-center gap-2">
-                            <Languages className="h-4 w-4" />
-                            Phrases Translated During Debate
-                        </h3>
-                        <div className="space-y-2">
-                            {debate.assistedPhrases.map((p, i) => (
-                                <div key={i} className="flex items-center justify-between p-2 bg-white/70 rounded-lg border border-blue-100">
-                                    <span className="text-sm font-medium text-neutral-900">{p.english}</span>
-                                    <span className="text-xs text-neutral-500">{p.vietnamese}</span>
-                                </div>
+                                >
+                                    {getStatusIcon(p.status)}
+                                    <span className="ml-1.5">{p.phrase}</span>
+                                </Badge>
                             ))}
                         </div>
                     </CardContent>
                 </Card>
-            )}
 
-            {/* Conversation Replay */}
-            <div className="mb-6">
-                <h3 className="text-xs font-medium text-neutral-400 uppercase tracking-wider mb-4">
-                    Conversation
-                </h3>
-
-                <div className="space-y-6">
-                    {/* Opponent's opening */}
-                    {debate.opponentPosition && (
-                        <div className="flex gap-4 max-w-[90%]">
-                            <div className="h-10 w-10 rounded-full bg-white flex items-center justify-center shrink-0 border border-neutral-200 shadow-sm">
-                                <Bot className="h-5 w-5 text-neutral-900" />
+                {/* Translated Phrases */}
+                {debate.assistedPhrases.length > 0 && (
+                    <Card className="mb-6 border-blue-200 bg-blue-50/30">
+                        <CardContent className="pt-4">
+                            <h3 className="text-xs font-medium text-blue-600 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                <Languages className="h-4 w-4" />
+                                Phrases Translated During Debate
+                            </h3>
+                            <div className="space-y-2">
+                                {debate.assistedPhrases.map((p, i) => (
+                                    <div key={i} className="flex items-center justify-between p-2 bg-white/70 rounded-lg border border-blue-100">
+                                        <div className="flex-1">
+                                            <span className="text-sm font-medium text-neutral-900">{p.english}</span>
+                                            <span className="text-xs text-neutral-500 ml-2">{p.vietnamese}</span>
+                                        </div>
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            className="text-xs h-7 text-blue-600 hover:bg-blue-100"
+                                            onClick={() => {
+                                                setSelectedPhrase({
+                                                    english: p.english,
+                                                    context: `Discovered during debate: "${debate.topic}"`
+                                                });
+                                                setModalOpen(true);
+                                            }}
+                                        >
+                                            <Plus className="h-3 w-3 mr-1" />
+                                            Save
+                                        </Button>
+                                    </div>
+                                ))}
                             </div>
-                            <div className="space-y-1">
-                                <span className="text-xs font-medium text-neutral-400 ml-1 block">{debate.opponentPersona}</span>
-                                <div className="bg-white border border-neutral-200 rounded-2xl rounded-tl-none p-4 shadow-sm text-neutral-900 leading-relaxed">
-                                    {debate.opponentPosition}
+                        </CardContent>
+                    </Card>
+                )}
+
+                {/* Conversation Replay */}
+                <div className="mb-6">
+                    <h3 className="text-xs font-medium text-neutral-400 uppercase tracking-wider mb-4">
+                        Conversation
+                    </h3>
+
+                    <div className="space-y-6">
+                        {/* Opponent's opening */}
+                        {debate.opponentPosition && (
+                            <div className="flex gap-4 max-w-[90%]">
+                                <div className="h-10 w-10 rounded-full bg-white flex items-center justify-center shrink-0 border border-neutral-200 shadow-sm">
+                                    <Bot className="h-5 w-5 text-neutral-900" />
                                 </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Turns */}
-                    {debate.turns.map((turn, i) => (
-                        <div key={i} className="space-y-6">
-                            {/* User message */}
-                            <div className="flex gap-4 justify-end max-w-[90%] ml-auto">
                                 <div className="space-y-1">
-                                    <div className="bg-neutral-900 text-white rounded-2xl rounded-tr-none p-4 shadow-sm leading-relaxed">
-                                        {turn.userMessage}
+                                    <span className="text-xs font-medium text-neutral-400 ml-1 block">{debate.opponentPersona}</span>
+                                    <div className="bg-white border border-neutral-200 rounded-2xl rounded-tl-none p-4 shadow-sm text-neutral-900 leading-relaxed">
+                                        {debate.opponentPosition}
                                     </div>
-                                </div>
-                                <div className="h-10 w-10 rounded-full bg-neutral-900 flex items-center justify-center shrink-0 border border-neutral-900">
-                                    <User className="h-5 w-5 text-white" />
                                 </div>
                             </div>
+                        )}
 
-                            {/* Opponent response */}
-                            {turn.opponentResponse && (
-                                <div className="flex gap-4 max-w-[90%]">
-                                    <div className="h-10 w-10 rounded-full bg-white flex items-center justify-center shrink-0 border border-neutral-200 shadow-sm">
-                                        <Bot className="h-5 w-5 text-neutral-900" />
-                                    </div>
+                        {/* Turns */}
+                        {debate.turns.map((turn, i) => (
+                            <div key={i} className="space-y-6">
+                                {/* User message */}
+                                <div className="flex gap-4 justify-end max-w-[90%] ml-auto">
                                     <div className="space-y-1">
-                                        <div className="bg-white border border-neutral-200 rounded-2xl rounded-tl-none p-4 shadow-sm text-neutral-900 leading-relaxed">
-                                            {turn.opponentResponse}
+                                        <div className="bg-neutral-900 text-white rounded-2xl rounded-tr-none p-4 shadow-sm leading-relaxed">
+                                            {turn.userMessage}
                                         </div>
                                     </div>
+                                    <div className="h-10 w-10 rounded-full bg-neutral-900 flex items-center justify-center shrink-0 border border-neutral-900">
+                                        <User className="h-5 w-5 text-white" />
+                                    </div>
                                 </div>
-                            )}
-                        </div>
-                    ))}
+
+                                {/* Opponent response */}
+                                {turn.opponentResponse && (
+                                    <div className="flex gap-4 max-w-[90%]">
+                                        <div className="h-10 w-10 rounded-full bg-white flex items-center justify-center shrink-0 border border-neutral-200 shadow-sm">
+                                            <Bot className="h-5 w-5 text-neutral-900" />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <div className="bg-white border border-neutral-200 rounded-2xl rounded-tl-none p-4 shadow-sm text-neutral-900 leading-relaxed">
+                                                {turn.opponentResponse}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-3 pt-4 border-t border-neutral-100">
+                    <Link href="/history" className="flex-1">
+                        <Button variant="outline" className="w-full h-11 font-sans">Back to History</Button>
+                    </Link>
+                    <Link href="/practice" className="flex-1">
+                        <Button className="w-full h-11 bg-neutral-900 hover:bg-neutral-800 text-white font-sans">Practice More</Button>
+                    </Link>
                 </div>
             </div>
 
-            {/* Actions */}
-            <div className="flex gap-3 pt-4 border-t border-neutral-100">
-                <Link href="/history" className="flex-1">
-                    <Button variant="outline" className="w-full h-11 font-sans">Back to History</Button>
-                </Link>
-                <Link href="/practice" className="flex-1">
-                    <Button className="w-full h-11 bg-neutral-900 hover:bg-neutral-800 text-white font-sans">Practice More</Button>
-                </Link>
-            </div>
-        </div>
+            {/* Collocation Selection Modal */}
+            {
+                selectedPhrase && (
+                    <CollocationSelectionModal
+                        isOpen={modalOpen}
+                        onClose={() => {
+                            setModalOpen(false);
+                            setSelectedPhrase(null);
+                        }}
+                        onSave={async (data) => {
+                            try {
+                                const response = await fetch('/api/user/save-phrase', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'x-user-email': user?.email || '',
+                                        'x-user-id': user?.uid || '',
+                                    },
+                                    body: JSON.stringify({
+                                        phrase: data.rootWord,
+                                        meaning: data.meaning,
+                                        context: selectedPhrase.context,
+                                        mode: data.mode,
+                                        topics: data.topics,
+                                        children: data.children,
+                                    }),
+                                });
+                                if (response.ok) {
+                                    const childCount = data.children.length;
+                                    if (childCount > 0) {
+                                        toast.success(`Saved "${data.rootWord}" with ${childCount} expression(s)!`);
+                                    } else {
+                                        toast.success(`Saved "${data.rootWord}"!`);
+                                    }
+                                }
+                                setModalOpen(false);
+                                setSelectedPhrase(null);
+                            } catch (error) {
+                                console.error('Save phrase error:', error);
+                                toast.error('Failed to save phrase');
+                            }
+                        }}
+                        highlightedWord={selectedPhrase.english}
+                        context={selectedPhrase.context}
+                        userId={user?.uid}
+                        userEmail={user?.email || undefined}
+                    />
+                )
+            }
+        </>
     );
 }

@@ -47,32 +47,12 @@ export async function POST(request: NextRequest) {
 
         const phraseList = phrases.map((p, i) => `${i + 1}. "${p.phrase}" - ${p.meaning}`).join('\n');
 
-        const prompt = `Group these phrases by semantic similarity for debate topics.
-Each group should contain phrases that can naturally be discussed in ONE conversation.
-Maximum 4 phrases per group. Aim for coherent, related themes.
+        const prompt = `Group phrases by semantic similarity (max 4 per group).
 
-Phrases:
 ${phraseList}
 
-Return JSON only (no markdown):
-{
-    "clusters": [
-        {
-            "topic": "Short topic name (2-4 words)",
-            "phraseIndices": [1, 3, 4]
-        },
-        {
-            "topic": "Another topic",
-            "phraseIndices": [2, 5]
-        }
-    ]
-}
-
-Rules:
-- Every phrase must be in exactly one cluster
-- Cluster by meaning/theme, not surface similarity
-- Max 4 phrases per cluster
-- Single phrases OK if they don't fit elsewhere`;
+JSON only: {"c":[{"t":"topic","i":[1,3]}]}
+Rules: Every phrase in exactly 1 group. Single phrases OK.`;
 
         const response = await fetch(DEEPSEEK_URL, {
             method: 'POST',
@@ -83,8 +63,8 @@ Rules:
             body: JSON.stringify({
                 model: 'deepseek-chat',
                 messages: [{ role: 'user', content: prompt }],
-                max_tokens: 500,
-                temperature: 0.3, // Lower temp for consistent clustering
+                max_tokens: 300, // Reduced from 500 - compact output
+                temperature: 0.3,
             }),
         });
 
@@ -126,11 +106,14 @@ Rules:
             });
         }
 
+        // Normalize short keys: c -> clusters, t -> topic, i -> phraseIndices
+        const rawClusters = parsed.c || parsed.clusters || [];
+
         // Convert indices to actual phrases
-        const clusters = parsed.clusters.map((cluster: { topic: string; phraseIndices: number[] }) => ({
-            topic: cluster.topic,
-            phrases: cluster.phraseIndices
-                .map((i: number) => phrases[i - 1]) // 1-indexed to 0-indexed
+        const clusters = rawClusters.map((cluster: { t?: string; topic?: string; i?: number[]; phraseIndices?: number[] }) => ({
+            topic: cluster.t || cluster.topic || 'General',
+            phrases: (cluster.i || cluster.phraseIndices || [])
+                .map((idx: number) => phrases[idx - 1]) // 1-indexed to 0-indexed
                 .filter(Boolean), // Remove any undefined
         }));
 

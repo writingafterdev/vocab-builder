@@ -63,18 +63,20 @@ export async function POST(request: NextRequest) {
                     .map(t => `User: ${t.userMessage}\nOpponent: ${t.opponentResponse}`)
                     .join('\n\n');
 
-                const prompt = `Analyze this debate and provide brief rhetorical feedback (2-3 sentences max).
+                const prompt = `Analyze this debate and provide brief feedback.
 
 Topic: ${debate.topic}
 Debate:
 ${debateHistory}
 
-Focus on:
-- Argument strength
-- Persuasion techniques used
-- One tip for improvement
+Return JSON only (no markdown):
+{
+    "userStrengths": "1 sentence about what the user did well",
+    "userTip": "1 specific actionable tip for the user to improve",
+    "overallScore": "A short encouraging phrase like 'Great debate!' or 'Strong effort!'"
+}
 
-Be encouraging and constructive.`;
+Be encouraging and constructive. Focus on argument strength and persuasion techniques.`;
 
                 const response = await fetch(DEEPSEEK_URL, {
                     method: 'POST',
@@ -92,7 +94,24 @@ Be encouraging and constructive.`;
 
                 if (response.ok) {
                     const data = await response.json();
-                    rhetoricalFeedback = data.choices?.[0]?.message?.content || '';
+                    const content = data.choices?.[0]?.message?.content || '';
+
+                    // Parse JSON response
+                    try {
+                        const jsonMatch = content.match(/\{[\s\S]*\}/);
+                        if (jsonMatch) {
+                            const parsed = JSON.parse(jsonMatch[0]);
+                            rhetoricalFeedback = JSON.stringify({
+                                userStrengths: parsed.userStrengths || '',
+                                userTip: parsed.userTip || '',
+                                overallScore: parsed.overallScore || 'Well done!',
+                            });
+                        } else {
+                            rhetoricalFeedback = content;
+                        }
+                    } catch {
+                        rhetoricalFeedback = content;
+                    }
 
                     // Log token usage
                     if (data.usage) {
@@ -115,28 +134,83 @@ Be encouraging and constructive.`;
         // Update phrase practice counts for on-demand debates using REST API
         const masteryUpdates: string[] = [];
         if (!debate.isScheduled) {
+            // Deduplicate phraseIds - multiple children may share the same root
+            const usedPhraseIds = new Set<string>();
             for (const phrase of finalPhrases) {
                 if (phrase.used && phrase.phraseId) {
-                    try {
-                        // Get current practice count
-                        const phraseDoc = await getDocument('savedPhrases', phrase.phraseId);
-                        if (phraseDoc) {
-                            const currentCount = (phraseDoc.practiceCount as number) || 0;
-                            await updateDocument('savedPhrases', phrase.phraseId, {
-                                practiceCount: currentCount + 1,
-                            });
-                        }
-                    } catch (error) {
-                        console.error('Practice count update error:', error);
+                    usedPhraseIds.add(phrase.phraseId);
+                }
+            }
+
+            // Increment practiceCount once per root phrase
+            for (const phraseId of usedPhraseIds) {
+                try {
+                    const phraseDoc = await getDocument('savedPhrases', phraseId);
+                    if (phraseDoc) {
+                        const currentCount = (phraseDoc.practiceCount as number) || 0;
+                        await updateDocument('savedPhrases', phraseId, {
+                            practiceCount: currentCount + 1,
+                        });
                     }
+                } catch (error) {
+                    console.error('Practice count update error:', error);
                 }
             }
         } else {
-            // For scheduled debates, just note that we'd update mastery
-            // Full SRS update would need more REST API work
+            // For scheduled debates, update SRS for ALL root phrases
+            const intervals = [1, 3, 7, 14, 30, 90]; // DEFAULT_LEARNING_CYCLE.intervals
+
+            // Deduplicate phraseIds and aggregate status (best status wins: natural > forced > missing)
+            const phraseStatusMap = new Map<string, { status: string; phrase: string }>();
             for (const phrase of finalPhrases) {
-                if (phrase.status === 'natural') {
-                    masteryUpdates.push(phrase.phrase);
+                if (phrase.phraseId) {
+                    const existing = phraseStatusMap.get(phrase.phraseId);
+                    if (!existing) {
+                        phraseStatusMap.set(phrase.phraseId, { status: phrase.status || 'missing', phrase: phrase.phrase });
+                    } else {
+                        // Upgrade status if better: natural > forced > missing
+                        const statusPriority = { natural: 3, forced: 2, missing: 1 };
+                        const currentPriority = statusPriority[phrase.status as keyof typeof statusPriority] || 1;
+                        const existingPriority = statusPriority[existing.status as keyof typeof statusPriority] || 1;
+                        if (currentPriority > existingPriority) {
+                            phraseStatusMap.set(phrase.phraseId, { status: phrase.status || 'missing', phrase: phrase.phrase });
+                        }
+                    }
+                }
+            }
+
+            // Update SRS once per root phrase
+            for (const [phraseId, { status, phrase }] of phraseStatusMap) {
+                try {
+                    const phraseDoc = await getDocument('savedPhrases', phraseId);
+                    if (phraseDoc) {
+                        const currentStep = (phraseDoc.learningStep as number) || 0;
+                        let nextStep = currentStep;
+                        let daysToAdd = 1;
+
+                        if (status === 'natural') {
+                            nextStep = Math.min(currentStep + 1, intervals.length - 1);
+                            daysToAdd = intervals[nextStep];
+                            masteryUpdates.push(phrase);
+                        } else if (status === 'forced') {
+                            daysToAdd = intervals[currentStep] || 1;
+                        } else {
+                            daysToAdd = 1;
+                        }
+
+                        const nextDate = new Date();
+                        nextDate.setDate(nextDate.getDate() + daysToAdd);
+                        nextDate.setHours(0, 0, 0, 0);
+
+                        await updateDocument('savedPhrases', phraseId, {
+                            learningStep: nextStep,
+                            lastReviewDate: new Date(),
+                            nextReviewDate: nextDate,
+                            usageCount: ((phraseDoc.usageCount as number) || 0) + 1, // usageCount for scheduled reviews
+                        });
+                    }
+                } catch (error) {
+                    console.error('SRS update error for phrase:', phrase, error);
                 }
             }
         }

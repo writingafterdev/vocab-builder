@@ -368,7 +368,7 @@ export default function AdminPage() {
         try {
             const [stats, detailed] = await Promise.all([
                 getTokenUsageStats(days),
-                getDetailedTokenUsage(100)
+                getDetailedTokenUsage(100, true) // Today only
             ]);
             setTokenUsageStats(stats);
             setDetailedTokenLogs(detailed);
@@ -1577,33 +1577,78 @@ export default function AdminPage() {
                                 </CardHeader>
                                 <CardContent>
                                     <div className="space-y-3">
-                                        {tokenUsageStats.endpointStats.map((ep) => {
-                                            const costEstimate = ep.isDeepSeek ? (
-                                                (ep.promptTokens / 1000000) * 0.28 +
-                                                (ep.completionTokens / 1000000) * 0.42
-                                            ) : 0;
-                                            const avgCost = ep.isDeepSeek && ep.callCount > 0 ? costEstimate / ep.callCount : 0;
-                                            return (
-                                                <div key={ep.endpoint} className="flex items-center justify-between p-3 bg-neutral-50 rounded-lg">
-                                                    <div className="flex-1">
-                                                        <p className="font-medium font-mono text-sm">{ep.endpoint}</p>
-                                                        <p className="text-xs text-neutral-500">
-                                                            {ep.callCount} calls • {ep.avgTokensPerCall.toLocaleString()} avg tokens/call
-                                                        </p>
-                                                    </div>
-                                                    <div className="text-right">
-                                                        <p className="font-bold">{ep.totalTokens.toLocaleString()} tokens</p>
-                                                        {ep.isDeepSeek ? (
-                                                            <p className="text-xs text-emerald-600">
-                                                                ${costEstimate.toFixed(4)} total • ${avgCost.toFixed(5)}/call
-                                                            </p>
-                                                        ) : (
-                                                            <p className="text-xs text-blue-500">Free (Gemini)</p>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                            {tokenUsageStats.endpointStats.filter(ep => ep.isDeepSeek).map((ep) => {
+                                                const costEstimate = ep.isDeepSeek ? (
+                                                    (ep.promptTokens / 1000000) * 0.28 +
+                                                    (ep.completionTokens / 1000000) * 0.42
+                                                ) : 0;
+                                                const avgCost = ep.isDeepSeek && ep.callCount > 0 ? costEstimate / ep.callCount : 0;
+                                                const avgInput = ep.callCount > 0 ? Math.round(ep.promptTokens / ep.callCount) : 0;
+                                                const avgOutput = ep.callCount > 0 ? Math.round(ep.completionTokens / ep.callCount) : 0;
+
+                                                return (
+                                                    <Card key={ep.endpoint} className={`border ${ep.isDeepSeek ? 'border-indigo-100 bg-indigo-50/20' : 'border-blue-100 bg-blue-50/20'}`}>
+                                                        <CardContent className="p-4 space-y-4">
+                                                            {/* Header */}
+                                                            <div className="flex items-start justify-between">
+                                                                <div>
+                                                                    <p className="font-semibold text-sm font-mono text-neutral-900 break-all">{ep.endpoint}</p>
+                                                                    <div className="flex items-center gap-2 mt-1">
+                                                                        <Badge variant="outline" className={`text-[10px] h-5 px-1.5 ${ep.isDeepSeek ? 'text-indigo-600 border-indigo-200 bg-indigo-50' : 'text-blue-600 border-blue-200 bg-blue-50'}`}>
+                                                                            {ep.isDeepSeek ? 'DeepSeek' : 'Gemini'}
+                                                                        </Badge>
+                                                                        <span className="text-xs text-neutral-500">{ep.callCount} calls</span>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="text-right">
+                                                                    <p className="font-bold text-lg">{ep.totalTokens.toLocaleString()}</p>
+                                                                    <p className="text-[10px] uppercase tracking-wide text-neutral-400">Total Tokens</p>
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Detailed Breakdown */}
+                                                            <div className="grid grid-cols-3 gap-2 py-3 border-t border-b border-black/5">
+                                                                <div className="text-center">
+                                                                    <p className="text-[10px] text-neutral-500 uppercase">Avg Total</p>
+                                                                    <p className="font-medium text-neutral-900">{ep.avgTokensPerCall.toLocaleString()}</p>
+                                                                </div>
+                                                                <div className="text-center border-l border-r border-black/5 px-2">
+                                                                    <p className="text-[10px] text-neutral-500 uppercase">Avg Input</p>
+                                                                    <p className="font-medium text-neutral-900">{avgInput.toLocaleString()}</p>
+                                                                </div>
+                                                                <div className="text-center">
+                                                                    <p className="text-[10px] text-neutral-500 uppercase">Avg Output</p>
+                                                                    <p className="font-medium text-neutral-900">{avgOutput.toLocaleString()}</p>
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Cost Info */}
+                                                            <div className="flex items-center justify-between pt-1">
+                                                                {ep.isDeepSeek ? (
+                                                                    <>
+                                                                        <div>
+                                                                            <p className="text-[10px] text-neutral-500 uppercase">Total Cost</p>
+                                                                            <p className="text-sm font-medium text-emerald-600">${costEstimate.toFixed(4)}</p>
+                                                                        </div>
+                                                                        <div className="text-right">
+                                                                            <p className="text-[10px] text-neutral-500 uppercase">Avg Cost/Call</p>
+                                                                            <p className="text-sm font-medium text-emerald-600">${avgCost.toFixed(5)}</p>
+                                                                        </div>
+                                                                    </>
+                                                                ) : (
+                                                                    <div className="w-full text-center">
+                                                                        <span className="text-xs font-medium text-blue-500 px-2 py-1 bg-blue-50 rounded-full">
+                                                                            Free Tier (Gemini)
+                                                                        </span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </CardContent>
+                                                    </Card>
+                                                );
+                                            })}
+                                        </div>
                                         {tokenUsageStats.endpointStats.length === 0 && (
                                             <p className="text-neutral-500 text-center py-4">No data yet</p>
                                         )}
@@ -1617,19 +1662,38 @@ export default function AdminPage() {
                                     <CardTitle>Usage by User ({tokenUsageStats.userStats.length} users)</CardTitle>
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="space-y-3 max-h-96 overflow-y-auto">
-                                        {tokenUsageStats.userStats.map((u) => (
-                                            <div key={u.userId} className="flex items-center justify-between p-3 bg-neutral-50 rounded-lg">
-                                                <div>
-                                                    <p className="font-medium text-sm">{u.userEmail}</p>
-                                                    <p className="text-xs text-neutral-500">{u.callCount} calls • {u.avgTokensPerCall} avg</p>
+                                    <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
+                                        {tokenUsageStats.userStats.map((u, i) => {
+                                            const maxTokens = tokenUsageStats.userStats[0]?.totalTokens || 1;
+                                            const percentage = (u.totalTokens / maxTokens) * 100;
+
+                                            return (
+                                                <div key={`${u.userId}-${i}`} className="space-y-2">
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="h-8 w-8 rounded-full bg-neutral-100 flex items-center justify-center text-xs font-medium text-neutral-600 border border-neutral-200">
+                                                                {u.userEmail.charAt(0).toUpperCase()}
+                                                            </div>
+                                                            <div>
+                                                                <p className="font-medium text-sm text-neutral-900">{u.userEmail}</p>
+                                                                <p className="text-[10px] text-neutral-500">{u.callCount} calls • {u.avgTokensPerCall} avg</p>
+                                                            </div>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <p className="font-bold text-sm">{u.totalTokens.toLocaleString()}</p>
+                                                            <p className="text-[10px] text-neutral-400 uppercase">tokens</p>
+                                                        </div>
+                                                    </div>
+                                                    {/* Usage Bar */}
+                                                    <div className="h-1.5 w-full bg-neutral-50 rounded-full overflow-hidden">
+                                                        <div
+                                                            className="h-full bg-neutral-900 rounded-full opacity-80"
+                                                            style={{ width: `${percentage}%` }}
+                                                        />
+                                                    </div>
                                                 </div>
-                                                <div className="text-right">
-                                                    <p className="font-bold">{u.totalTokens.toLocaleString()}</p>
-                                                    <p className="text-xs text-neutral-500">tokens</p>
-                                                </div>
-                                            </div>
-                                        ))}
+                                            );
+                                        })}
                                         {tokenUsageStats.userStats.length === 0 && (
                                             <p className="text-neutral-500 text-center py-4">No data yet</p>
                                         )}
@@ -1638,40 +1702,64 @@ export default function AdminPage() {
                             </Card>
 
                             {/* Detailed Logs */}
-                            <Card className="col-span-2">
-                                <CardHeader>
-                                    <CardTitle>Recent API Calls ({detailedTokenLogs.length})</CardTitle>
+                            <Card className="col-span-1 md:col-span-2 lg:col-span-3">
+                                <CardHeader className="flex flex-row items-center justify-between">
+                                    <CardTitle>Today's API Calls ({detailedTokenLogs.length})</CardTitle>
+                                    <Badge variant="outline" className="font-normal text-neutral-500">
+                                        UTC Time
+                                    </Badge>
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="space-y-2 max-h-[500px] overflow-y-auto">
-                                        {detailedTokenLogs.map((log) => (
-                                            <div key={log.id} className="flex items-center justify-between p-3 bg-neutral-50 rounded-lg text-sm">
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="flex items-center gap-2">
-                                                        <Badge variant="outline" className="text-xs">
-                                                            {log.endpoint}
-                                                        </Badge>
-                                                        <span className="text-neutral-400 text-xs">{log.model}</span>
+                                    <div className="space-y-0 border rounded-lg overflow-hidden">
+                                        {detailedTokenLogs.map((log, index) => {
+                                            const isDeepSeek = log.model.includes('deepseek');
+                                            return (
+                                                <div
+                                                    key={log.id}
+                                                    className={`flex items-center justify-between p-3 text-sm border-b last:border-0 hover:bg-neutral-50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-neutral-50/30'
+                                                        }`}
+                                                >
+                                                    <div className="flex-1 min-w-0 pr-4">
+                                                        <div className="flex items-center gap-3">
+                                                            <Badge
+                                                                variant="secondary"
+                                                                className={`text-[10px] px-1.5 h-5 font-mono font-medium border ${isDeepSeek
+                                                                        ? 'bg-indigo-50 text-indigo-700 border-indigo-100'
+                                                                        : 'bg-blue-50 text-blue-700 border-blue-100'
+                                                                    }`}
+                                                            >
+                                                                {log.endpoint}
+                                                            </Badge>
+                                                            <span className="text-xs text-neutral-400 font-mono truncate max-w-[120px]">{log.model}</span>
+                                                        </div>
+                                                        <p className="text-xs text-neutral-600 mt-1 truncate pl-0.5">
+                                                            {log.userEmail}
+                                                        </p>
                                                     </div>
-                                                    <p className="text-xs text-neutral-500 mt-1 truncate">
-                                                        {log.userEmail}
-                                                    </p>
+
+                                                    <div className="flex items-center gap-6 shrink-0">
+                                                        <div className="hidden sm:block text-right">
+                                                            <div className="flex items-center justify-end gap-1.5 text-xs text-neutral-500 mb-0.5">
+                                                                <span>in: {log.promptTokens}</span>
+                                                                <span className="text-neutral-300">|</span>
+                                                                <span>out: {log.completionTokens}</span>
+                                                            </div>
+                                                        </div>
+                                                        <div className="text-right w-24">
+                                                            <p className="font-bold text-neutral-900">{log.totalTokens.toLocaleString()}</p>
+                                                            <p className="text-[10px] text-neutral-400">tokens</p>
+                                                        </div>
+                                                        <div className="text-right w-16 text-xs text-neutral-500 font-mono">
+                                                            {log.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                                <div className="text-right shrink-0 ml-4">
-                                                    <p className="font-medium">{log.totalTokens.toLocaleString()}</p>
-                                                    <p className="text-xs text-neutral-400">
-                                                        {log.createdAt.toLocaleString('en-US', {
-                                                            month: 'short',
-                                                            day: 'numeric',
-                                                            hour: '2-digit',
-                                                            minute: '2-digit'
-                                                        })}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        ))}
+                                            );
+                                        })}
                                         {detailedTokenLogs.length === 0 && (
-                                            <p className="text-neutral-500 text-center py-4">No API calls logged yet</p>
+                                            <div className="p-8 text-center text-neutral-500 bg-neutral-50">
+                                                <p>No API calls logged today</p>
+                                            </div>
                                         )}
                                     </div>
                                 </CardContent>

@@ -194,11 +194,13 @@ export interface DetailedTokenEntry {
 
 /**
  * Get detailed token usage entries for admin panel
+ * @param limitCount - Maximum number of entries to return
+ * @param todayOnly - If true, only return entries from today (since midnight)
  */
-export async function getDetailedTokenUsage(limitCount: number = 100): Promise<DetailedTokenEntry[]> {
+export async function getDetailedTokenUsage(limitCount: number = 100, todayOnly: boolean = false): Promise<DetailedTokenEntry[]> {
     try {
-        const records = await queryCollection('tokenUsage', { limit: limitCount });
-        const entries = records.map(data => ({
+        const records = await queryCollection('tokenUsage', { limit: todayOnly ? 500 : limitCount });
+        let entries = records.map(data => ({
             id: data.id as string,
             userId: (data.userId as string) || 'unknown',
             userEmail: (data.userEmail as string) || 'unknown',
@@ -209,9 +211,17 @@ export async function getDetailedTokenUsage(limitCount: number = 100): Promise<D
             totalTokens: (data.totalTokens as number) || 0,
             createdAt: data.createdAt instanceof Date ? data.createdAt : new Date(data.createdAt as string),
         }));
+
+        // Filter to today only if requested
+        if (todayOnly) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            entries = entries.filter(e => e.createdAt >= today);
+        }
+
         // Sort by createdAt descending (newest first)
         entries.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-        return entries;
+        return entries.slice(0, limitCount);
     } catch (error) {
         console.error('Failed to get detailed token usage:', error);
         return [];

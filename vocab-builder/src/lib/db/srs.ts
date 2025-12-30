@@ -64,7 +64,9 @@ export async function savePhrase(
     meaning: string,
     context: string,
     usage: 'spoken' | 'written' | 'neutral' = 'neutral',
-    sourcePostId?: string
+    sourcePostId?: string,
+    rootWord?: string,
+    topics?: string[]
 ): Promise<{ phraseId: string; totalPhrases: number; todayCount: number }> {
     // Check daily limit first
     const { canSave, saved } = await canSavePhraseToday(userId);
@@ -95,6 +97,9 @@ export async function savePhrase(
         // Contextualized Learning - will be populated async
         contexts: [],
         currentContextIndex: 0,
+        // Collocation & Tagging
+        rootWord: rootWord || null,
+        topics: topics || [],
     });
 
     const totalQuery = query(phrasesRef, where('userId', '==', userId));
@@ -233,8 +238,17 @@ export async function getDuePhrases(userId: string, limitCount: number = 20): Pr
         // Use standard JS date comparison for fallback
         const endOfTodayMillis = today.getTime();
 
-        return all.filter(p => p.nextReviewDate && p.nextReviewDate.toMillis() <= endOfTodayMillis)
-            .sort((a, b) => (a.nextReviewDate?.toMillis() || 0) - (b.nextReviewDate?.toMillis() || 0))
+        const getTimeMillis = (d: any): number => {
+            if (!d) return 0;
+            if (typeof d.toMillis === 'function') return d.toMillis();
+            if (typeof d.getTime === 'function') return d.getTime(); // Handle JS Date
+            if (d instanceof Date) return d.getTime();
+            if (typeof d === 'number') return d;
+            return 0;
+        };
+
+        return all.filter(p => p.nextReviewDate && getTimeMillis(p.nextReviewDate) <= endOfTodayMillis)
+            .sort((a, b) => getTimeMillis(a.nextReviewDate) - getTimeMillis(b.nextReviewDate))
             .slice(0, limitCount);
     }
 }

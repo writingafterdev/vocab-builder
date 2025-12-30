@@ -19,6 +19,7 @@ interface StartDebateRequest {
     }>;
     topicAngle?: string; // workplace, family, education, etc.
     isScheduled?: boolean; // true if from /practice (SRS), false if from /vocab (on-demand)
+    mode?: 'spoken' | 'written' | 'neutral'; // Debate style: casual or formal
 }
 
 const TOPIC_ANGLES = [
@@ -36,6 +37,48 @@ const PERSONAS = [
     { name: 'Taylor', style: 'Constructive - builds on ideas while offering alternatives' },
 ];
 
+// Casual/Spoken mode prompt (GenZ Reddit/Twitter arguing style)
+function generateCasualPrompt(phraseList: string, angle: string): string {
+    return `You're generating a spicy Reddit/Twitter debate for English practice. Make it feel like two chronically online GenZ people arguing.
+
+Phrases to use: ${phraseList}
+Topic: ${angle}
+
+STYLE RULES:
+- Use internet slang: "ngl", "lowkey", "fr fr", "the way...", "not me thinking...", "I-"
+- Hot takes, unpopular opinions, AITA vibes
+- Sarcastic, witty, slightly confrontational but fun
+- Gen Z humor: exaggeration, irony, calling things out
+- Include TRIGGERS (synonyms/related words) for each phrase
+
+Generate:
+1. TOPIC: Spicy hot take that would start arguments on Twitter (use "Unpopular Opinion:", "AITA for...", "HOT TAKE:", etc.)
+2. CONTEXT: 2-3 sentences setting up the drama with triggers. Make it relatable Gen Z stuff.
+3. OPPONENT: 2 sentences sassy disagreement with triggers. Like they REALLY disagree.
+
+Return compact JSON:
+{"t":"topic","bg":"context...","op":"opponent reply..."}`;
+}
+
+// Written/Neutral mode prompt
+function generateFormalPrompt(phraseList: string, angle: string): string {
+    return `Create a short professional discussion for English writing practice.
+
+Phrases to use: ${phraseList}
+Topic: ${angle}
+
+Tone: Professional blog/email style. No slang. Contractions OK.
+Include TRIGGERS (synonyms) for each phrase.
+
+Generate:
+1. TOPIC: Clear, relatable topic
+2. CONTEXT: 2-3 sentences professional setup with triggers
+3. OPPONENT: 2 sentences respectful disagreement with triggers
+
+Return compact JSON:
+{"t":"topic","bg":"context...","op":"counterargument..."}`;
+}
+
 export async function POST(request: NextRequest) {
     try {
         const userEmail = request.headers.get('x-user-email');
@@ -48,7 +91,9 @@ export async function POST(request: NextRequest) {
         }
 
         const body: StartDebateRequest = await request.json();
-        const { userId, phrases, topicAngle, isScheduled = false } = body;
+        const { userId, phrases, topicAngle, isScheduled = false, mode = 'spoken' } = body;
+
+
 
         if (!userId || !phrases || phrases.length === 0) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -62,41 +107,16 @@ export async function POST(request: NextRequest) {
 
         const phraseList = phrases.map(p => `"${p.phrase}" (${p.meaning})`).join('\n- ');
 
-        const prompt = `You are creating a Reddit/Twitter style argument scenario for English practice.
+        // Mode-specific prompt generation
+        const isWrittenMode = mode === 'written';
 
-Target phrases the learner must use in the argument:
-- ${phraseList}
 
-Topic angle: ${angle}
 
-Generate:
-1. A HOT TAKE TOPIC related to ${angle} - something people argue about on Twitter/Reddit (controversial opinions, unpopular takes, "am I the asshole" type situations)
+        const prompt = isWrittenMode
+            ? generateFormalPrompt(phraseList, angle)
+            : generateCasualPrompt(phraseList, angle);
 
-2. CONTEXT (2-3 short paragraphs) that:
-   - Reads like a Reddit post or Twitter thread explaining the situation
-   - Is REAL and relatable (relationship drama, workplace BS, social media debates, etc.)
-   - WEAVES IN ALL TARGET PHRASES naturally
-   - Has that authentic internet storytelling vibe ("so basically...", "here's the thing...", "I can't be the only one who thinks...")
 
-3. An OPPONENT'S HOT TAKE (2-3 sentences) that:
-   - Sounds like a real Reddit/Twitter reply that's picking a fight
-   - Is provocative, maybe a bit snarky, definitely opinionated
-   - PUSHES THE LEARNER to defend their position using the target phrases
-   - Has internet argument energy ("That's a weird take", "You're missing the point", "This is exactly why...", "Nah, here's the thing...")
-
-VIBE CHECK:
-- Sound like a real person on the internet, not a debate coach
-- Use casual language, internet speak is fine (ngl, tbh, lowkey, etc.)
-- Be slightly provocative - real arguments have tension
-- NEVER use em dashes (— or --)
-- Can be sarcastic, can have attitude, can be a little spicy
-
-Return JSON only:
-{
-    "topic": "Punchy hot take title like a Reddit post or tweet",
-    "background": "Context that reads like a real Reddit post/Twitter thread with ALL phrases woven in...",
-    "opponentPosition": "A spicy, opinionated reply that picks a fight and makes the learner want to clap back using the target phrases..."
-}`;
 
         const response = await fetch(DEEPSEEK_URL, {
             method: 'POST',
@@ -107,7 +127,7 @@ Return JSON only:
             body: JSON.stringify({
                 model: 'deepseek-chat',
                 messages: [{ role: 'user', content: prompt }],
-                max_tokens: 1200,
+                max_tokens: 400, // Reduced from 1200 - compact output format
                 temperature: 0.8,
             }),
         });
@@ -156,11 +176,12 @@ Return JSON only:
         }
 
         // Create debate session using REST API
+        // Support both short keys (t, bg, op) and long keys for backward compatibility
         const debateData = {
             userId,
-            topic: parsed.topic || 'Open Discussion',
+            topic: parsed.t || parsed.topic || 'Open Discussion',
             topicAngle: angle,
-            backgroundContent: parsed.background || '',
+            backgroundContent: parsed.bg || parsed.background || '',
             phrases: phrases.map(p => ({
                 phrase: p.phrase,
                 phraseId: p.phraseId,
@@ -171,7 +192,8 @@ Return JSON only:
                 feedback: '',
             })),
             opponentPersona: persona.name,
-            opponentPosition: parsed.opponentPosition || '',
+            opponentPosition: parsed.op || parsed.opponentPosition || '',
+            mode: mode, // Save mode to persist tone across turns
             turns: [],
             status: 'active',
             isScheduled,

@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import CollocationSelectionModal from '@/components/collocation-selection-modal';
 
 interface DebatePhrase {
     phrase: string;
@@ -62,6 +63,7 @@ export default function DebatePage() {
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [showBackground, setShowBackground] = useState(true);
+    const [activeTab, setActiveTab] = useState<'debate' | 'context'>('debate');
 
     // Debate data
     const [topic, setTopic] = useState('');
@@ -90,6 +92,10 @@ export default function DebatePage() {
     const [assistedPhrases, setAssistedPhrases] = useState<AssistedPhrase[]>([]);
     const translationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const lastTranslatedVietnameseRef = useRef<string>('');
+
+    // Collocation modal state
+    const [modalOpen, setModalOpen] = useState(false);
+    const [selectedPhrase, setSelectedPhrase] = useState<{ english: string; context: string; index: number } | null>(null);
 
     useEffect(() => {
         async function loadDebate() {
@@ -402,18 +408,62 @@ export default function DebatePage() {
                         </CardContent>
                     </Card>
 
+
                     {/* Rhetorical feedback */}
-                    {rhetoricalFeedback && (
-                        <Card className="border-neutral-200 shadow-sm bg-indigo-50/30">
-                            <CardContent className="pt-6">
-                                <h3 className="font-semibold text-neutral-900 mb-2 flex items-center gap-2">
-                                    <MessageSquare className="h-4 w-4 text-indigo-500" />
-                                    Coach's Feedback
-                                </h3>
-                                <p className="text-sm text-neutral-700 leading-relaxed font-sans">{rhetoricalFeedback}</p>
-                            </CardContent>
-                        </Card>
-                    )}
+                    {rhetoricalFeedback && (() => {
+                        // Try to parse structured feedback
+                        try {
+                            const feedback = JSON.parse(rhetoricalFeedback);
+                            return (
+                                <Card className="border-neutral-200 shadow-sm bg-gradient-to-br from-indigo-50/50 to-purple-50/30">
+                                    <CardContent className="pt-6">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <h3 className="font-semibold text-neutral-900 flex items-center gap-2">
+                                                <MessageSquare className="h-4 w-4 text-indigo-500" />
+                                                Coach's Feedback
+                                            </h3>
+                                            <Badge className="bg-indigo-100 text-indigo-700 border-indigo-200">
+                                                {feedback.overallScore}
+                                            </Badge>
+                                        </div>
+                                        <div className="space-y-3">
+                                            <div className="flex items-start gap-3 p-3 bg-white/60 rounded-lg">
+                                                <div className="h-6 w-6 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                                                    <CheckCircle className="h-3.5 w-3.5 text-emerald-600" />
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs font-medium text-emerald-700 mb-0.5">What you did well</p>
+                                                    <p className="text-sm text-neutral-700">{feedback.userStrengths}</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-start gap-3 p-3 bg-white/60 rounded-lg">
+                                                <div className="h-6 w-6 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+                                                    <Sparkles className="h-3.5 w-3.5 text-amber-600" />
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs font-medium text-amber-700 mb-0.5">Tip for next time</p>
+                                                    <p className="text-sm text-neutral-700">{feedback.userTip}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            );
+                        } catch {
+                            // Fallback to raw text
+                            return (
+                                <Card className="border-neutral-200 shadow-sm bg-indigo-50/30">
+                                    <CardContent className="pt-6">
+                                        <h3 className="font-semibold text-neutral-900 mb-2 flex items-center gap-2">
+                                            <MessageSquare className="h-4 w-4 text-indigo-500" />
+                                            Coach's Feedback
+                                        </h3>
+                                        <p className="text-sm text-neutral-700 leading-relaxed font-sans">{rhetoricalFeedback}</p>
+                                    </CardContent>
+                                </Card>
+                            );
+                        }
+                    })()}
                     {/* New Phrases Discovered */}
                     {assistedPhrases.length > 0 && (
                         <Card className="border-blue-200 shadow-sm bg-blue-50/30">
@@ -436,31 +486,13 @@ export default function DebatePage() {
                                                 size="sm"
                                                 variant="outline"
                                                 className="text-xs h-7 border-blue-200 text-blue-600 hover:bg-blue-50"
-                                                onClick={async () => {
-                                                    try {
-                                                        const response = await fetch('/api/user/save-phrase', {
-                                                            method: 'POST',
-                                                            headers: {
-                                                                'Content-Type': 'application/json',
-                                                                'x-user-email': user?.email || '',
-                                                                'x-user-id': user?.uid || '',
-                                                            },
-                                                            body: JSON.stringify({
-                                                                phrase: phrase.english,
-                                                                meaning: `Vietnamese: ${phrase.vietnamese}`,
-                                                                context: `Discovered during debate: "${topic}"`,
-                                                            }),
-                                                        });
-                                                        if (response.ok) {
-                                                            toast.success(`Saved "${phrase.english}" to your vocab bank!`);
-                                                            setAssistedPhrases(prev => prev.filter((_, idx) => idx !== i));
-                                                        } else {
-                                                            toast.error('Failed to save phrase');
-                                                        }
-                                                    } catch (error) {
-                                                        console.error('Save phrase error:', error);
-                                                        toast.error('Failed to save phrase');
-                                                    }
+                                                onClick={() => {
+                                                    setSelectedPhrase({
+                                                        english: phrase.english,
+                                                        context: `Discovered during debate: "${topic}"`,
+                                                        index: i
+                                                    });
+                                                    setModalOpen(true);
                                                 }}
                                             >
                                                 <Plus className="h-3 w-3 mr-1" />
@@ -482,245 +514,415 @@ export default function DebatePage() {
                         </Link>
                     </div>
                 </div>
+
+                {/* Collocation Selection Modal */}
+                {selectedPhrase && (
+                    <CollocationSelectionModal
+                        isOpen={modalOpen}
+                        onClose={() => {
+                            setModalOpen(false);
+                            setSelectedPhrase(null);
+                        }}
+                        onSave={async (data) => {
+                            try {
+                                const response = await fetch('/api/user/save-phrase', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'x-user-email': user?.email || '',
+                                        'x-user-id': user?.uid || '',
+                                    },
+                                    body: JSON.stringify({
+                                        phrase: data.rootWord,
+                                        meaning: data.meaning,
+                                        context: selectedPhrase.context,
+                                        mode: data.mode,
+                                        topics: data.topics,
+                                        children: data.children,
+                                    }),
+                                });
+                                if (response.ok) {
+                                    const childCount = data.children.length;
+                                    if (childCount > 0) {
+                                        toast.success(`Saved "${data.rootWord}" with ${childCount} expression(s)!`);
+                                    } else {
+                                        toast.success(`Saved "${data.rootWord}"!`);
+                                    }
+                                }
+                                setAssistedPhrases(prev => prev.filter((_, idx) => idx !== selectedPhrase.index));
+                                setModalOpen(false);
+                                setSelectedPhrase(null);
+                            } catch (error) {
+                                console.error('Save phrase error:', error);
+                                toast.error('Failed to save phrase');
+                            }
+                        }}
+                        highlightedWord={selectedPhrase.english}
+                        context={selectedPhrase.context}
+                        userId={user?.uid}
+                        userEmail={user?.email || undefined}
+                    />
+                )}
             </div>
         );
     }
 
     return (
-        <div className="max-w-3xl mx-auto py-4 px-4 flex flex-col h-[calc(100vh-80px)] font-sans">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-4 shrink-0">
-                <Link href="/practice">
-                    <Button variant="ghost" size="sm" className="text-neutral-500 hover:text-neutral-900">
-                        <ArrowLeft className="h-4 w-4 mr-2" />
-                        Exit
-                    </Button>
-                </Link>
-                <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="font-normal text-neutral-500 border-neutral-200 bg-white">
-                        {topic || 'Debate'}
-                    </Badge>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={endDebate}
-                        disabled={submitting}
-                        className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
-                    >
-                        End Debate
-                    </Button>
+        <>
+            <div className="max-w-3xl mx-auto py-4 px-4 flex flex-col h-[calc(100vh-80px)] font-sans">
+                {/* Header */}
+                <div className="flex items-center justify-between mb-3 shrink-0">
+                    <Link href="/practice">
+                        <Button variant="ghost" size="sm" className="text-neutral-500 hover:text-neutral-900">
+                            <ArrowLeft className="h-4 w-4 mr-2" />
+                            Exit
+                        </Button>
+                    </Link>
+                    <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="font-normal text-neutral-500 border-neutral-200 bg-white max-w-[300px] truncate">
+                            {topic || 'Debate'}
+                        </Badge>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={endDebate}
+                            disabled={submitting}
+                            className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+                        >
+                            End Debate
+                        </Button>
+                    </div>
                 </div>
-            </div>
 
-            {/* Background (collapsible) */}
-            {background && (
-                <div className="mb-6 shrink-0">
+                {/* Tab Navigation */}
+                <div className="flex gap-1 p-1 bg-neutral-100 rounded-xl mb-4 shrink-0">
                     <button
-                        onClick={() => setShowBackground(!showBackground)}
-                        className="w-full flex items-center justify-between py-2 text-left group"
+                        onClick={() => setActiveTab('context')}
+                        className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-medium transition-all ${activeTab === 'context'
+                            ? 'bg-white text-neutral-900 shadow-sm'
+                            : 'text-neutral-500 hover:text-neutral-700'
+                            }`}
                     >
-                        <span className="text-xs font-medium text-neutral-400 uppercase tracking-wider">
-                            Background
-                        </span>
-                        {showBackground ? (
-                            <ChevronUp className="h-4 w-4 text-neutral-300 group-hover:text-neutral-500 transition-colors" />
-                        ) : (
-                            <ChevronDown className="h-4 w-4 text-neutral-300 group-hover:text-neutral-500 transition-colors" />
+                        <BookOpen className="h-4 w-4" />
+                        Context
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('debate')}
+                        className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-medium transition-all ${activeTab === 'debate'
+                            ? 'bg-white text-neutral-900 shadow-sm'
+                            : 'text-neutral-500 hover:text-neutral-700'
+                            }`}
+                    >
+                        <MessageSquare className="h-4 w-4" />
+                        Debate
+                        {remainingPhrases.length > 0 && (
+                            <span className="bg-neutral-200 text-neutral-600 text-xs px-1.5 py-0.5 rounded-full">
+                                {remainingPhrases.length}
+                            </span>
                         )}
                     </button>
-                    {showBackground && (
-                        <div className="mt-2 p-4 bg-neutral-50 rounded-xl border border-neutral-100">
-                            <p className="text-neutral-700 text-sm leading-relaxed font-sans">{background}</p>
-                        </div>
-                    )}
                 </div>
-            )}
 
-            {/* Phrase checklist */}
-            <div className="flex flex-wrap gap-2 mb-6 shrink-0">
-                {phrases.map((p, i) => (
-                    <Badge
-                        key={i}
-                        variant="secondary"
-                        className={`
-                            px-3 py-1 text-sm font-medium transition-all duration-300
-                            ${p.used
-                                ? 'bg-emerald-100 text-emerald-800 border-emerald-200 ring-1 ring-emerald-200'
-                                : 'bg-white text-neutral-500 border border-neutral-200'
-                            }
-                        `}
-                    >
-                        {p.used ? (
-                            <CheckCircle className="h-3 w-3 mr-1.5 inline-block" />
-                        ) : (
-                            <span className="inline-block w-2 H-2 rounded-full bg-neutral-300 mr-1.5" />
+                {/* Context Tab */}
+                {activeTab === 'context' && (
+                    <div className="flex-1 overflow-y-auto space-y-6 pr-2">
+                        {/* Background */}
+                        {background && (
+                            <div className="p-5 bg-neutral-50 rounded-xl border border-neutral-100">
+                                <h3 className="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-3">
+                                    Background
+                                </h3>
+                                <p className="text-neutral-700 text-sm leading-relaxed font-sans">{background}</p>
+                            </div>
                         )}
-                        {p.phrase}
-                    </Badge>
-                ))}
-            </div>
 
-            {/* Chat area */}
-            <div className="flex-1 overflow-y-auto space-y-6 mb-6 pr-2 min-h-0">
-                {/* Opponent's opening */}
-                {opponentPosition && (
-                    <div className="flex gap-4 max-w-[90%]">
-                        <div className="h-10 w-10 rounded-full bg-white flex items-center justify-center shrink-0 border border-neutral-200 shadow-sm">
-                            <Bot className="h-5 w-5 text-neutral-900" />
-                        </div>
-                        <div className="space-y-1">
-                            <span className="text-xs font-medium text-neutral-400 ml-1 block">{opponentPersona}</span>
-                            <div className="bg-white border border-neutral-200 rounded-2xl rounded-tl-none p-4 shadow-sm text-neutral-900 leading-relaxed">
-                                {opponentPosition}
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* Turns */}
-                {turns.map((turn, i) => (
-                    <div key={i} className="space-y-6">
-                        {/* User message */}
-                        <div className="flex gap-4 justify-end max-w-[90%] ml-auto">
-                            <div className="space-y-1">
-                                <div className="bg-neutral-900 text-white rounded-2xl rounded-tr-none p-4 shadow-sm leading-relaxed">
-                                    {turn.userMessage}
-                                </div>
-                            </div>
-                            <div className="h-10 w-10 rounded-full bg-neutral-900 flex items-center justify-center shrink-0 border border-neutral-900">
-                                <User className="h-5 w-5 text-white" />
-                            </div>
-                        </div>
-
-                        {/* Opponent response */}
-                        <div className="flex gap-4 max-w-[90%]">
-                            <div className="h-10 w-10 rounded-full bg-white flex items-center justify-center shrink-0 border border-neutral-200 shadow-sm">
-                                <Bot className="h-5 w-5 text-neutral-900" />
-                            </div>
-                            <div className="space-y-1">
-                                <div className="bg-white border border-neutral-200 rounded-2xl rounded-tl-none p-4 shadow-sm text-neutral-900 leading-relaxed">
-                                    {turn.opponentResponse}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                ))}
-
-                {submitting && (
-                    <div className="flex gap-4 justify-end max-w-[90%] ml-auto opacity-50">
-                        <div className="bg-neutral-900/50 text-white rounded-2xl rounded-tr-none p-4 shadow-sm">
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                        </div>
-                    </div>
-                )}
-
-                <div ref={messagesEndRef} />
-            </div>
-
-            {/* Input area */}
-            <div className="shrink-0 pt-4 bg-white border-t border-transparent">
-                <div className="relative max-w-4xl mx-auto">
-                    <div className="absolute -top-12 left-0 right-0 flex justify-center pointer-events-none">
-                        <div className="bg-white/95 backdrop-blur border border-neutral-200 shadow-sm px-4 py-1.5 rounded-full flex items-center gap-3 text-xs font-medium text-neutral-500 pointer-events-auto">
-                            <span className={remainingPhrases.length === 0 ? "text-emerald-600 transition-colors" : ""}>
-                                {remainingPhrases.length} phrases left
-                            </span>
-                            <span className="w-px h-3 bg-neutral-200" />
-                            <span>
-                                Turn {turns.length + 1} / 3
-                            </span>
-                        </div>
-                    </div>
-
-                    {/* Translation suggestion popover */}
-                    {(translationSuggestion || translating) && (
-                        <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-xl animate-in fade-in slide-in-from-bottom-2">
-                            {translating ? (
-                                <div className="flex items-center gap-2 text-sm text-blue-600">
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                    <span>Translating...</span>
-                                </div>
-                            ) : translationSuggestion && (
-                                <div className="space-y-2">
-                                    <div className="flex items-start gap-2">
-                                        <Languages className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
-                                        <div className="flex-1">
-                                            <p className="text-xs font-medium text-blue-700 mb-1">Did you mean:</p>
-                                            <p className="text-sm text-blue-900">{translationSuggestion.suggestion}</p>
+                        {/* Target Phrases */}
+                        <div className="p-5 bg-white rounded-xl border border-neutral-200">
+                            <h3 className="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-3">
+                                Target Phrases
+                            </h3>
+                            <div className="space-y-3">
+                                {phrases.map((p, i) => (
+                                    <div
+                                        key={i}
+                                        className={`flex items-start gap-3 p-3 rounded-lg transition-colors ${p.used
+                                            ? 'bg-emerald-50 border border-emerald-100'
+                                            : 'bg-neutral-50 border border-neutral-100'
+                                            }`}
+                                    >
+                                        <div className={`mt-0.5 h-5 w-5 rounded-full flex items-center justify-center shrink-0 ${p.used ? 'bg-emerald-500' : 'bg-neutral-200'
+                                            }`}>
+                                            {p.used && <CheckCircle className="h-3 w-3 text-white" />}
+                                        </div>
+                                        <div>
+                                            <p className={`font-medium ${p.used ? 'text-emerald-800' : 'text-neutral-800'}`}>
+                                                {p.phrase}
+                                            </p>
+                                            <p className="text-xs text-neutral-500 mt-0.5">{p.meaning}</p>
                                         </div>
                                     </div>
-                                    {translationSuggestion.translations.length > 0 && (
-                                        <div className="flex flex-wrap gap-1 mt-2">
-                                            {translationSuggestion.translations.map((t, i) => (
-                                                <span key={i} className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
-                                                    {t.vietnamese} → {t.english}
-                                                </span>
-                                            ))}
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Opponent Info */}
+                        {opponentPersona && (
+                            <div className="p-5 bg-white rounded-xl border border-neutral-200">
+                                <h3 className="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-3">
+                                    Your Opponent
+                                </h3>
+                                <div className="flex items-center gap-3">
+                                    <div className="h-10 w-10 rounded-full bg-neutral-100 flex items-center justify-center">
+                                        <Bot className="h-5 w-5 text-neutral-600" />
+                                    </div>
+                                    <div>
+                                        <p className="font-medium text-neutral-900">{opponentPersona.split(' - ')[0]}</p>
+                                        <p className="text-xs text-neutral-500">{opponentPersona.split(' - ')[1]}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        <Button
+                            onClick={() => setActiveTab('debate')}
+                            className="w-full bg-neutral-900 hover:bg-neutral-800 text-white"
+                        >
+                            <MessageSquare className="h-4 w-4 mr-2" />
+                            Back to Debate
+                        </Button>
+                    </div>
+                )}
+
+                {/* Debate Tab */}
+                {activeTab === 'debate' && (
+                    <>
+                        {/* Target Phrases - Prominent Display */}
+                        <div className="mb-5 p-4 bg-neutral-50 rounded-xl border border-neutral-200 shrink-0">
+                            <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-3">
+                                Use these phrases in your argument
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                                {phrases.map((p, i) => (
+                                    <div
+                                        key={i}
+                                        className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-default ${p.used
+                                            ? 'bg-emerald-500 text-white shadow-sm'
+                                            : 'bg-white text-neutral-800 border border-neutral-300 shadow-sm hover:border-neutral-400'
+                                            }`}
+                                        title={p.meaning}
+                                    >
+                                        {p.used && <CheckCircle className="h-4 w-4 mr-1.5 inline-block" />}
+                                        {p.phrase}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Chat area */}
+                        <div className="flex-1 overflow-y-auto space-y-6 mb-4 pr-2 min-h-0">
+                            {/* Opponent's opening */}
+                            {opponentPosition && (
+                                <div className="flex gap-3 max-w-[90%]">
+                                    <div className="h-9 w-9 rounded-full bg-white flex items-center justify-center shrink-0 border border-neutral-200 shadow-sm">
+                                        <Bot className="h-4 w-4 text-neutral-900" />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <span className="text-xs font-medium text-neutral-400 ml-1 block">{opponentPersona.split(' - ')[0]}</span>
+                                        <div className="bg-white border border-neutral-200 rounded-2xl rounded-tl-none p-4 shadow-sm text-neutral-900 text-[15px] leading-relaxed">
+                                            {opponentPosition}
                                         </div>
-                                    )}
-                                    <div className="flex gap-2 mt-2">
-                                        <Button
-                                            size="sm"
-                                            onClick={acceptTranslation}
-                                            className="bg-blue-600 hover:bg-blue-700 text-white text-xs h-7"
-                                        >
-                                            <Sparkles className="h-3 w-3 mr-1" />
-                                            Use this
-                                        </Button>
-                                        <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            onClick={() => setTranslationSuggestion(null)}
-                                            className="text-blue-600 text-xs h-7"
-                                        >
-                                            Dismiss
-                                        </Button>
                                     </div>
                                 </div>
                             )}
-                        </div>
-                    )}
 
-                    <div className="relative rounded-2xl border border-neutral-200 bg-white shadow-sm hover:border-neutral-300 focus-within:ring-2 focus-within:ring-emerald-500/10 focus-within:border-emerald-500/50 transition-all overflow-hidden group">
-                        <Textarea
-                            value={userMessage}
-                            onChange={(e) => handleMessageChange(e.target.value)}
-                            placeholder="Type your argument... (Vietnamese text will be auto-translated)"
-                            className="min-h-[60px] max-h-[160px] w-full resize-none border-0 bg-transparent p-4 text-base focus-visible:ring-0 placeholder:text-neutral-400 text-neutral-900"
-                            disabled={submitting}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter' && !e.shiftKey) {
-                                    e.preventDefault();
-                                    handleSubmit();
-                                }
-                            }}
-                        />
-                        <div className="flex justify-between items-center px-3 pb-3 bg-white">
-                            <p className="text-[10px] text-neutral-400 px-2 opacity-0 group-focus-within:opacity-100 transition-opacity">
-                                Press Enter to send
-                            </p>
-                            <Button
-                                onClick={handleSubmit}
-                                disabled={!userMessage.trim() || submitting}
-                                size="sm"
-                                className={`
-                                    rounded-xl h-9 px-4 transition-all duration-200 font-medium ml-auto
-                                    ${!userMessage.trim() || submitting
-                                        ? 'bg-neutral-100 text-neutral-300'
-                                        : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-md hover:shadow-lg active:scale-95'
-                                    }
-                                `}
-                            >
-                                {submitting ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                    <Send className="h-4 w-4" />
-                                )}
-                            </Button>
+                            {/* Turns */}
+                            {turns.map((turn, i) => (
+                                <div key={i} className="space-y-6">
+                                    {/* User message */}
+                                    <div className="flex gap-3 justify-end max-w-[90%] ml-auto">
+                                        <div className="space-y-1">
+                                            <div className="bg-neutral-900 text-white rounded-2xl rounded-tr-none p-4 shadow-sm text-[15px] leading-relaxed">
+                                                {turn.userMessage}
+                                            </div>
+                                        </div>
+                                        <div className="h-9 w-9 rounded-full bg-neutral-900 flex items-center justify-center shrink-0">
+                                            <User className="h-4 w-4 text-white" />
+                                        </div>
+                                    </div>
+
+                                    {/* Opponent response */}
+                                    <div className="flex gap-3 max-w-[90%]">
+                                        <div className="h-9 w-9 rounded-full bg-white flex items-center justify-center shrink-0 border border-neutral-200 shadow-sm">
+                                            <Bot className="h-4 w-4 text-neutral-900" />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <div className="bg-white border border-neutral-200 rounded-2xl rounded-tl-none p-4 shadow-sm text-neutral-900 text-[15px] leading-relaxed">
+                                                {turn.opponentResponse}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+
+                            {submitting && (
+                                <div className="flex gap-3 justify-end max-w-[90%] ml-auto opacity-50">
+                                    <div className="bg-neutral-900/50 text-white rounded-2xl rounded-tr-none p-4 shadow-sm">
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    </div>
+                                </div>
+                            )}
+
+                            <div ref={messagesEndRef} />
                         </div>
-                    </div>
-                </div>
+
+                        {/* Input area */}
+                        <div className="shrink-0 pt-2 bg-white">
+                            <div className="relative max-w-4xl mx-auto">
+                                {/* Status bar */}
+                                <div className="flex justify-center mb-2">
+                                    <div className="bg-neutral-100 px-3 py-1 rounded-full flex items-center gap-2 text-xs font-medium text-neutral-500">
+                                        <span className={remainingPhrases.length === 0 ? "text-emerald-600" : ""}>
+                                            {remainingPhrases.length} phrases left
+                                        </span>
+                                        <span className="w-px h-3 bg-neutral-300" />
+                                        <span>Turn {turns.length + 1} / 3</span>
+                                    </div>
+                                </div>
+
+                                {/* Translation suggestion */}
+                                {(translationSuggestion || translating) && (
+                                    <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-xl">
+                                        {translating ? (
+                                            <div className="flex items-center gap-2 text-sm text-blue-600">
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                                <span>Translating...</span>
+                                            </div>
+                                        ) : translationSuggestion && (
+                                            <div className="space-y-2">
+                                                <div className="flex items-start gap-2">
+                                                    <Languages className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
+                                                    <div className="flex-1">
+                                                        <p className="text-xs font-medium text-blue-700 mb-1">Did you mean:</p>
+                                                        <p className="text-sm text-blue-900">{translationSuggestion.suggestion}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex gap-2 mt-2">
+                                                    <Button
+                                                        size="sm"
+                                                        onClick={acceptTranslation}
+                                                        className="bg-blue-600 hover:bg-blue-700 text-white text-xs h-7"
+                                                    >
+                                                        <Sparkles className="h-3 w-3 mr-1" />
+                                                        Use this
+                                                    </Button>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        onClick={() => setTranslationSuggestion(null)}
+                                                        className="text-blue-600 text-xs h-7"
+                                                    >
+                                                        Dismiss
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Input box */}
+                                <div className="relative rounded-2xl border border-neutral-200 bg-white shadow-sm hover:border-neutral-300 focus-within:ring-2 focus-within:ring-emerald-500/10 focus-within:border-emerald-500/50 transition-all overflow-hidden group">
+                                    <Textarea
+                                        value={userMessage}
+                                        onChange={(e) => handleMessageChange(e.target.value)}
+                                        placeholder="Type your argument... (Vietnamese text will be auto-translated)"
+                                        className="min-h-[60px] max-h-[140px] w-full resize-none border-0 bg-transparent p-4 text-base focus-visible:ring-0 placeholder:text-neutral-400 text-neutral-900"
+                                        disabled={submitting}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' && !e.shiftKey) {
+                                                e.preventDefault();
+                                                handleSubmit();
+                                            }
+                                        }}
+                                    />
+                                    <div className="flex justify-between items-center px-3 pb-3 bg-white">
+                                        <button
+                                            onClick={() => setActiveTab('context')}
+                                            className="text-xs text-neutral-400 hover:text-neutral-600 px-2 py-1 rounded hover:bg-neutral-100 transition-colors"
+                                        >
+                                            View context →
+                                        </button>
+                                        <Button
+                                            onClick={handleSubmit}
+                                            disabled={!userMessage.trim() || submitting}
+                                            size="sm"
+                                            className={`rounded-xl h-9 px-4 transition-all duration-200 font-medium ${!userMessage.trim() || submitting
+                                                ? 'bg-neutral-100 text-neutral-300'
+                                                : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-md hover:shadow-lg active:scale-95'
+                                                }`}
+                                        >
+                                            {submitting ? (
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                            ) : (
+                                                <Send className="h-4 w-4" />
+                                            )}
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </>
+                )}
             </div>
-        </div>
+
+            {/* Collocation Selection Modal */}
+            {selectedPhrase && (
+                <CollocationSelectionModal
+                    isOpen={modalOpen}
+                    onClose={() => {
+                        setModalOpen(false);
+                        setSelectedPhrase(null);
+                    }}
+                    onSave={async (data) => {
+                        try {
+                            const response = await fetch('/api/user/save-phrase', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'x-user-email': user?.email || '',
+                                    'x-user-id': user?.uid || '',
+                                },
+                                body: JSON.stringify({
+                                    phrase: data.rootWord,
+                                    meaning: data.meaning,
+                                    context: selectedPhrase.context,
+                                    mode: data.mode,
+                                    topics: data.topics,
+                                    children: data.children,
+                                }),
+                            });
+                            if (response.ok) {
+                                const childCount = data.children.length;
+                                if (childCount > 0) {
+                                    toast.success(`Saved "${data.rootWord}" with ${childCount} expression(s)!`);
+                                } else {
+                                    toast.success(`Saved "${data.rootWord}"!`);
+                                }
+                            }
+                            // Remove the phrase from assisted phrases
+                            setAssistedPhrases(prev => prev.filter((_, idx) => idx !== selectedPhrase.index));
+                            setModalOpen(false);
+                            setSelectedPhrase(null);
+                        } catch (error) {
+                            console.error('Save phrase error:', error);
+                            toast.error('Failed to save phrase');
+                        }
+                    }}
+                    highlightedWord={selectedPhrase.english}
+                    context={selectedPhrase.context}
+                    userId={user?.uid}
+                    userEmail={user?.email || undefined}
+                />
+            )}
+        </>
     );
 }

@@ -70,53 +70,29 @@ export async function POST(request: NextRequest) {
 
         const remainingList = remainingPhrases.map(p => `"${p.phrase}"`).join(', ');
 
-        const prompt = `You are evaluating a language learner's debate response and generating a counter-argument.
+        const isFormal = debate.mode === 'written';
+        const toneInstruction = isFormal
+            ? "PROFESSIONAL tone. Respectful, articulate, no slang. Like a LinkedIn discussion."
+            : "GEN Z INTERNET ARGUING TONE. Use slang (ngl, lowkey, fr fr, bestie, the way...). Be sassy, witty, slightly confrontational. React like someone on Twitter who REALLY disagrees. Exaggerate for humor.";
 
-DEBATE CONTEXT:
-Topic: ${debate.topic}
-Background: ${debate.backgroundContent}
-Opponent persona: ${debate.opponentPersona}
-Opponent's opening position: ${debate.opponentPosition}
+        const prompt = `Evaluate learner's debate response and counter-argue.
 
-${conversationHistory ? `PREVIOUS EXCHANGES:\n${conversationHistory}\n` : ''}
+TONE: ${toneInstruction}
+TOPIC: ${debate.topic}
+PERSONA: ${debate.opponentPersona}
+${conversationHistory ? `HISTORY:\n${conversationHistory}\n` : ''}
+USER (Turn ${turnNumber}): "${userMessage}"
 
-USER'S LATEST MESSAGE (Turn ${turnNumber}):
-"${userMessage}"
-
-PHRASES TO TRACK:
-- ${phraseListForPrompt}
-
-REMAINING PHRASES (steer conversation toward these): ${remainingList || 'None'}
+PHRASES: ${phraseListForPrompt}
+REMAINING: ${remainingList || 'None'}
 
 TASKS:
-1. For each phrase, determine if it was used in this message:
-   - "natural": Used correctly and naturally
-   - "forced": Present but awkward or grammatically wrong
-   - "missing": Not used in this message (leave feedback empty if already used before)
+1. Evaluate each phrase: "n"=natural, "f"=forced, "m"=missing. Be flexible with tense/spelling.
+2. Brief feedback (1 sentence)
+3. Counter-argument (2 sentences) with TRIGGERS for remaining phrases
 
-   **IMPORTANT - BE FLEXIBLE when matching phrases:**
-   - Accept British/American spelling variations (learnt/learned, colour/color, realise/realize)
-   - Accept minor tense variations if the core phrase is present
-   - Accept minor word form changes
-   - **CRITICAL: Accept phrases embedded in longer expressions**
-   - If the CORE WORDS of the phrase appear together in the message, even with extra words around them, it COUNTS as used
-   - Focus on MEANING, not exact character-by-character match
-
-2. Generate an opponent counter-response that:
-   - STRATEGICALLY positions the learner so they'll NEED to use the remaining phrases to respond
-   - Is casual, conversational, Gen Z-friendly (not academic)
-   - Is 2-3 sentences max
-   - Stays in character as ${debate.opponentPersona}
-   - NEVER uses em dashes (— or --)
-
-Return JSON only:
-{
-    "phraseEvaluations": [
-        {"phrase": "...", "status": "natural", "feedback": "Good use!"},
-        {"phrase": "...", "status": "forced", "feedback": "This sounds awkward because..."}
-    ],
-    "opponentResponse": "A strategic response..."
-}`;
+JSON only:
+{"ev":[{"p":"phrase","s":"n/f/m","f":"feedback"}],"uf":"feedback","op":"response"}`;
 
         const response = await fetch(DEEPSEEK_URL, {
             method: 'POST',
@@ -127,7 +103,7 @@ Return JSON only:
             body: JSON.stringify({
                 model: 'deepseek-chat',
                 messages: [{ role: 'user', content: prompt }],
-                max_tokens: 800,
+                max_tokens: 500, // Reduced from 800 - compact output format
                 temperature: 0.7,
             }),
         });
@@ -166,9 +142,26 @@ Return JSON only:
             };
         }
 
+        // Normalize short keys to long keys for backward compatibility
+        // ev -> phraseEvaluations, uf -> userFeedback, op -> opponentResponse
+        const phraseEvaluations = (parsed.ev || parsed.phraseEvaluations || []).map((e: { p?: string; phrase?: string; s?: string; status?: string; f?: string; feedback?: string }) => ({
+            phrase: e.p || e.phrase || '',
+            status: normalizeStatus(e.s || e.status || 'missing'),
+            feedback: e.f || e.feedback || '',
+        }));
+        const userFeedback = parsed.uf || parsed.userFeedback || '';
+        const opponentResponse = parsed.op || parsed.opponentResponse || '';
+
+        // Helper to normalize status codes (n/f/m -> natural/forced/missing)
+        function normalizeStatus(s: string): 'natural' | 'forced' | 'missing' {
+            if (s === 'n' || s === 'natural') return 'natural';
+            if (s === 'f' || s === 'forced') return 'forced';
+            return 'missing';
+        }
+
         // Update phrase statuses based on evaluations
         const updatedPhrases: DebatePhrase[] = allPhrases.map(p => {
-            const evaluation = parsed.phraseEvaluations?.find(
+            const evaluation = phraseEvaluations.find(
                 (e: PhraseEvaluation) => e.phrase.toLowerCase() === p.phrase.toLowerCase()
             );
 
@@ -188,10 +181,10 @@ Return JSON only:
         const newTurn: DebateTurn = {
             turnNumber,
             userMessage,
-            phrasesUsedThisTurn: parsed.phraseEvaluations
-                ?.filter((e: PhraseEvaluation) => e.status !== 'missing')
-                ?.map((e: PhraseEvaluation) => e.phrase) || [],
-            opponentResponse: parsed.opponentResponse || '',
+            phrasesUsedThisTurn: phraseEvaluations
+                .filter((e: PhraseEvaluation) => e.status !== 'missing')
+                .map((e: PhraseEvaluation) => e.phrase) || [],
+            opponentResponse: opponentResponse,
             timestamp: serverTimestamp(),
         };
 
@@ -217,8 +210,8 @@ Return JSON only:
         return NextResponse.json({
             success: true,
             turnNumber,
-            phraseEvaluations: parsed.phraseEvaluations || [],
-            opponentResponse: parsed.opponentResponse || '',
+            phraseEvaluations: phraseEvaluations,
+            opponentResponse: opponentResponse,
             phrasesRemaining,
             phrasesUsedThisTurn: newTurn.phrasesUsedThisTurn,
             canContinue: !shouldEnd,

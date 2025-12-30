@@ -41,29 +41,33 @@ export async function POST(request: NextRequest) {
             });
         }
 
-        const prompt = `You are a skilled translator helping someone who is typing a sentence mixing Vietnamese and English.
+        const prompt = `You are an expert translator who understands both Vietnamese and English at a native level.
 
-The user wrote:
+The user wrote this mixed-language sentence:
 "${text}"
 
-${context ? `Topic they're discussing: ${context}` : ''}
+${context ? `Context/Topic: ${context}` : ''}
 
-YOUR TASK:
-Find the Vietnamese words/phrases in the text and replace them with natural English that:
-1. Captures the MEANING (not word-for-word translation)
-2. Sounds fluent and native in the context
-3. Preserves the user's original English exactly as written
+YOUR GOAL: Translate the Vietnamese parts into English that captures the CORE MEANING and NUANCE, not just the literal words.
 
-EXAMPLES:
-- "we should not bỏ qua this issue" → "we should not overlook this issue"
-- "this is really quan trọng for success" → "this is really crucial for success"  
-- "I muốn nói rằng technology helps" → "I want to say that technology helps"
+TRANSLATION PHILOSOPHY:
+- Focus on WHAT the writer truly means to express, not each individual word
+- Preserve the emotional weight and tone (是 forceful? gentle? frustrated?)
+- Choose English words that a native speaker would naturally use in this context
+- If a Vietnamese phrase implies something stronger/weaker than its literal translation, reflect that
+
+EXAMPLES OF GOOD TRANSLATION (meaning-focused):
+- "đừng có nghĩ đơn giản như vậy" → NOT "don't think simple like that" → BETTER: "don't oversimplify this"
+- "tôi thấy rằng cái này có vấn đề" → NOT "I see that this has problem" → BETTER: "I think there's an issue here"
+- "quan trọng nhất là" → NOT "most important is" → BETTER: "the key point is" / "what matters most is"
+
+PRESERVE: Keep the user's original English exactly as written. Only replace Vietnamese.
 
 Return JSON only:
 {
-    "suggestion": "The complete sentence with Vietnamese replaced by natural English",
+    "suggestion": "The complete sentence with Vietnamese replaced by natural, meaning-focused English",
     "translations": [
-        {"vietnamese": "bỏ qua", "english": "overlook"}
+        {"vietnamese": "original Vietnamese", "english": "natural English equivalent"}
     ]
 }`;
 

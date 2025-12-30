@@ -23,12 +23,15 @@ import {
     MessageCircle,
     Repeat2,
     BookOpen,
-    Flame
+    Flame,
+    BarChart3
 } from 'lucide-react';
+import LearningDashboard from '@/components/learning-dashboard';
 import { getUserComments, updateComment, deleteComment } from '@/lib/db/comments';
 import { getUserReposts } from '@/lib/db/social';
 import { getPost } from '@/lib/db/posts';
 import { getSavedArticles, unsaveArticle, SavedArticle } from '@/lib/db/bookmarks';
+import { getLearningStats } from '@/lib/db/learning-stats';
 import { Repost } from '@/lib/db/types';
 import { Timestamp } from 'firebase/firestore';
 import Link from 'next/link';
@@ -74,6 +77,22 @@ export default function ProfilePage() {
     const [savedArticles, setSavedArticles] = useState<Array<SavedArticle & { post?: { title?: string; content: string; authorName: string } }>>([]);
     const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
     const [editCommentText, setEditCommentText] = useState('');
+
+    // Learning stats for dashboard
+    const [learningStats, setLearningStats] = useState({
+        totalPhrases: profile?.stats?.totalPhrases || 0,
+        masteredPhrases: Math.floor((profile?.stats?.totalPhrases || 0) * 0.3), // Fallback estimate
+        learningPhrases: Math.ceil((profile?.stats?.totalPhrases || 0) * 0.7),
+        debatesCompleted: 0,
+        currentStreak: profile?.stats?.currentStreak || 0,
+        bestStreak: profile?.stats?.longestStreak || 0,
+        weeklyReviews: 0,
+        activityData: Array(84).fill(0),
+        totalHistory: Array(14).fill(0),
+        masteredHistory: Array(14).fill(0),
+        recentDebates: [] as Array<{ id: string; topic: string; phrasesUsed: number; totalPhrases: number; date: Date }>,
+    });
+
     // Confirm dialog
     const { confirm, DialogComponent } = useConfirm();
 
@@ -118,6 +137,22 @@ export default function ProfilePage() {
             if (!user) return;
 
             try {
+                // Load learning stats
+                const stats = await getLearningStats(user.uid);
+                setLearningStats(prev => ({
+                    ...prev,
+                    debatesCompleted: stats.debatesCompleted,
+                    currentStreak: stats.currentStreak || prev.currentStreak,
+                    bestStreak: Math.max(stats.bestStreak, prev.bestStreak),
+                    weeklyReviews: stats.weeklyReviews,
+                    activityData: stats.activityData,
+                    recentDebates: stats.recentDebates,
+                    totalHistory: stats.totalHistory,
+                    masteredHistory: stats.masteredHistory,
+                    totalPhrases: stats.totalPhrases,
+                    masteredPhrases: stats.masteredPhrases
+                }));
+
                 // Load user's comments
                 const userComments = await getUserComments(user.uid);
                 const commentsWithPosts = await Promise.all(
@@ -314,21 +349,42 @@ export default function ProfilePage() {
                 </Card>
 
                 {/* Tabs */}
-                <Tabs defaultValue="comments" className="w-full">
-                    <TabsList className="w-full bg-neutral-100">
-                        <TabsTrigger value="comments" className="flex-1 cursor-pointer">
+                <Tabs defaultValue="learning" className="w-full">
+                    <TabsList className="w-full justify-start rounded-none bg-transparent p-0 h-auto gap-2">
+                        <TabsTrigger
+                            value="learning"
+                            className="rounded-lg border-none px-4 py-2 font-medium text-sm text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50 data-[state=active]:bg-neutral-100 data-[state=active]:text-neutral-900 transition-colors shadow-none"
+                        >
+                            <BarChart3 className="h-4 w-4 mr-2" />
+                            Learning
+                        </TabsTrigger>
+                        <TabsTrigger
+                            value="comments"
+                            className="rounded-lg border-none px-4 py-2 font-medium text-sm text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50 data-[state=active]:bg-neutral-100 data-[state=active]:text-neutral-900 transition-colors shadow-none"
+                        >
                             <MessageCircle className="h-4 w-4 mr-2" />
                             Comments ({comments.length})
                         </TabsTrigger>
-                        <TabsTrigger value="reposts" className="flex-1 cursor-pointer">
+                        <TabsTrigger
+                            value="reposts"
+                            className="rounded-lg border-none px-4 py-2 font-medium text-sm text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50 data-[state=active]:bg-neutral-100 data-[state=active]:text-neutral-900 transition-colors shadow-none"
+                        >
                             <Repeat2 className="h-4 w-4 mr-2" />
                             Reposts ({reposts.length})
                         </TabsTrigger>
-                        <TabsTrigger value="saved" className="flex-1 cursor-pointer">
+                        <TabsTrigger
+                            value="saved"
+                            className="rounded-lg border-none px-4 py-2 font-medium text-sm text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50 data-[state=active]:bg-neutral-100 data-[state=active]:text-neutral-900 transition-colors shadow-none"
+                        >
                             <Bookmark className="h-4 w-4 mr-2" />
                             Saved ({savedArticles.length})
                         </TabsTrigger>
                     </TabsList>
+
+                    {/* Learning Dashboard Tab */}
+                    <TabsContent value="learning" className="mt-4">
+                        <LearningDashboard stats={learningStats} />
+                    </TabsContent>
 
                     {/* Comments Tab */}
                     <TabsContent value="comments" className="mt-4 space-y-3">
@@ -559,6 +615,7 @@ export default function ProfilePage() {
                             ))
                         )}
                     </TabsContent>
+
                 </Tabs>
             </div>
         </>

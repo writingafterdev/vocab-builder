@@ -70,7 +70,7 @@ export interface SavedPhrase {
     phrase: string;
     meaning: string;
     context: string;         // Original context where phrase was found
-    usage?: 'spoken' | 'written' | 'neutral';
+    usage?: 'spoken' | 'written' | 'neutral';  // Register/mode for debate style
     sourcePostId?: string;
     usedForGeneration: boolean;
     usageCount?: number;     // SRS usage count (scheduled reviews)
@@ -82,6 +82,21 @@ export interface SavedPhrase {
     // Contextualized Learning
     contexts: PhraseContext[];      // Multiple learning contexts
     currentContextIndex: number;    // Which context is active (default: 0)
+    // Collocation & Tagging
+    rootWord?: string;              // Base word for grouping variants (e.g., "book" for "book a flight")
+    topics?: string[];              // Auto-tagged topics: travel, business, crime, etc.
+    // Hierarchical Structure (NEW)
+    children?: ChildExpression[];   // Child collocations and phrasal verbs
+}
+
+// Child expression (collocation or phrasal verb) nested under a root phrase
+export interface ChildExpression {
+    type: 'collocation' | 'phrasal_verb';
+    phrase: string;
+    meaning: string;
+    example: string;  // AI-generated example sentence
+    mode: 'spoken' | 'written' | 'neutral';
+    topics: string[];
 }
 
 // Bundled exercise for practice sessions
@@ -107,6 +122,41 @@ export const DEFAULT_LEARNING_CYCLE: LearningCycleSettings = {
     masteryThreshold: 6,
     levelNames: ['New', 'Learning', 'Review', 'Familiar', 'Known', 'Mastered'],
 };
+
+// User-selectable topics for phrase tagging
+export const TOPIC_OPTIONS = [
+    // Work & Career
+    { value: 'business', label: 'Business' },
+    { value: 'career', label: 'Career' },
+    { value: 'finance', label: 'Finance' },
+    // Learning & Knowledge
+    { value: 'academic', label: 'Academic' },
+    { value: 'science', label: 'Science' },
+    { value: 'education', label: 'Education' },
+    // Life & Relationships
+    { value: 'daily_life', label: 'Daily Life' },
+    { value: 'relationships', label: 'Relationships' },
+    { value: 'family', label: 'Family' },
+    // Leisure & Activities
+    { value: 'travel', label: 'Travel' },
+    { value: 'entertainment', label: 'Entertainment' },
+    { value: 'sports', label: 'Sports' },
+    // Tech & Media
+    { value: 'technology', label: 'Technology' },
+    { value: 'media', label: 'Media' },
+    // Well-being & World
+    { value: 'health', label: 'Health' },
+    { value: 'environment', label: 'Environment' },
+    // Society
+    { value: 'politics', label: 'Politics' },
+    { value: 'culture', label: 'Culture' },
+] as const;
+
+export type TopicValue = typeof TOPIC_OPTIONS[number]['value'];
+
+// Legacy export for backward compatibility
+export const VALID_TOPICS = TOPIC_OPTIONS.map(t => t.value);
+export type TopicTag = TopicValue;
 
 // Guided Debate Mode types
 export interface DebatePhrase {
@@ -139,6 +189,7 @@ export interface DebateSession {
     turns: DebateTurn[];              // Max 3
     status: 'active' | 'completed' | 'abandoned';
     isScheduled: boolean;             // true = from /practice (SRS), false = from /vocab (on-demand)
+    mode?: 'spoken' | 'written' | 'neutral'; // Debate tone
     createdAt: Timestamp;
     completedAt?: Timestamp;
 }

@@ -16,6 +16,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { BookmarkPlus, Sparkles, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth-context';
+import CollocationSelectionModal from './collocation-selection-modal';
 
 interface SavePhraseModalProps {
     isOpen: boolean;
@@ -230,7 +231,7 @@ function FloatingActionButton({ position, onSave }: FloatingActionButtonProps) {
             <Button
                 size="sm"
                 onClick={onSave}
-                className="shadow-xl gap-2 bg-neutral-900 text-white hover:bg-neutral-800 dark:bg-neutral-50 dark:text-neutral-900 dark:hover:bg-neutral-200 border border-transparent font-sans"
+                className="shadow-lg gap-2 bg-white text-neutral-700 hover:bg-neutral-50 border border-neutral-200 font-sans"
             >
                 <BookmarkPlus className="h-4 w-4" />
                 Save Phrase
@@ -262,6 +263,7 @@ export default function TextHighlighter({
     const [showFloatingButton, setShowFloatingButton] = useState(false);
     const [buttonPosition, setButtonPosition] = useState({ x: 0, y: 0 });
     const [showModal, setShowModal] = useState(false);
+    const [showCollocationModal, setShowCollocationModal] = useState(false);
 
 
     const handleSelection = useCallback(() => {
@@ -348,7 +350,78 @@ export default function TextHighlighter({
 
     const handleOpenModal = () => {
         setShowFloatingButton(false);
-        setShowModal(true);
+        // Show collocation selection modal instead of direct save modal
+        setShowCollocationModal(true);
+    };
+
+    const handleCollocationsSave = async (data: {
+        rootWord: string;
+        meaning: string;
+        mode: 'spoken' | 'written' | 'neutral';
+        topics: string[];
+        children: Array<{
+            type: 'collocation' | 'phrasal_verb';
+            phrase: string;
+            meaning: string;
+            mode: 'spoken' | 'written' | 'neutral';
+            topics: string[];
+        }>;
+    }) => {
+        if (!userId || !userEmail) {
+            toast.error('Please log in to save phrases');
+            return;
+        }
+
+        try {
+            // Save via REST API (hierarchical structure)
+            const response = await fetch('/api/user/save-phrase', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-user-id': userId,
+                    'x-user-email': userEmail,
+                },
+                body: JSON.stringify({
+                    phrase: data.rootWord,
+                    meaning: data.meaning,
+                    context: selectedContext,
+                    mode: data.mode,
+                    topics: data.topics,
+                    children: data.children,
+                }),
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                if (error.error?.includes('Daily limit')) {
+                    toast.error('Daily save limit reached');
+                } else {
+                    throw new Error(error.error || 'Failed to save');
+                }
+                return;
+            }
+
+            const childCount = data.children.length;
+            if (childCount > 0) {
+                toast.success(`Saved "${data.rootWord}" with ${childCount} expression(s)!`);
+            } else {
+                toast.success(`Saved "${data.rootWord}"!`);
+            }
+
+            // Notify parent
+            onPhraseSaved?.({
+                phrase: data.rootWord,
+                context: selectedContext,
+                meaning: data.meaning,
+                usage: data.mode
+            });
+
+            setSelectedText('');
+            setSelectedContext('');
+        } catch (error) {
+            console.error('Error saving phrase:', error);
+            toast.error('Failed to save phrase');
+        }
     };
 
     const handleSave = async (data: { phrase: string; context: string; meaning: string; usage?: 'spoken' | 'written' | 'neutral' }) => {
@@ -359,16 +432,37 @@ export default function TextHighlighter({
         }
 
         try {
-            // Import dynamically to avoid SSR issues
-            const { savePhrase, DAILY_PHRASE_LIMIT } = await import('@/lib/db/srs');
+            // Call API endpoint for server-side saving and counting
+            const response = await fetch('/api/user/save-phrase', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-user-id': userId,
+                    'x-user-email': userEmail,
+                },
+                body: JSON.stringify({
+                    phrase: data.phrase,
+                    meaning: data.meaning,
+                    context: data.context,
+                    mode: data.usage || 'neutral',
+                }),
+            });
 
-            // Save the phrase to Firestore
-            const { phraseId, todayCount } = await savePhrase(userId, data.phrase, data.meaning, data.context, data.usage || 'neutral');
-            const remaining = DAILY_PHRASE_LIMIT - todayCount;
+            const result = await response.json();
+
+            if (!response.ok) {
+                if (response.status === 429) {
+                    toast.error(result.error || 'Daily limit reached!');
+                } else {
+                    toast.error(result.error || 'Failed to save phrase');
+                }
+                return;
+            }
 
             // Notify parent component
             onPhraseSaved?.(data);
 
+            const remaining = result.remaining ?? 15;
             if (remaining > 0) {
                 toast.info(`Phrase saved! ${remaining} saves remaining today.`);
             } else {
@@ -380,12 +474,7 @@ export default function TextHighlighter({
             setSelectedContext('');
         } catch (error) {
             console.error('Error saving phrase:', error);
-            const message = error instanceof Error ? error.message : 'Failed to save phrase';
-            if (message.includes('Daily limit')) {
-                toast.error(message);
-            } else {
-                toast.error('Failed to save phrase');
-            }
+            toast.error('Failed to save phrase');
         }
     };
 
@@ -410,6 +499,16 @@ export default function TextHighlighter({
                 onSave={handleSave}
                 initialPhrase={selectedText}
                 initialContext={selectedContext}
+                userId={userId}
+                userEmail={userEmail}
+            />
+
+            <CollocationSelectionModal
+                isOpen={showCollocationModal}
+                onClose={() => setShowCollocationModal(false)}
+                onSave={handleCollocationsSave}
+                highlightedWord={selectedText}
+                context={selectedContext}
                 userId={userId}
                 userEmail={userEmail}
             />
