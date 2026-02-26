@@ -328,7 +328,7 @@ export function QuoteSwiper({ userId }: QuoteSwiperProps) {
                             className="absolute inset-x-0 top-0"
                             style={
                                 isTop && phase === 'idle'
-                                    ? { x: dragX, rotate: dragRotate, zIndex, cursor: 'grab' }
+                                    ? { x: dragX, rotate: dragRotate, zIndex }
                                     : { zIndex: phase === 'sending-to-back' && isTop ? 0 : zIndex }
                             }
                             initial={false}
@@ -340,11 +340,6 @@ export function QuoteSwiper({ userId }: QuoteSwiperProps) {
                                 opacity: target.opacity,
                             }}
                             transition={SPRING}
-                            drag={isTop && phase === 'idle' ? 'x' : false}
-                            dragConstraints={{ left: 0, right: 0 }}
-                            dragElastic={0.6}
-                            onDragEnd={isTop ? handleDragEnd : undefined}
-                            whileDrag={isTop ? { scale: 1.02, cursor: 'grabbing' } : undefined}
                         >
                             {/* Card Content */}
                             <div

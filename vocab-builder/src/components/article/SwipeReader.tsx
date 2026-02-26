@@ -184,7 +184,7 @@ export const SwipeReader = memo(function SwipeReader({
                             className="absolute inset-x-0 top-0"
                             style={
                                 isTop && phase === 'idle'
-                                    ? { x: dragX, rotate: dragRotate, zIndex, cursor: 'grab' }
+                                    ? { x: dragX, rotate: dragRotate, zIndex }
                                     : { zIndex: phase === 'sending-to-back' && isTop ? 0 : zIndex }
                             }
                             initial={false}
@@ -196,11 +196,6 @@ export const SwipeReader = memo(function SwipeReader({
                                 opacity: target.opacity,
                             }}
                             transition={SPRING}
-                            drag={isTop && phase === 'idle' ? 'x' : false}
-                            dragConstraints={{ left: 0, right: 0 }}
-                            dragElastic={0.6}
-                            onDragEnd={isTop ? handleDragEnd : undefined}
-                            whileDrag={isTop ? { scale: 1.02, cursor: 'grabbing' } : undefined}
                         >
                             {/* Card */}
                             <div
