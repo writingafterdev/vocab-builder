@@ -398,6 +398,8 @@ export function ArticleReadingMode({
                     onPhraseClick={handlePhraseClick}
                     onSectionChange={setCurrentSection}
                     currentSection={currentSection}
+                    bookmarked={bookmarked}
+                    onBookmark={onBookmark}
                 />
             )}
 
