@@ -5,7 +5,7 @@ import { motion, useMotionValue, useTransform, animate, PanInfo } from 'framer-m
 import { ArticleSection } from '@/lib/db/types';
 import { sanitizeRichHtml } from '@/lib/sanitize';
 import { useVocabHighlighter } from './useVocabHighlighter';
-import { ArrowLeft, ArrowRight, Heart } from 'lucide-react';
+import { ArrowLeft, ArrowRight } from 'lucide-react';
 
 const SWIPE_THRESHOLD = 60;
 const VISIBLE_CARDS = 3;
@@ -27,8 +27,6 @@ interface SwipeReaderProps {
     onSectionChange?: (index: number) => void;
     currentSection?: number;
     autoAdvance?: boolean;
-    bookmarked?: boolean;
-    onBookmark?: () => void;
 }
 
 /**
@@ -59,8 +57,6 @@ export const SwipeReader = memo(function SwipeReader({
     onSectionChange,
     currentSection: controlledSection,
     autoAdvance,
-    bookmarked,
-    onBookmark,
 }: SwipeReaderProps) {
     const [internalIndex, setInternalIndex] = useState(0);
     const activeIndex = controlledSection ?? internalIndex;
@@ -240,16 +236,6 @@ export const SwipeReader = memo(function SwipeReader({
                 >
                     <ArrowLeft className="w-5 h-5" />
                 </button>
-
-                {onBookmark && (
-                    <button
-                        onClick={onBookmark}
-                        className={`h-14 w-14 bg-white flex items-center justify-center shadow-sm border border-neutral-200 transition-colors rounded-full ${bookmarked ? 'text-red-500 border-red-200 bg-red-50' : 'text-neutral-400 hover:text-neutral-900 hover:bg-neutral-50'}`}
-                        aria-label="Save"
-                    >
-                        <Heart className={`w-5 h-5 ${bookmarked ? 'fill-current text-red-500' : ''}`} />
-                    </button>
-                )}
 
                 <button
                     onClick={sendToBack}
