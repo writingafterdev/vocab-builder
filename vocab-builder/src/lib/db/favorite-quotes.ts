@@ -1,29 +1,23 @@
 /**
- * Favorite Quotes domain module
+ * Favorite Quotes domain module (Server/Edge Compatible via REST API)
  */
 import {
-    collection,
-    doc,
-    setDoc,
-    getDocs,
-    deleteDoc,
-    query,
-    where,
-    orderBy,
+    getDocument,
+    setDocument,
+    deleteDocument,
+    queryCollection,
     serverTimestamp,
-    Timestamp
-} from 'firebase/firestore';
-import { getDbAsync } from './core';
+} from '../firestore-rest';
 
 export interface FavoriteQuote {
-    id: string; // Will use userId_quoteId as document ID for easy toggling
+    id: string; // userId_quoteId
     userId: string;
     quoteId: string;
     text: string;
     postId: string;
     postTitle: string;
     author: string;
-    createdAt: Timestamp;
+    createdAt: string | Date; // REST API returns strings for timestamps
 }
 
 export async function toggleFavoriteQuote(
@@ -36,20 +30,19 @@ export async function toggleFavoriteQuote(
         author: string;
     }
 ): Promise<boolean> {
-    const firestore = await getDbAsync();
     const docId = `${userId}_${quote.id}`;
-    const quoteRef = doc(firestore, 'favorite_quotes', docId);
+    const collectionPath = 'favorite_quotes';
 
     // Try to get it first
-    const snapshot = await getDocs(query(collection(firestore, 'favorite_quotes'), where('__name__', '==', docId)));
+    const existingDoc = await getDocument(collectionPath, docId);
 
-    if (!snapshot.empty) {
+    if (existingDoc) {
         // It exists, so unsave it
-        await deleteDoc(quoteRef);
+        await deleteDocument(collectionPath, docId);
         return false; // Result is unsaved
     } else {
         // It doesn't exist, so save it
-        await setDoc(quoteRef, {
+        await setDocument(collectionPath, docId, {
             userId,
             quoteId: quote.id,
             text: quote.text,
@@ -63,21 +56,26 @@ export async function toggleFavoriteQuote(
 }
 
 export async function getUserFavoriteQuotes(userId: string): Promise<FavoriteQuote[]> {
-    const firestore = await getDbAsync();
-    const quotesRef = collection(firestore, 'favorite_quotes');
-    const q = query(
-        quotesRef,
-        where('userId', '==', userId),
-        orderBy('createdAt', 'desc')
-    );
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as FavoriteQuote));
+    const quotesRef = 'favorite_quotes';
+    const qs = await queryCollection(quotesRef, {
+        where: [{ field: 'userId', op: '==', value: userId }],
+        orderBy: [{ field: 'createdAt', direction: 'desc' }]
+    });
+
+    // Sort manually as REST API simple query sometimes doesn't sort complex fields easily out of the box
+    const sorted = qs.sort((a, b) => {
+        const t1 = new Date(a.createdAt as string).getTime();
+        const t2 = new Date(b.createdAt as string).getTime();
+        return t2 - t1;
+    });
+
+    return sorted as unknown as FavoriteQuote[];
 }
 
 export async function getUserSavedQuoteIds(userId: string): Promise<string[]> {
-    const firestore = await getDbAsync();
-    const quotesRef = collection(firestore, 'favorite_quotes');
-    const q = query(quotesRef, where('userId', '==', userId));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => doc.data().quoteId as string);
+    const quotesRef = 'favorite_quotes';
+    const qs = await queryCollection(quotesRef, {
+        where: [{ field: 'userId', op: '==', value: userId }]
+    });
+    return qs.map(doc => doc.quoteId as string);
 }

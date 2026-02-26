@@ -37,7 +37,7 @@ import {
     LayoutList
 } from 'lucide-react';
 import LearningDashboard from '@/components/learning-dashboard';
-import { getUserFavoriteQuotes, FavoriteQuote } from '@/lib/db/favorite-quotes';
+import { FavoriteQuote } from '@/lib/db/favorite-quotes';
 import { getUserReposts } from '@/lib/db/social';
 import { getPost } from '@/lib/db/posts';
 import { getSavedArticles, unsaveArticle, SavedArticle } from '@/lib/db/bookmarks';
@@ -110,8 +110,17 @@ export default function ProfilePage() {
                     masteredPhrases: stats.masteredPhrases
                 }));
 
-                const quotesData = await getUserFavoriteQuotes(user.uid);
-                setFavQuotes(quotesData);
+                const token = await user.getIdToken();
+                const favRes = await fetch('/api/user/favorite-quotes', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'x-user-id': user.uid
+                    }
+                });
+                if (favRes.ok) {
+                    const favData = await favRes.json();
+                    setFavQuotes(favData.quotes || []);
+                }
 
                 const userReposts = await getUserReposts(user.uid);
                 const repostsWithPosts = await Promise.all(
@@ -392,7 +401,7 @@ export default function ProfilePage() {
                                                             {quote.postTitle} <span className="text-neutral-400 font-normal">by {quote.author}</span>
                                                         </p>
                                                         <p className="text-[11px] text-neutral-400">
-                                                            Saved {formatTime(quote.createdAt)}
+                                                            Saved {formatTime(new Date(quote.createdAt))}
                                                         </p>
                                                     </div>
                                                 </div>
