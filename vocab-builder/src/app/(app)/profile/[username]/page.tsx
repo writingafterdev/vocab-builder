@@ -2,11 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth-context';
-import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import {
     Dialog,
@@ -17,17 +14,30 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
-import { motion } from 'framer-motion';
 import {
     Edit2,
     MessageCircle,
-    Repeat2,
-    BookOpen,
+    Bookmark,
     Flame,
-    BarChart3
+    Trophy,
+    Brain,
+    ThumbsUp,
+    MessageSquare,
+    Share2,
+    MoreHorizontal,
+    ChevronRight,
+    BookOpen,
+    Code,
+    Utensils,
+    Lock,
+    GraduationCap,
+    Award,
+    Users,
+    MapPin,
+    LayoutList
 } from 'lucide-react';
 import LearningDashboard from '@/components/learning-dashboard';
-import { getUserComments, updateComment, deleteComment } from '@/lib/db/comments';
+import { getUserFavoriteQuotes, FavoriteQuote } from '@/lib/db/favorite-quotes';
 import { getUserReposts } from '@/lib/db/social';
 import { getPost } from '@/lib/db/posts';
 import { getSavedArticles, unsaveArticle, SavedArticle } from '@/lib/db/bookmarks';
@@ -35,28 +45,12 @@ import { getLearningStats } from '@/lib/db/learning-stats';
 import { Repost } from '@/lib/db/types';
 import { Timestamp } from 'firebase/firestore';
 import Link from 'next/link';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
-import { MoreHorizontal, Trash2, Bookmark } from 'lucide-react';
+import { sanitizeHtml } from '@/lib/sanitize';
 import { useConfirm } from '@/components/confirm-dialog';
+import { EditorialLoader } from '@/components/ui/editorial-loader';
 
-interface CommentData {
-    id: string;
-    postId: string;
-    content: string;
-    likeCount: number;
-    createdAt: Timestamp;
-    post?: {
-        authorName: string;
-        authorUsername: string;
-        content: string;
-    };
-}
+// Replaced CommentsData with FavoriteQuote directly from shared types
 
 interface RepostWithPost extends Repost {
     post?: {
@@ -72,105 +66,53 @@ export default function ProfilePage() {
     const [loading, setLoading] = useState(true);
     const [editBioOpen, setEditBioOpen] = useState(false);
     const [bio, setBio] = useState(profile?.bio || '');
-    const [comments, setComments] = useState<CommentData[]>([]);
+    const [favQuotes, setFavQuotes] = useState<FavoriteQuote[]>([]);
     const [reposts, setReposts] = useState<RepostWithPost[]>([]);
-    const [savedArticles, setSavedArticles] = useState<Array<SavedArticle & { post?: { title?: string; content: string; authorName: string } }>>([]);
-    const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
-    const [editCommentText, setEditCommentText] = useState('');
+    const [savedArticles, setSavedArticles] = useState<Array<SavedArticle & { post?: { title?: string; content: string; authorName: string; coverImage?: string } }>>([]);
+    const [readingLists, setReadingLists] = useState<Array<{ id: string; name: string; postIds: string[]; coverColor?: string }>>([]);
+    const [activeTab, setActiveTab] = useState('comments');
 
     // Learning stats for dashboard
     const [learningStats, setLearningStats] = useState({
         totalPhrases: profile?.stats?.totalPhrases || 0,
-        masteredPhrases: Math.floor((profile?.stats?.totalPhrases || 0) * 0.3), // Fallback estimate
+        masteredPhrases: Math.floor((profile?.stats?.totalPhrases || 0) * 0.3),
         learningPhrases: Math.ceil((profile?.stats?.totalPhrases || 0) * 0.7),
-        debatesCompleted: 0,
+        scenariosCompleted: 0,
         currentStreak: profile?.stats?.currentStreak || 0,
         bestStreak: profile?.stats?.longestStreak || 0,
         weeklyReviews: 0,
         activityData: Array(84).fill(0),
         totalHistory: Array(14).fill(0),
         masteredHistory: Array(14).fill(0),
-        recentDebates: [] as Array<{ id: string; topic: string; phrasesUsed: number; totalPhrases: number; date: Date }>,
+        recentScenarios: [] as Array<{ id: string; scenario: string; phrasesUsed: number; totalPhrases: number; date: Date }>,
     });
 
     // Confirm dialog
     const { confirm, DialogComponent } = useConfirm();
-
-    const handleUpdateComment = async (commentId: string, e: React.MouseEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        if (!editCommentText.trim()) return;
-        try {
-            await updateComment(commentId, editCommentText);
-            setComments(prev => prev.map(c => c.id === commentId ? { ...c, content: editCommentText } : c));
-            setEditingCommentId(null);
-            toast.success('Comment updated');
-        } catch (error) {
-            toast.error('Failed to update comment');
-        }
-    };
-
-    const handleDeleteComment = async (commentId: string, postId: string, e: React.MouseEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const confirmed = await confirm({
-            title: 'Delete Comment',
-            description: 'Are you sure you want to delete this comment? This action cannot be undone.',
-            confirmText: 'Delete',
-            cancelText: 'Cancel',
-            destructive: true,
-        });
-        if (!confirmed) return;
-        try {
-            await deleteComment(commentId, postId);
-            setComments(prev => prev.filter(c => c.id !== commentId));
-            toast.success('Comment deleted');
-        } catch (error) {
-            console.error('Error deleting comment:', error);
-            const message = error instanceof Error ? error.message : 'Unknown error';
-            toast.error(`Failed to delete comment: ${message.substring(0, 100)}`);
-        }
-    };
 
     useEffect(() => {
         const loadData = async () => {
             if (!user) return;
 
             try {
-                // Load learning stats
                 const stats = await getLearningStats(user.uid);
                 setLearningStats(prev => ({
                     ...prev,
-                    debatesCompleted: stats.debatesCompleted,
+                    scenariosCompleted: stats.scenariosCompleted,
                     currentStreak: stats.currentStreak || prev.currentStreak,
                     bestStreak: Math.max(stats.bestStreak, prev.bestStreak),
                     weeklyReviews: stats.weeklyReviews,
                     activityData: stats.activityData,
-                    recentDebates: stats.recentDebates,
+                    recentScenarios: stats.recentScenarios,
                     totalHistory: stats.totalHistory,
                     masteredHistory: stats.masteredHistory,
                     totalPhrases: stats.totalPhrases,
                     masteredPhrases: stats.masteredPhrases
                 }));
 
-                // Load user's comments
-                const userComments = await getUserComments(user.uid);
-                const commentsWithPosts = await Promise.all(
-                    userComments.map(async (c) => {
-                        const post = await getPost(c.postId);
-                        return {
-                            ...c,
-                            post: post ? {
-                                authorName: post.authorName,
-                                authorUsername: post.authorUsername,
-                                content: post.content,
-                            } : undefined,
-                        };
-                    })
-                );
-                setComments(commentsWithPosts);
+                const quotesData = await getUserFavoriteQuotes(user.uid);
+                setFavQuotes(quotesData);
 
-                // Load user's reposts with post data
                 const userReposts = await getUserReposts(user.uid);
                 const repostsWithPosts = await Promise.all(
                     userReposts.map(async (r) => {
@@ -187,7 +129,6 @@ export default function ProfilePage() {
                 );
                 setReposts(repostsWithPosts);
 
-                // Load user's saved articles
                 const saved = await getSavedArticles(user.uid);
                 const savedWithPosts = await Promise.all(
                     saved.map(async (s) => {
@@ -198,11 +139,21 @@ export default function ProfilePage() {
                                 title: post.title,
                                 content: post.content,
                                 authorName: post.authorName,
+                                coverImage: post.coverImage,
                             } : undefined,
                         };
                     })
                 );
                 setSavedArticles(savedWithPosts);
+
+                // Fetch reading lists
+                const listsResponse = await fetch('/api/user/reading-lists', {
+                    headers: { 'x-user-id': user.uid },
+                });
+                if (listsResponse.ok) {
+                    const listsData = await listsResponse.json();
+                    setReadingLists(listsData.lists || []);
+                }
             } catch (error) {
                 console.error('Error loading profile data:', error);
             }
@@ -218,405 +169,418 @@ export default function ProfilePage() {
         const hours = Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60));
         if (hours < 1) return 'Just now';
         if (hours < 24) return `${hours}h ago`;
-        return `${Math.floor(hours / 24)}d ago`;
+        if (hours < 48) return 'Yesterday';
+        return `${Math.floor(hours / 24)} days ago`;
     };
 
     const handleSaveBio = () => {
-        // TODO: Save to Firestore
         setEditBioOpen(false);
     };
 
     if (loading) {
         return (
-            <div className="space-y-6">
-                <Card className="bg-white border-neutral-200">
-                    <CardContent className="py-8">
-                        <div className="flex items-start gap-4">
-                            <Skeleton className="h-20 w-20 rounded-full" />
-                            <div className="space-y-2 flex-1">
-                                <Skeleton className="h-6 w-40" />
-                                <Skeleton className="h-4 w-24" />
-                                <Skeleton className="h-4 w-full" />
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
+            <div className="w-full py-8 px-8 flex items-center justify-center min-h-[50vh]">
+                <EditorialLoader size="md" />
             </div>
         );
     }
 
     if (!profile) {
         return (
-            <div className="text-center py-12">
+            <div className="w-full py-12 px-8 text-center">
                 <p className="text-neutral-500">Profile not found</p>
             </div>
         );
     }
 
+    const tabs = [
+        { id: 'comments', label: `Fav Quotes (${favQuotes.length})` },
+        { id: 'reposts', label: `Reposts (${reposts.length})` },
+        { id: 'bookmarked', label: `Bookmarked (${savedArticles.length})` },
+        { id: 'insights', label: 'Insights' },
+    ];
+
     return (
         <>
             {DialogComponent}
-            <div className="space-y-6 font-sans">
-                {/* Profile Header */}
-                <Card className="bg-white border-neutral-200">
-                    <CardContent className="py-8">
-                        <div className="flex flex-col sm:flex-row items-start gap-6">
+            <div className="w-full pt-6 font-sans">
+                {/* Profile Card */}
+                <div className="px-8 mb-8">
+                    <div className="bg-white border border-neutral-200 py-12 px-8">
+                        <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
                             {/* Avatar */}
-                            <Avatar className="h-20 w-20">
-                                <AvatarImage src={profile.photoURL} alt={profile.displayName} />
-                                <AvatarFallback className="text-2xl bg-neutral-200">
-                                    {profile.displayName?.charAt(0) || 'U'}
-                                </AvatarFallback>
-                            </Avatar>
+                            <div className="relative flex-shrink-0">
+                                <Avatar className="h-28 w-28 md:h-24 md:w-24 border-2 border-neutral-200 bg-white">
+                                    <AvatarImage src={profile.photoURL} alt={profile.displayName} />
+                                    <AvatarFallback className="text-2xl bg-neutral-900 text-white">
+                                        {profile.displayName?.charAt(0) || 'U'}
+                                    </AvatarFallback>
+                                </Avatar>
+                                <div className="absolute bottom-1 right-1 h-4 w-4 bg-neutral-900 border-2 border-white rounded-full"></div>
+                            </div>
 
                             {/* Info */}
-                            <div className="flex-1 space-y-3">
-                                <div className="flex items-start justify-between">
+                            <div className="flex-1 text-center md:text-left">
+                                <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
                                     <div>
-                                        <h1 className="text-2xl font-bold font-sans">{profile.displayName}</h1>
-                                        <p className="text-neutral-500 font-sans">@{profile.username}</p>
+                                        <h1 className="text-2xl font-serif text-neutral-900">{profile.displayName}</h1>
+                                        <p className="text-neutral-500 mt-1 text-sm flex items-center justify-center md:justify-start gap-1.5">
+                                            <GraduationCap className="h-3.5 w-3.5" />
+                                            {profile.bio || 'Language enthusiast'}
+                                        </p>
+                                        <div className="flex flex-wrap justify-center md:justify-start gap-4 mt-3 text-sm text-neutral-500">
+                                            <span className="flex items-center gap-1">
+                                                <span className="font-semibold text-neutral-900">{learningStats.totalPhrases}</span> phrases
+                                            </span>
+                                            <span className="flex items-center gap-1">
+                                                <span className="font-semibold text-neutral-900">{learningStats.scenariosCompleted}</span> scenarios
+                                            </span>
+                                            <span className="flex items-center gap-1">
+                                                <Flame className="h-3.5 w-3.5 text-neutral-900" />
+                                                <span className="font-semibold text-neutral-900">{learningStats.currentStreak}</span> day streak
+                                            </span>
+                                        </div>
                                     </div>
-                                    {isOwnProfile && (
-                                        <Dialog open={editBioOpen} onOpenChange={setEditBioOpen}>
-                                            <DialogTrigger asChild>
-                                                <Button
-                                                    size="sm"
-                                                    className="bg-neutral-900 text-white hover:bg-neutral-800 active:scale-95 transition-all"
-                                                >
-                                                    <Edit2 className="h-4 w-4 mr-2" />
-                                                    Edit Profile
-                                                </Button>
-                                            </DialogTrigger>
-                                            <DialogContent className="font-sans">
-                                                <DialogHeader>
-                                                    <DialogTitle>Edit Profile</DialogTitle>
-                                                    <DialogDescription>
-                                                        Update your bio to tell others about yourself.
-                                                    </DialogDescription>
-                                                </DialogHeader>
-                                                <Textarea
-                                                    value={bio}
-                                                    onChange={(e) => setBio(e.target.value)}
-                                                    placeholder="Write a short bio..."
-                                                    className="min-h-[100px]"
-                                                    maxLength={160}
-                                                />
-                                                <p className="text-xs text-neutral-500 text-right">
-                                                    {bio.length}/160
-                                                </p>
-                                                <DialogFooter>
-                                                    <Button variant="outline" onClick={() => setEditBioOpen(false)}>
-                                                        Cancel
-                                                    </Button>
-                                                    <Button onClick={handleSaveBio}>Save</Button>
-                                                </DialogFooter>
-                                            </DialogContent>
-                                        </Dialog>
-                                    )}
-                                </div>
 
-                                {/* Bio */}
-                                <p className="text-sm font-sans">
-                                    {profile.bio || (isOwnProfile ? 'Add a bio to tell others about yourself.' : 'No bio yet.')}
-                                </p>
-
-                                {/* Stats */}
-                                <div className="flex flex-wrap gap-4 pt-2 font-sans">
-                                    <div className="flex items-center gap-1.5 text-sm">
-                                        <BookOpen className="h-4 w-4 text-neutral-400" />
-                                        <span className="font-semibold">{profile.stats.totalPhrases}</span>
-                                        <span className="text-neutral-500">phrases</span>
-                                    </div>
-                                    <div className="flex items-center gap-1.5 text-sm">
-                                        <MessageCircle className="h-4 w-4 text-neutral-400" />
-                                        <span className="font-semibold">{comments.length}</span>
-                                        <span className="text-neutral-500">comments</span>
-                                    </div>
-                                    <div className="flex items-center gap-1.5 text-sm">
-                                        <Repeat2 className="h-4 w-4 text-neutral-400" />
-                                        <span className="font-semibold">{reposts.length}</span>
-                                        <span className="text-neutral-500">reposts</span>
-                                    </div>
-                                    <div className="flex items-center gap-1.5 text-sm">
-                                        <Flame className="h-4 w-4 text-orange-500" />
-                                        <span className="font-semibold">{profile.stats.currentStreak}</span>
-                                        <span className="text-neutral-500">day streak</span>
+                                    {/* Actions */}
+                                    <div className="flex gap-2 justify-center md:justify-start">
+                                        {isOwnProfile ? (
+                                            <Dialog open={editBioOpen} onOpenChange={setEditBioOpen}>
+                                                <DialogTrigger asChild>
+                                                    <button className="flex items-center gap-2 px-4 py-2 bg-neutral-900 text-white text-sm font-medium hover:bg-neutral-800 transition-colors">
+                                                        <Edit2 className="h-3.5 w-3.5" />
+                                                        Edit Profile
+                                                    </button>
+                                                </DialogTrigger>
+                                                <DialogContent>
+                                                    <DialogHeader>
+                                                        <DialogTitle>Edit Profile</DialogTitle>
+                                                        <DialogDescription>
+                                                            Update your bio to tell others about yourself.
+                                                        </DialogDescription>
+                                                    </DialogHeader>
+                                                    <Textarea
+                                                        value={bio}
+                                                        onChange={(e) => setBio(e.target.value)}
+                                                        placeholder="Write a short bio..."
+                                                        className="min-h-[100px]"
+                                                        maxLength={160}
+                                                    />
+                                                    <p className="text-xs text-neutral-400 text-right">{bio.length}/160</p>
+                                                    <DialogFooter>
+                                                        <Button variant="outline" onClick={() => setEditBioOpen(false)}>Cancel</Button>
+                                                        <Button onClick={handleSaveBio} className="bg-neutral-900 hover:bg-neutral-800 text-white">Save</Button>
+                                                    </DialogFooter>
+                                                </DialogContent>
+                                            </Dialog>
+                                        ) : (
+                                            <>
+                                                <button className="flex items-center gap-2 px-4 py-2 bg-neutral-900 text-white text-sm font-medium hover:bg-neutral-800 transition-colors">
+                                                    <Users className="h-3.5 w-3.5" />
+                                                    Follow
+                                                </button>
+                                                <button className="flex items-center gap-2 px-4 py-2 border border-neutral-200 text-neutral-700 text-sm font-medium hover:bg-neutral-50 transition-colors">
+                                                    <MessageCircle className="h-3.5 w-3.5" />
+                                                    Message
+                                                </button>
+                                            </>
+                                        )}
+                                        <button className="h-9 w-9 flex items-center justify-center border border-neutral-200 text-neutral-500 hover:text-neutral-900 hover:bg-neutral-50 transition-colors">
+                                            <MoreHorizontal className="h-4 w-4" />
+                                        </button>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                    </CardContent>
-                </Card>
+                    </div>
+                </div>
 
-                {/* Tabs */}
-                <Tabs defaultValue="learning" className="w-full">
-                    <TabsList className="w-full justify-start rounded-none bg-transparent p-0 h-auto gap-2">
-                        <TabsTrigger
-                            value="learning"
-                            className="rounded-lg border-none px-4 py-2 font-medium text-sm text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50 data-[state=active]:bg-neutral-100 data-[state=active]:text-neutral-900 transition-colors shadow-none"
-                        >
-                            <BarChart3 className="h-4 w-4 mr-2" />
-                            Learning
-                        </TabsTrigger>
-                        <TabsTrigger
-                            value="comments"
-                            className="rounded-lg border-none px-4 py-2 font-medium text-sm text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50 data-[state=active]:bg-neutral-100 data-[state=active]:text-neutral-900 transition-colors shadow-none"
-                        >
-                            <MessageCircle className="h-4 w-4 mr-2" />
-                            Comments ({comments.length})
-                        </TabsTrigger>
-                        <TabsTrigger
-                            value="reposts"
-                            className="rounded-lg border-none px-4 py-2 font-medium text-sm text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50 data-[state=active]:bg-neutral-100 data-[state=active]:text-neutral-900 transition-colors shadow-none"
-                        >
-                            <Repeat2 className="h-4 w-4 mr-2" />
-                            Reposts ({reposts.length})
-                        </TabsTrigger>
-                        <TabsTrigger
-                            value="saved"
-                            className="rounded-lg border-none px-4 py-2 font-medium text-sm text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50 data-[state=active]:bg-neutral-100 data-[state=active]:text-neutral-900 transition-colors shadow-none"
-                        >
-                            <Bookmark className="h-4 w-4 mr-2" />
-                            Saved ({savedArticles.length})
-                        </TabsTrigger>
-                    </TabsList>
+                {/* Stats Dashboard */}
+                <div className="px-8 mb-8">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="flex flex-col gap-1 p-5 border border-neutral-200 bg-white relative overflow-hidden group">
+                            <div className="absolute top-0 right-0 p-4 opacity-8 group-hover:opacity-15 transition-opacity">
+                                <Bookmark className="h-8 w-8 text-[#1e3a5f]" />
+                            </div>
+                            <p className="text-[11px] uppercase tracking-[0.15em] text-neutral-400 font-medium">Phrases Saved</p>
+                            <div className="flex items-end gap-2">
+                                <p className="text-2xl font-serif text-neutral-900">{learningStats.totalPhrases}</p>
+                                <span className="text-neutral-400 text-xs mb-0.5">total</span>
+                            </div>
+                        </div>
+                        <div className="flex flex-col gap-1 p-5 border border-neutral-200 bg-white relative overflow-hidden group">
+                            <div className="absolute top-0 right-0 p-4 opacity-8 group-hover:opacity-15 transition-opacity">
+                                <Flame className="h-8 w-8 text-amber-500" />
+                            </div>
+                            <p className="text-[11px] uppercase tracking-[0.15em] text-neutral-400 font-medium">Day Streak</p>
+                            <div className="flex items-end gap-2">
+                                <p className="text-2xl font-serif text-neutral-900">{learningStats.currentStreak}</p>
+                                {learningStats.currentStreak > 0 && (
+                                    <span className="text-amber-700 text-[10px] font-semibold uppercase tracking-[0.1em] bg-amber-50 border border-amber-200 px-1.5 py-0.5 mb-0.5">Active</span>
+                                )}
+                            </div>
+                        </div>
+                        <div className="flex flex-col gap-1 p-5 border border-neutral-200 bg-white relative overflow-hidden group">
+                            <div className="absolute top-0 right-0 p-4 opacity-8 group-hover:opacity-15 transition-opacity">
+                                <Trophy className="h-8 w-8 text-[#1e3a5f]" />
+                            </div>
+                            <p className="text-[11px] uppercase tracking-[0.15em] text-neutral-400 font-medium">Scenarios Completed</p>
+                            <div className="flex items-end gap-2">
+                                <p className="text-2xl font-serif text-neutral-900">{learningStats.scenariosCompleted}</p>
+                                <span className="text-neutral-400 text-xs mb-0.5">sessions</span>
+                            </div>
+                        </div>
+                        <div className="flex flex-col gap-1 p-5 border border-neutral-200 bg-white relative overflow-hidden group">
+                            <div className="absolute top-0 right-0 p-4 opacity-8 group-hover:opacity-15 transition-opacity">
+                                <Brain className="h-8 w-8 text-amber-500" />
+                            </div>
+                            <p className="text-[11px] uppercase tracking-[0.15em] text-neutral-400 font-medium">Mastered Phrases</p>
+                            <div className="flex items-end gap-2">
+                                <p className="text-2xl font-serif text-neutral-900">{learningStats.masteredPhrases}</p>
+                                <span className="text-neutral-400 text-xs mb-0.5">phrases</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-                    {/* Learning Dashboard Tab */}
-                    <TabsContent value="learning" className="mt-4">
-                        <LearningDashboard stats={learningStats} />
-                    </TabsContent>
+                {/* Content Grid */}
+                <div className="px-8 pb-12">
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                        {/* Left Column - Main Content */}
+                        <div className="lg:col-span-8 flex flex-col gap-6">
+                            {/* Tabs */}
+                            <div className="border-b border-neutral-200">
+                                <nav className="flex gap-8">
+                                    {tabs.map(tab => (
+                                        <button
+                                            key={tab.id}
+                                            onClick={() => setActiveTab(tab.id)}
+                                            className={`border-b-2 font-medium text-sm py-3 px-1 transition-colors ${activeTab === tab.id
+                                                ? 'border-neutral-900 text-neutral-900'
+                                                : 'border-transparent text-neutral-400 hover:text-neutral-700'
+                                                }`}
+                                        >
+                                            {tab.label}
+                                        </button>
+                                    ))}
+                                </nav>
+                            </div>
 
-                    {/* Comments Tab */}
-                    <TabsContent value="comments" className="mt-4 space-y-3">
-                        {comments.length === 0 ? (
-                            <Card className="py-8 bg-white border-neutral-200">
-                                <CardContent className="text-center text-neutral-500">
-                                    No comments yet. Start engaging with posts!
-                                </CardContent>
-                            </Card>
-                        ) : (
-                            comments.map((comment) => (
-                                <motion.div
-                                    key={comment.id}
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                >
-                                    <Link href={`/post/${comment.postId}`} className="block">
-                                        <Card className="hover:shadow-sm transition-shadow cursor-pointer bg-white border-neutral-200 relative group/card">
-                                            <CardContent className="py-4">
-                                                {/* Post Context */}
-                                                {comment.post ? (
-                                                    <div className="mb-3 p-3 bg-neutral-50 rounded-lg border border-neutral-100">
-                                                        <div className="flex items-center gap-2 mb-1">
-                                                            <span className="text-xs font-semibold text-neutral-900 font-sans">@{comment.post.authorUsername}</span>
-                                                            <span className="text-xs text-neutral-400 font-sans">posted:</span>
+                            {/* Tab Content */}
+                            {activeTab === 'comments' && (
+                                <div className="flex flex-col gap-4">
+                                    {favQuotes.length === 0 ? (
+                                        <div className="p-8 bg-white border border-neutral-200 text-center">
+                                            <Bookmark className="h-6 w-6 text-neutral-300 mx-auto mb-3" />
+                                            <p className="text-neutral-500 text-sm">No favorite quotes yet. Like a quote to see it here!</p>
+                                        </div>
+                                    ) : (
+                                        favQuotes.map((quote) => (
+                                            <Link key={quote.id} href={`/post/${quote.postId}`} className="block">
+                                                <div className="p-4 bg-white border border-neutral-200 hover:border-neutral-300 transition-colors">
+                                                    <div className="flex items-center gap-2 text-xs text-neutral-500 mb-2">
+                                                        <Flame className="h-3.5 w-3.5 text-neutral-900" />
+                                                        <span className="font-medium uppercase tracking-[0.1em]">Favorite Quote</span>
+                                                    </div>
+                                                    <div className="mb-3 p-4 bg-neutral-50 border border-neutral-100 relative">
+                                                        <p className="text-sm md:text-base font-serif text-neutral-800 italic leading-relaxed">
+                                                            "{quote.text}"
+                                                        </p>
+                                                    </div>
+                                                    <div className="flex flex-col gap-1 mt-3">
+                                                        <p className="text-xs font-semibold text-neutral-900">
+                                                            {quote.postTitle} <span className="text-neutral-400 font-normal">by {quote.author}</span>
+                                                        </p>
+                                                        <p className="text-[11px] text-neutral-400">
+                                                            Saved {formatTime(quote.createdAt)}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </Link>
+                                        ))
+                                    )}
+                                </div>
+                            )}
+
+                            {activeTab === 'reposts' && (
+                                <div className="flex flex-col gap-4">
+                                    {reposts.length === 0 ? (
+                                        <div className="p-8 bg-white border border-neutral-200 text-center">
+                                            <Share2 className="h-6 w-6 text-neutral-300 mx-auto mb-3" />
+                                            <p className="text-neutral-500 text-sm">No reposts yet. Click the repost button on posts you like!</p>
+                                        </div>
+                                    ) : (
+                                        reposts.map((repost) => (
+                                            <Link key={repost.id} href={`/post/${repost.postId}`} className="block">
+                                                <div className="p-4 bg-white border border-neutral-200 hover:border-neutral-300 transition-colors">
+                                                    <div className="flex items-center gap-2 text-xs text-neutral-500 mb-2">
+                                                        <Share2 className="h-3.5 w-3.5" />
+                                                        <span className="font-medium uppercase tracking-[0.1em]">Reposted</span>
+                                                    </div>
+                                                    {repost.post ? (
+                                                        <>
+                                                            <p className="text-[11px] text-neutral-400 mb-1">from @{repost.post.authorUsername}</p>
+                                                            <p className="text-sm text-neutral-700 line-clamp-2">{repost.post.content}</p>
+                                                        </>
+                                                    ) : (
+                                                        <p className="text-sm text-neutral-400 italic">Post no longer available</p>
+                                                    )}
+                                                    <p className="text-xs text-neutral-400 mt-2">{formatTime(repost.createdAt)}</p>
+                                                </div>
+                                            </Link>
+                                        ))
+                                    )}
+                                </div>
+                            )}
+
+                            {activeTab === 'bookmarked' && (
+                                <div className="flex flex-col gap-4">
+                                    {savedArticles.length === 0 ? (
+                                        <div className="p-8 bg-white border border-neutral-200 text-center">
+                                            <Bookmark className="h-6 w-6 text-neutral-300 mx-auto mb-3" />
+                                            <p className="text-neutral-500 text-sm">No saved articles yet. Click the bookmark icon on articles to save them!</p>
+                                        </div>
+                                    ) : (
+                                        savedArticles.map((saved) => (
+                                            <Link key={saved.id} href={`/post/${saved.postId}`} className="block">
+                                                <div className="p-4 bg-white border border-neutral-200 hover:border-neutral-300 transition-colors">
+                                                    <div className="flex items-center gap-2 text-xs text-neutral-500 mb-3">
+                                                        <Bookmark className="h-3.5 w-3.5 fill-current" />
+                                                        <span className="font-medium uppercase tracking-[0.1em]">Saved Article</span>
+                                                    </div>
+                                                    {saved.post ? (
+                                                        <div className="flex gap-4">
+                                                            {saved.post.coverImage && (
+                                                                <div className="flex-shrink-0 w-24 h-24 overflow-hidden bg-neutral-100">
+                                                                    <img
+                                                                        src={saved.post.coverImage}
+                                                                        alt={saved.post.title || 'Article cover'}
+                                                                        className="w-full h-full object-cover"
+                                                                    />
+                                                                </div>
+                                                            )}
+                                                            <div className="flex-1 min-w-0">
+                                                                {saved.post.title && (
+                                                                    <h4 className="font-serif text-neutral-900 mb-1 line-clamp-2">{saved.post.title}</h4>
+                                                                )}
+                                                                <p className="text-[11px] text-neutral-400 mb-1">by {saved.post.authorName}</p>
+                                                                <p className="text-sm text-neutral-600 line-clamp-2">
+                                                                    {saved.post.content.replace(/<[^>]*>/g, '').substring(0, 100)}...
+                                                                </p>
+                                                                <p className="text-[11px] text-neutral-400 mt-2">Saved {formatTime(saved.savedAt)}</p>
+                                                            </div>
                                                         </div>
-                                                        <div
-                                                            className="text-xs text-neutral-600 line-clamp-2 italic font-serif"
-                                                            dangerouslySetInnerHTML={{ __html: comment.post.content }}
-                                                        />
-                                                    </div>
-                                                ) : (
-                                                    <div className="mb-3 p-2 bg-neutral-50/50 rounded-lg border border-neutral-100/50">
-                                                        <p className="text-xs text-neutral-400 italic">Post unavailable</p>
-                                                    </div>
-                                                )}
-
-                                                {editingCommentId === comment.id ? (
-                                                    <div onClick={(e) => e.preventDefault()} className="mb-2">
-                                                        <Textarea
-                                                            value={editCommentText}
-                                                            onChange={(e) => setEditCommentText(e.target.value)}
-                                                            className="min-h-[80px] text-sm resize-none bg-white mb-2"
-                                                            onClick={(e) => e.stopPropagation()}
-                                                        />
-                                                        <div className="flex gap-2 justify-end">
-                                                            <Button
-                                                                size="sm"
-                                                                variant="ghost"
-                                                                className="h-7 text-xs"
-                                                                onClick={(e) => {
-                                                                    e.preventDefault();
-                                                                    e.stopPropagation();
-                                                                    setEditingCommentId(null);
-                                                                }}
-                                                            >
-                                                                Cancel
-                                                            </Button>
-                                                            <Button
-                                                                size="sm"
-                                                                className="h-7 text-xs"
-                                                                onClick={(e) => handleUpdateComment(comment.id, e)}
-                                                            >
-                                                                Save
-                                                            </Button>
-                                                        </div>
-                                                    </div>
-                                                ) : (
-                                                    <p className="text-sm mb-2 font-sans font-medium text-neutral-800">{comment.content}</p>
-                                                )}
-
-                                                <div className="flex items-center justify-between">
-                                                    <div className="flex items-center gap-4 text-xs text-neutral-500 font-sans">
-                                                        <span>{formatTime(comment.createdAt)}</span>
-                                                        <span>♡ {comment.likeCount} likes</span>
-                                                    </div>
-
-                                                    {/* Edit/Delete Menu - Only visible on hover and if own profile */}
-                                                    {!editingCommentId && (
-                                                        <div className="opacity-0 group-hover/card:opacity-100 transition-opacity" onClick={(e) => e.preventDefault()}>
-                                                            <DropdownMenu>
-                                                                <DropdownMenuTrigger asChild>
-                                                                    <Button
-                                                                        variant="ghost"
-                                                                        size="sm"
-                                                                        className="h-6 w-6 p-0 rounded-full hover:bg-neutral-100"
-                                                                        onClick={(e) => e.stopPropagation()}
-                                                                    >
-                                                                        <MoreHorizontal className="h-3 w-3 text-neutral-500" />
-                                                                    </Button>
-                                                                </DropdownMenuTrigger>
-                                                                <DropdownMenuContent align="end">
-                                                                    <DropdownMenuItem
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            setEditingCommentId(comment.id);
-                                                                            setEditCommentText(comment.content);
-                                                                        }}
-                                                                    >
-                                                                        <Edit2 className="h-3 w-3 mr-2" />
-                                                                        Edit
-                                                                    </DropdownMenuItem>
-                                                                    <DropdownMenuItem
-                                                                        className="text-red-600 focus:text-red-600"
-                                                                        onClick={(e) => handleDeleteComment(comment.id, comment.postId, e)}
-                                                                    >
-                                                                        <Trash2 className="h-3 w-3 mr-2" />
-                                                                        Delete
-                                                                    </DropdownMenuItem>
-                                                                </DropdownMenuContent>
-                                                            </DropdownMenu>
-                                                        </div>
+                                                    ) : (
+                                                        <p className="text-sm text-neutral-400 italic">Article no longer available</p>
                                                     )}
                                                 </div>
-                                            </CardContent>
-                                        </Card>
-                                    </Link>
-                                </motion.div>
-                            ))
-                        )}
-                    </TabsContent>
+                                            </Link>
+                                        ))
+                                    )}
+                                </div>
+                            )}
 
-                    {/* Reposts Tab */}
-                    <TabsContent value="reposts" className="mt-4 space-y-3">
-                        {reposts.length === 0 ? (
-                            <Card className="py-8 bg-white border-neutral-200">
-                                <CardContent className="text-center text-neutral-500">
-                                    No reposts yet. Click the repost button on posts you like!
-                                </CardContent>
-                            </Card>
-                        ) : (
-                            reposts.map((repost) => (
-                                <motion.div
-                                    key={repost.id}
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                >
-                                    <Card className="hover:shadow-sm transition-shadow cursor-pointer bg-white border-neutral-200">
-                                        <CardContent className="py-4">
-                                            <div className="flex items-center gap-2 text-sm text-green-600 mb-2">
-                                                <Repeat2 className="h-4 w-4" />
-                                                <span className="font-medium">Reposted</span>
+                            {activeTab === 'insights' && (
+                                <LearningDashboard stats={learningStats} />
+                            )}
+                        </div>
+
+                        {/* Right Column - Sidebar */}
+                        <div className="lg:col-span-4 flex flex-col gap-6">
+                            {/* Reading Lists */}
+                            <div className="bg-white border border-neutral-200 p-5">
+                                <div className="flex items-center gap-3 mb-4">
+                                    <div className="h-9 w-9 border border-[#1e3a5f]/20 bg-[#1e3a5f]/5 flex items-center justify-center">
+                                        <LayoutList className="h-4 w-4 text-[#1e3a5f]" />
+                                    </div>
+                                    <h3 className="text-sm font-semibold text-neutral-900 uppercase tracking-[0.1em]">My Reading Lists</h3>
+                                </div>
+                                {readingLists.length === 0 ? (
+                                    <p className="text-sm text-neutral-500">
+                                        No reading lists yet. Clone collections from the Library to get started.
+                                    </p>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {readingLists.map((list) => (
+                                            <div
+                                                key={list.id}
+                                                className="flex items-center gap-3 p-2 -mx-2 hover:bg-neutral-50 transition-colors"
+                                            >
+                                                <div
+                                                    className="w-8 h-8 flex items-center justify-center text-white font-bold text-xs shrink-0 bg-neutral-900"
+                                                >
+                                                    ★
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-sm font-medium text-neutral-900 truncate">{list.name}</p>
+                                                    <p className="text-xs text-neutral-400">{(list.postIds as string[])?.length || 0} materials</p>
+                                                </div>
                                             </div>
-                                            {repost.post ? (
-                                                <>
-                                                    <p className="text-xs text-neutral-500 mb-1">
-                                                        from @{repost.post.authorUsername}
-                                                    </p>
-                                                    <p className="text-sm line-clamp-2">{repost.post.content}</p>
-                                                </>
-                                            ) : (
-                                                <p className="text-sm text-neutral-400 italic">Post no longer available</p>
-                                            )}
-                                            <p className="text-xs text-neutral-500 mt-2">
-                                                {formatTime(repost.createdAt)}
-                                            </p>
-                                        </CardContent>
-                                    </Card>
-                                </motion.div>
-                            ))
-                        )}
-                    </TabsContent>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
 
-                    {/* Saved Articles Tab */}
-                    <TabsContent value="saved" className="mt-4 space-y-3">
-                        {savedArticles.length === 0 ? (
-                            <Card className="py-8 bg-white border-neutral-200">
-                                <CardContent className="text-center text-neutral-500">
-                                    No saved articles yet. Click the bookmark icon on articles to save them!
-                                </CardContent>
-                            </Card>
-                        ) : (
-                            savedArticles.map((saved) => (
-                                <motion.div
-                                    key={saved.id}
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                >
-                                    <Link href={`/post/${saved.postId}`} className="block">
-                                        <Card className="hover:shadow-sm transition-shadow cursor-pointer bg-white border-neutral-200 group">
-                                            <CardContent className="py-4">
-                                                <div className="flex items-center gap-2 text-sm text-amber-600 mb-2">
-                                                    <Bookmark className="h-4 w-4 fill-current" />
-                                                    <span className="font-medium">Saved Article</span>
-                                                </div>
-                                                {saved.post ? (
-                                                    <>
-                                                        {saved.post.title && (
-                                                            <h3 className="font-semibold text-neutral-900 mb-1 line-clamp-1">
-                                                                {saved.post.title}
-                                                            </h3>
-                                                        )}
-                                                        <p className="text-xs text-neutral-500 mb-1">
-                                                            by {saved.post.authorName}
-                                                        </p>
-                                                        <p className="text-sm text-neutral-600 line-clamp-2">
-                                                            {saved.post.content.replace(/<[^>]*>/g, '').substring(0, 150)}...
-                                                        </p>
-                                                    </>
-                                                ) : (
-                                                    <p className="text-sm text-neutral-400 italic">Article no longer available</p>
-                                                )}
-                                                <div className="flex justify-between items-center mt-3">
-                                                    <p className="text-xs text-neutral-400">
-                                                        Saved {formatTime(saved.savedAt)}
-                                                    </p>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        className="opacity-0 group-hover:opacity-100 transition-opacity text-red-500 hover:text-red-600 hover:bg-red-50"
-                                                        onClick={async (e) => {
-                                                            e.preventDefault();
-                                                            e.stopPropagation();
-                                                            if (!user) return;
-                                                            await unsaveArticle(user.uid, saved.postId);
-                                                            setSavedArticles(prev => prev.filter(s => s.id !== saved.id));
-                                                            toast.info('Article removed from saved');
-                                                        }}
-                                                    >
-                                                        <Trash2 className="h-4 w-4 mr-1" />
-                                                        Remove
-                                                    </Button>
-                                                </div>
-                                            </CardContent>
-                                        </Card>
-                                    </Link>
-                                </motion.div>
-                            ))
-                        )}
-                    </TabsContent>
+                            {/* Badges - Coming Soon */}
+                            <div className="bg-white border border-neutral-200 border-dashed p-5 relative overflow-hidden">
+                                <div className="absolute top-3 right-3">
+                                    <span className="text-[9px] font-semibold uppercase tracking-[0.15em] text-neutral-400 border border-neutral-200 px-2 py-1">
+                                        Coming Soon
+                                    </span>
+                                </div>
+                                <div className="flex items-center gap-3 mb-3">
+                                    <div className="h-9 w-9 border border-neutral-200 flex items-center justify-center">
+                                        <Award className="h-4 w-4 text-neutral-900" />
+                                    </div>
+                                    <h3 className="text-sm font-semibold text-neutral-900 uppercase tracking-[0.1em]">Badges</h3>
+                                </div>
+                                <p className="text-sm text-neutral-500 mb-4">
+                                    Earn badges for reaching milestones, maintaining streaks, and mastering vocabulary.
+                                </p>
+                                <div className="flex flex-wrap gap-2 opacity-30">
+                                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-neutral-100 text-neutral-600 border border-neutral-200 text-xs font-medium">
+                                        <Award className="h-3 w-3" />
+                                        Lexicon Master
+                                    </div>
+                                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-neutral-100 text-neutral-600 border border-neutral-200 text-xs font-medium">
+                                        <Flame className="h-3 w-3" />
+                                        On Fire
+                                    </div>
+                                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-neutral-100 text-neutral-600 border border-neutral-200 text-xs font-medium">
+                                        <Trophy className="h-3 w-3" />
+                                        100 Days
+                                    </div>
+                                </div>
+                            </div>
 
-                </Tabs>
+                            {/* Social Features - Coming Soon */}
+                            <div className="bg-white border border-neutral-200 border-dashed p-5 relative overflow-hidden">
+                                <div className="absolute top-3 right-3">
+                                    <span className="text-[9px] font-semibold uppercase tracking-[0.15em] text-neutral-400 border border-neutral-200 px-2 py-1">
+                                        Coming Soon
+                                    </span>
+                                </div>
+                                <div className="flex items-center gap-3 mb-3">
+                                    <div className="h-9 w-9 border border-neutral-200 flex items-center justify-center">
+                                        <Users className="h-4 w-4 text-neutral-900" />
+                                    </div>
+                                    <h3 className="text-sm font-semibold text-neutral-900 uppercase tracking-[0.1em]">Connect & Learn</h3>
+                                </div>
+                                <p className="text-sm text-neutral-500 mb-4">
+                                    Follow friends, compare progress, and get personalized learner recommendations.
+                                </p>
+                                <div className="flex items-center gap-3 opacity-30">
+                                    <div className="flex -space-x-2">
+                                        <div className="h-8 w-8 rounded-full bg-neutral-200 border-2 border-white"></div>
+                                        <div className="h-8 w-8 rounded-full bg-neutral-300 border-2 border-white"></div>
+                                        <div className="h-8 w-8 rounded-full bg-neutral-400 border-2 border-white"></div>
+                                    </div>
+                                    <span className="text-xs text-neutral-400">+3 learners like you</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </>
     );
