@@ -68,8 +68,8 @@ export function ArticleReadingMode({
     const navDockItems: DockItem[] = [
         { href: '/dashboard', icon: <SquaresFour className="w-5 h-5" weight={isActive('/dashboard') ? 'fill' : 'regular'} />, label: 'Dashboard', isActive: isActive('/dashboard') },
         { href: '/feed', icon: <BookOpen className="w-5 h-5" weight={isActive('/feed') ? 'fill' : 'regular'} />, label: 'Library', isActive: isActive('/feed') },
-        { href: '/vocab', icon: <BookmarkSimple className="w-5 h-5" weight={isActive('/vocab') ? 'fill' : 'regular'} />, label: 'Vocab Bank', isActive: isActive('/vocab') },
         { href: '/practice', icon: <PencilSimple className="w-5 h-5" weight={isActive('/practice') ? 'fill' : 'regular'} />, label: 'Practice', isActive: isActive('/practice') },
+        { href: '/vocab', icon: <BookmarkSimple className="w-5 h-5" weight={isActive('/vocab') ? 'fill' : 'regular'} />, label: 'Vocab Bank', isActive: isActive('/vocab') },
         { href: '/settings', icon: <Gear className="w-5 h-5" weight={isActive('/settings') ? 'fill' : 'regular'} />, label: 'Settings', isActive: isActive('/settings') },
     ];
 
