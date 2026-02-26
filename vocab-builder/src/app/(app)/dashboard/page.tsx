@@ -220,7 +220,7 @@ export default function DashboardPage() {
                         {/* Total Lexicon */}
                         <div className="p-6 flex flex-col justify-between min-h-[180px] md:border-r border-b md:border-b-0 border-neutral-200">
                             <div className="flex items-center justify-between">
-                                <span className="px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] font-bold text-neutral-500 bg-neutral-100 rounded-sm">Total Lexicon</span>
+                                <span className="px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] font-bold text-white bg-blue-600 rounded-sm">Total Lexicon</span>
                                 <BookOpen className="w-4 h-4 text-neutral-300" />
                             </div>
                             <div className="mt-auto">
@@ -249,7 +249,7 @@ export default function DashboardPage() {
                         {/* Current Streak */}
                         <div className="p-6 flex flex-col justify-between min-h-[180px] md:border-r border-b md:border-b-0 border-neutral-200">
                             <div className="flex items-center justify-between">
-                                <span className="px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] font-bold text-neutral-500 bg-neutral-100 rounded-sm">Current Streak</span>
+                                <span className="px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] font-bold text-white bg-amber-500 rounded-sm">Current Streak</span>
                                 <span className="text-neutral-300 text-lg">🔥</span>
                             </div>
                             <div className="mt-auto">
@@ -276,7 +276,7 @@ export default function DashboardPage() {
                         {/* Mastery Level */}
                         <div className="p-6 flex flex-col justify-between min-h-[180px]">
                             <div className="flex items-center justify-between">
-                                <span className="px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] font-bold text-neutral-500 bg-neutral-100 rounded-sm">Mastery Level</span>
+                                <span className="px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] font-bold text-white bg-emerald-600 rounded-sm">Mastery Level</span>
                                 <Lightbulb className="w-4 h-4 text-neutral-300" />
                             </div>
                             <div className="mt-auto">
@@ -306,7 +306,7 @@ export default function DashboardPage() {
                         <div className="lg:col-span-3 p-6 lg:border-r border-b lg:border-b-0 border-neutral-200">
                             <div className="flex items-center justify-between mb-4">
                                 <div>
-                                    <span className="px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] font-bold text-neutral-500 bg-neutral-100 rounded-sm inline-block mb-1">Review Consistency</span>
+                                    <span className="px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] font-bold text-white bg-violet-600 rounded-sm inline-block mb-1">Review Consistency</span>
                                     <h3
                                         className="text-2xl font-normal text-neutral-900 tracking-tight mt-1"
                                         style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
@@ -321,7 +321,7 @@ export default function DashboardPage() {
                         {/* Up Next — narrower */}
                         <div className="lg:col-span-2 p-6 flex flex-col">
                             <div className="flex items-center justify-between mb-4">
-                                <span className="px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] font-bold text-neutral-500 bg-neutral-100 rounded-sm">Up Next</span>
+                                <span className="px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] font-bold text-white bg-rose-600 rounded-sm">Up Next</span>
                                 <Clock className="w-4 h-4 text-neutral-300" />
                             </div>
 
@@ -366,7 +366,7 @@ export default function DashboardPage() {
                     {/* ─── Quote of the Day ─── */}
                     {dailyQuote && (
                         <div className="p-8 border-t border-neutral-200">
-                            <span className="px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] font-bold text-neutral-500 bg-neutral-100 rounded-sm inline-block mb-4">Quote of the Day</span>
+                            <span className="px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] font-bold text-white bg-slate-600 rounded-sm inline-block mb-4">Quote of the Day</span>
                             <blockquote
                                 className="text-[22px] text-neutral-700 leading-relaxed italic"
                                 style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
