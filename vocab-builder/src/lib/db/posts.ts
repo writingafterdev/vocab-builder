@@ -14,7 +14,7 @@ import {
     serverTimestamp,
 } from 'firebase/firestore';
 import { getDbAsync } from './core';
-import type { Post } from './types';
+import type { Post, ExtractedPhrase, SentencePair } from './types';
 
 /**
  * Get posts for a user's feed
@@ -88,12 +88,12 @@ export interface ArticleInput {
     content: string;
     coverImage?: string;
     highlightedPhrases?: string[];
+    phraseData?: ExtractedPhrase[];
+    sentences?: SentencePair[];
     authorName?: string;
     authorUsername?: string;
     source?: string;
     caption?: string;
-    translatedTitle?: string;
-    translatedContent?: string;
     originalUrl?: string;
 }
 
@@ -112,11 +112,13 @@ export async function createArticle(article: ArticleInput): Promise<string> {
         originalUrl: article.originalUrl,
     };
 
-    if (article.translatedTitle) {
-        postData.translatedTitle = article.translatedTitle;
+    // Add phrase data if available
+    if (article.phraseData && article.phraseData.length > 0) {
+        postData.phraseData = article.phraseData;
     }
-    if (article.translatedContent) {
-        postData.translatedContent = article.translatedContent;
+    // Add sentence translations if available
+    if (article.sentences && article.sentences.length > 0) {
+        postData.sentences = article.sentences;
     }
     if (article.caption) {
         postData.caption = article.caption;
@@ -132,4 +134,34 @@ export async function importArticles(articles: ArticleInput[]): Promise<string[]
         ids.push(id);
     }
     return ids;
+}
+
+// User-imported article (no AI processing)
+export interface UserArticleInput {
+    title: string;
+    content: string;
+    userId: string;
+    userName?: string;
+    source?: string;
+    coverImage?: string;
+    originalUrl?: string;
+}
+
+export async function createUserArticle(article: UserArticleInput): Promise<string> {
+    const postData: Parameters<typeof createPost>[0] = {
+        authorId: article.userId,
+        authorName: article.userName || 'User',
+        authorUsername: 'user',
+        source: article.source || 'User Import',
+        content: article.content,
+        highlightedPhrases: [],
+        type: 'user', // User-imported, not admin
+        isArticle: true,
+        title: article.title,
+        coverImage: article.coverImage,
+        originalUrl: article.originalUrl,
+        generatedForUserId: article.userId, // Only visible to this user
+    };
+
+    return createPost(postData);
 }

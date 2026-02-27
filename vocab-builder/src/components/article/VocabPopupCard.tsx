@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Check, ChevronDown, Zap } from 'lucide-react';
+import { X, Check, ChevronDown, Zap, Loader2 } from 'lucide-react';
 
 interface VocabPopupCardProps {
     phrase: string;
@@ -53,6 +53,8 @@ export function VocabPopupCard({
 }: VocabPopupCardProps) {
     const [expanded, setExpanded] = useState(false);
     const [bounce, setBounce] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+
     const registers = toArray(register);
     const nuances = toArray(nuance);
     const topics = toArray(topic);
@@ -184,17 +186,27 @@ export function VocabPopupCard({
             {/* Save button */}
             <div className="px-4 pb-4 pt-1">
                 <button
-                    onClick={onSave}
-                    disabled={isSaved || !meaning}
+                    onClick={async () => {
+                        if (isSaving || isSaved) return;
+                        setIsSaving(true);
+                        try {
+                            await onSave();
+                        } finally {
+                            setIsSaving(false);
+                        }
+                    }}
+                    disabled={isSaved || !meaning || isSaving}
                     className={`w-full flex items-center justify-center gap-2 py-2.5 text-xs font-bold uppercase tracking-[0.12em] transition-all duration-200
                         ${isSaved
                             ? 'bg-neutral-100 text-neutral-400 cursor-default'
-                            : !meaning
+                            : (!meaning || isSaving)
                                 ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed'
                                 : 'bg-neutral-900 text-white hover:bg-neutral-800 active:scale-[0.98]'
                         }`}
                 >
-                    {isSaved ? (
+                    {isSaving ? (
+                        <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving...</>
+                    ) : isSaved ? (
                         <><Check className="w-3.5 h-3.5" /> Saved to Bank</>
                     ) : !meaning ? (
                         <>Analyzing...</>

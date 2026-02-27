@@ -20,6 +20,12 @@ interface UserProfile {
         currentStreak: number;
         longestStreak: number;
         lastStudyDate: Date | null;
+        // Gamification
+        xp?: number;
+        level?: number;
+        xpToday?: number;
+        xpTodayDate?: string | null;
+        redeemedDays?: number;
     };
     subscription: {
         status: 'trial' | 'active' | 'expired' | 'cancelled';
@@ -101,6 +107,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                                     currentStreak: 0,
                                     longestStreak: 0,
                                     lastStudyDate: null,
+                                    xp: 0,
+                                    level: 1,
+                                    xpToday: 0,
+                                    xpTodayDate: null,
+                                    redeemedDays: 0,
                                 },
                                 subscription: {
                                     status: 'trial' as const,
@@ -138,27 +149,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, []);
 
     const signInWithGoogle = useCallback(async () => {
-        const { initializeFirebase } = await import('@/lib/firebase');
-        const { auth } = await initializeFirebase();
-
-        if (!auth) {
-            throw new Error('Firebase not initialized');
-        }
-
-        const { signInWithPopup, signInWithRedirect, GoogleAuthProvider } = await import('firebase/auth');
-        const provider = new GoogleAuthProvider();
-
         try {
-            await signInWithPopup(auth, provider);
-        } catch (error: unknown) {
-            const firebaseError = error as { code?: string };
-            if (firebaseError.code === 'auth/popup-blocked' ||
-                firebaseError.code === 'auth/cancelled-popup-request' ||
-                firebaseError.code === 'auth/popup-closed-by-user') {
-                await signInWithRedirect(auth, provider);
-            } else {
-                throw error;
+            const { initializeFirebase } = await import('@/lib/firebase');
+            const { auth } = await initializeFirebase();
+
+            if (!auth) {
+                console.error('[Auth] Firebase not initialized');
+                return;
             }
+
+            const { signInWithPopup, signInWithRedirect, GoogleAuthProvider } = await import('firebase/auth');
+            const provider = new GoogleAuthProvider();
+
+            try {
+                await signInWithPopup(auth, provider);
+            } catch (error: unknown) {
+                const firebaseError = error as { code?: string; message?: string };
+                console.error('[Auth] Sign-in error:', firebaseError.code, firebaseError.message);
+                if (firebaseError.code === 'auth/popup-blocked' ||
+                    firebaseError.code === 'auth/cancelled-popup-request' ||
+                    firebaseError.code === 'auth/popup-closed-by-user') {
+                    await signInWithRedirect(auth, provider);
+                } else if (firebaseError.code === 'auth/unauthorized-domain') {
+                    alert(`This domain is not authorized for Firebase Auth. Add "${window.location.hostname}" to Firebase Console > Authentication > Settings > Authorized domains.`);
+                } else {
+                    throw error;
+                }
+            }
+        } catch (error) {
+            console.error('[Auth] signInWithGoogle failed:', error);
         }
     }, []);
 

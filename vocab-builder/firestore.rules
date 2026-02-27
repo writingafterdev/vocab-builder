@@ -1,0 +1,212 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if user is authenticated
+    function isAuth() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if user owns the document
+    function isOwner(userId) {
+      return isAuth() && request.auth.uid == userId;
+    }
+    
+    // Helper function to check if user is admin
+    // Check by email since custom claims aren't set up
+    function isAdmin() {
+      return isAuth() && request.auth.token.email == 'ducanhcontactonfb@gmail.com';
+    }
+    
+    // Users collection - allow read for email lookup, write own profile
+    match /users/{userId} {
+      allow read: if true; // Allow email lookup for userId resolution
+      allow write: if isOwner(userId);
+      
+      // User's saved phrases subcollection
+      // Allow if true because we use server-side REST API which doesn't pass auth token
+      // Security is handled by the API endpoint verifying userId
+      match /savedPhrases/{phraseId} {
+        allow read, write: if true;
+      }
+
+      // Practice History
+      match /practiceHistory/{historyId} {
+        allow read, write: if true;
+      }
+
+      // Journey Nodes - learning path progress
+      match /journeyNodes/{nodeId} {
+        allow read, write: if true;
+      }
+    }
+    
+    // Saved phrases - vocabulary bank
+    // Allow server-side operations via REST API (userId checked in app)
+    match /savedPhrases/{phraseId} {
+      allow read, create, update: if true; // Server-side API access
+      allow delete: if true; // Allow delete for vocab management
+    }
+    
+    // Scenarios - practice sessions
+    // Create/update allowed for server-side API (REST without auth context)
+    match /scenarios/{scenarioId} {
+      allow read: if true; // Allow reading scenarios (userId checked in app)
+      allow create, update: if true; // Server-side creation via REST API
+      allow delete: if false; // Don't allow deletes
+    }
+    
+    // Token usage tracking - internal metrics
+    // Allow read for admin dashboard (REST API access)
+    match /tokenUsage/{usageId} {
+      allow read: if true; // Admin dashboard needs REST API access
+      allow create: if true; // Allow server-side logging
+      allow update, delete: if false; // Immutable logs
+    }
+    
+    // Posts/Articles - public read, server-side write for import
+    // Admin check is done in the API endpoint, not in rules
+    match /posts/{postId} {
+      allow read: if true; // Public articles
+      allow create, update: if true; // Server-side API access (admin checked in app)
+      allow delete: if isAdmin();
+    }
+    
+    // Topics - public read for vocabulary categorization, admin write
+    match /topics/{topicId} {
+      allow read: if true; // Public topics for vocab cards
+      allow create, update, delete: if isAdmin();
+    }
+    
+    // Collections - public read, admin write
+    match /collections/{collectionId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+    
+    // Comments - authenticated users can read and create
+    match /comments/{commentId} {
+      allow read: if true;
+      allow create: if isAuth();
+      allow update, delete: if isAuth() && resource.data.userId == request.auth.uid;
+    }
+    
+    // Article saves/bookmarks
+    match /articleSaves/{saveId} {
+      allow read: if isAuth() && resource.data.userId == request.auth.uid;
+      allow create: if isAuth() && request.resource.data.userId == request.auth.uid;
+      allow delete: if isAuth() && resource.data.userId == request.auth.uid;
+    }
+    
+    // Saved articles (bookmarks) - alternative collection name
+    match /savedArticles/{saveId} {
+      allow read: if isAuth() && resource.data.userId == request.auth.uid;
+      allow create: if isAuth() && request.resource.data.userId == request.auth.uid;
+      allow delete: if isAuth() && resource.data.userId == request.auth.uid;
+    }
+    
+    // Comment likes
+    match /commentLikes/{likeId} {
+      allow read: if true;
+      allow create: if isAuth();
+      allow delete: if isAuth() && resource.data.userId == request.auth.uid;
+    }
+    
+    // Reposts
+    match /reposts/{repostId} {
+      allow read: if true;
+      allow create: if isAuth();
+      allow delete: if isAuth() && resource.data.userId == request.auth.uid;
+    }
+    
+    // Debates (legacy practice sessions)
+    match /debates/{debateId} {
+      allow read: if true; // Allow reading for history page
+      allow create, update: if true; // Server-side creation
+      allow delete: if false;
+    }
+    
+    // User Reading Lists (cloned collections)
+    // Server-side API access for clone/create operations
+    match /userReadingLists/{listId} {
+      allow read, create, update: if true; // Server-side API access
+      allow delete: if true; // Allow users to delete their lists
+    }
+    
+    // Reading Sessions (cached generated articles)
+    match /readingSessions/{sessionId} {
+      allow read: if true; // Allow reading cached sessions
+      allow create, update: if true; // Client-side creation and updates
+      allow delete: if false;
+    }
+    
+    // Global Phrase Dictionary - shared vocabulary data
+    // Public read for caching, server-side write for API generation
+    match /phraseDictionary/{phraseId} {
+      allow read: if true; // Public read for global caching
+      allow create, update: if true; // Server-side API creation/updates
+      allow delete: if isAdmin(); // Only admin can delete phrases
+    }
+    
+    // Question Bank - pre-generated practice questions
+    match /questionBank/{questionId} {
+      allow read: if true; // Public read for practice
+      allow create, update: if true; // Server-side nightly batch generation
+      allow delete: if isAdmin(); // Only admin can delete
+    }
+
+    // Completed Practice Sessions - for history and review
+    match /completedSessions/{sessionId} {
+      allow read, create, update: if true; // Server-side API access
+      allow delete: if false; // Preserve history
+    }
+
+    // Live Sessions - real-time voice conversation practice
+    match /liveSessions/{sessionId} {
+      allow read, create, update: if true; // Server-side API access
+      allow delete: if false; // Preserve session history
+    }
+
+    // User Weaknesses - Daily Drill weakness tracking
+    // Server-side and client-side API access
+    match /userWeaknesses/{userId} {
+      allow read, create, update: if true; // API and client access for seeding
+      allow delete: if false; // Preserve weakness history
+    }
+
+    // User Milestones - Progress tracking for session eligibility
+    // Server-side and client-side API access
+    match /userMilestones/{userId} {
+      allow read, create, update: if true; // API and client access for seeding
+      allow delete: if false; // Preserve milestone history
+    }
+
+    // Open-Ended Sessions - AI-guided conversation practice
+    match /openEndedSessions/{sessionId} {
+      allow read, create, update: if true; // Server-side API access
+      allow delete: if false; // Preserve session history
+    }
+
+    // Turn-Based Sessions - AI conversation sessions
+    match /turnBasedSessions/{sessionId} {
+      allow read, create, update: if true; // Server-side API access
+      allow delete: if false; // Preserve session history
+    }
+
+    // System Settings - admin only
+    match /settings/{settingId} {
+      allow read, write: if isAdmin();
+    }
+    
+    // Favorite Quotes - saved from swipe reader and posts
+    // Server-side REST API access (userId checked in API endpoint)
+    match /favorite_quotes/{docId} {
+      allow read, write: if true;
+    }
+        
+    // Deny all other collections by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

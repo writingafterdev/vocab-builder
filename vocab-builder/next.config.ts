@@ -29,6 +29,63 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+
+  // Bundle size optimizations for Cloudflare Workers
+  experimental: {
+    // Tree-shake heavy packages — only import what's actually used
+    optimizePackageImports: [
+      'lucide-react',
+      '@phosphor-icons/react',
+      'recharts',
+      'framer-motion',
+      '@radix-ui/react-dialog',
+      '@radix-ui/react-dropdown-menu',
+      '@radix-ui/react-tabs',
+      '@radix-ui/react-avatar',
+      '@radix-ui/react-scroll-area',
+      '@tiptap/starter-kit',
+      '@tiptap/react',
+      'firebase',
+      'date-fns',
+      'sonner',
+      'rough-notation',
+    ],
+  },
+
+  // Security headers
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          {
+            key: 'Strict-Transport-Security',
+            value: 'max-age=63072000; includeSubDomains',
+          },
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
+          },
+          {
+            key: 'X-Frame-Options',
+            value: 'DENY',
+          },
+          {
+            key: 'X-XSS-Protection',
+            value: '1; mode=block',
+          },
+          {
+            key: 'Referrer-Policy',
+            value: 'strict-origin-when-cross-origin',
+          },
+          {
+            key: 'Permissions-Policy',
+            value: 'camera=(), microphone=(self), geolocation=()',
+          },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

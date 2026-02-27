@@ -1,4 +1,6 @@
 import { queryCollection } from '@/lib/firestore-rest';
+import { db } from '@/lib/firebase';
+import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
 
 export interface DailyActivity {
     date: string; // YYYY-MM-DD
@@ -6,7 +8,7 @@ export interface DailyActivity {
 }
 
 export interface LearningStatsData {
-    debatesCompleted: number;
+    scenariosCompleted: number;
     currentStreak: number;
     bestStreak: number;
     weeklyReviews: number;
@@ -15,9 +17,9 @@ export interface LearningStatsData {
     masteredHistory: number[]; // Real history of mastered phrases (last 14 days)
     totalPhrases: number;      // Current total count (children)
     masteredPhrases: number;   // Current mastered count (learningStep >= 6)
-    recentDebates: Array<{
+    recentScenarios: Array<{
         id: string;
-        topic: string;
+        scenario: string;
         phrasesUsed: number;
         totalPhrases: number;
         date: Date;
@@ -39,11 +41,11 @@ interface SavedPhraseDoc {
     children?: ChildExpression[];
 }
 
-interface DebateDoc {
+interface ScenarioDoc {
     id: string;
     userId: string;
     status: string;
-    topic: string;
+    scenario: string;
     createdAt: Date | string;
     phrases: Array<{ used?: boolean }>;
 }
@@ -51,12 +53,12 @@ interface DebateDoc {
 export async function getLearningStats(userId: string): Promise<LearningStatsData> {
     try {
         // 1. Fetch SavedPhrases via REST API
-        const allPhrases = await queryCollection('savedPhrases') as SavedPhraseDoc[];
+        const allPhrases = await queryCollection('savedPhrases') as unknown as SavedPhraseDoc[];
         const phrases = allPhrases.filter(p => p.userId === userId);
 
-        // 2. Fetch Debates via REST API
-        const allDebates = await queryCollection('debates') as DebateDoc[];
-        const debates = allDebates
+        // 2. Fetch Scenarios via REST API
+        const allScenarios = await queryCollection('scenarios') as unknown as ScenarioDoc[];
+        const scenarios = allScenarios
             .filter(d => d.userId === userId && d.status === 'completed')
             .sort((a, b) => {
                 const dateA = new Date(a.createdAt);
@@ -64,16 +66,16 @@ export async function getLearningStats(userId: string): Promise<LearningStatsDat
                 return dateB.getTime() - dateA.getTime();
             });
 
-        // 3. Process Debates for Activity & Streaks
-        const debatesCompleted = debates.length;
+        // 3. Process Scenarios for Activity & Streaks
+        const scenariosCompleted = scenarios.length;
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
         const activityMap = new Map<string, number>();
         const dates: Date[] = [];
 
-        debates.forEach(debate => {
-            const date = new Date(debate.createdAt);
+        scenarios.forEach(scenario => {
+            const date = new Date(scenario.createdAt);
             const dateKey = date.toISOString().split('T')[0];
             activityMap.set(dateKey, (activityMap.get(dateKey) || 0) + 1);
 
@@ -145,20 +147,20 @@ export async function getLearningStats(userId: string): Promise<LearningStatsDat
         const totalPhrasesCount = phrases.length;
         const masteredCount = masteredPhrasesList.length;
 
-        // 5. Recent Debates
-        const recentDebates = debates.slice(0, 5).map(debate => {
-            const usedCount = (debate.phrases || []).filter(p => p.used).length;
+        // 5. Recent Scenarios
+        const recentScenarios = scenarios.slice(0, 5).map(scenario => {
+            const usedCount = (scenario.phrases || []).filter(p => p.used).length;
             return {
-                id: debate.id,
-                topic: debate.topic,
+                id: scenario.id,
+                scenario: scenario.scenario,
                 phrasesUsed: usedCount,
-                totalPhrases: (debate.phrases || []).length,
-                date: new Date(debate.createdAt)
+                totalPhrases: (scenario.phrases || []).length,
+                date: new Date(scenario.createdAt)
             };
         });
 
         return {
-            debatesCompleted,
+            scenariosCompleted,
             currentStreak,
             bestStreak: longestStreak,
             weeklyReviews,
@@ -167,13 +169,13 @@ export async function getLearningStats(userId: string): Promise<LearningStatsDat
             masteredHistory,
             totalPhrases: totalPhrasesCount,
             masteredPhrases: masteredCount,
-            recentDebates
+            recentScenarios
         };
 
     } catch (error) {
         console.error('Error fetching learning stats:', error);
         return {
-            debatesCompleted: 0,
+            scenariosCompleted: 0,
             currentStreak: 0,
             bestStreak: 0,
             weeklyReviews: 0,
@@ -182,7 +184,7 @@ export async function getLearningStats(userId: string): Promise<LearningStatsDat
             masteredHistory: Array(14).fill(0),
             totalPhrases: 0,
             masteredPhrases: 0,
-            recentDebates: []
+            recentScenarios: []
         };
     }
 }

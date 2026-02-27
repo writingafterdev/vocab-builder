@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logTokenUsage } from '@/lib/db/token-tracking';
+import { safeParseAIJson } from '@/lib/ai-utils';
 
 /**
  * Evaluate bundled exercise responses
@@ -27,7 +28,12 @@ interface PhraseResult {
 
 export async function POST(request: NextRequest) {
     try {
-        const userEmail = request.headers.get('x-user-email');
+        // Secure authentication - verify Firebase ID token (edge-compatible)
+        const { getAuthFromRequest } = await import('@/lib/firebase-admin');
+        const authUser = await getAuthFromRequest(request);
+
+        // Fallback for backward compatibility
+        const userEmail = authUser?.userEmail || request.headers.get('x-user-email');
         if (!userEmail) {
             return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
         }
@@ -90,6 +96,7 @@ Return JSON only:
                         messages: [{ role: 'user', content: prompt }],
                         max_tokens: 600,
                         temperature: 0.3,
+                        response_format: { type: 'json_object' },
                     }),
                 });
 
@@ -114,9 +121,9 @@ Return JSON only:
                     text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
 
                     try {
-                        const parsed = JSON.parse(text);
-                        if (parsed.phrases && Array.isArray(parsed.phrases)) {
-                            parsed.phrases.forEach((aiResult: { phrase: string; status: string; feedback: string }) => {
+                        const parseResult = safeParseAIJson<{ phrases?: Array<{ phrase: string; status: string; feedback: string }> }>(text);
+                        if (parseResult.success && parseResult.data.phrases && Array.isArray(parseResult.data.phrases)) {
+                            parseResult.data.phrases.forEach((aiResult) => {
                                 const match = phraseResults.find(pr =>
                                     pr.phrase.toLowerCase() === aiResult.phrase.toLowerCase()
                                 );

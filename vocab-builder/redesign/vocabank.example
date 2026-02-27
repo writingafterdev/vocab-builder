@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Vocabulary Bank</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#135bec",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#101622",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-[#111318] dark:text-white font-display overflow-hidden h-screen flex">
+<aside class="w-64 flex-shrink-0 bg-background-light dark:bg-background-dark border-r border-[#e5e7eb] dark:border-[#1f2937] flex flex-col h-full">
+<div class="p-4 flex flex-col gap-1 border-b border-transparent dark:border-[#1f2937]">
+<div class="flex items-center gap-2 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-800 p-2 rounded-lg transition-colors">
+<div class="w-6 h-6 rounded bg-primary flex items-center justify-center text-white text-xs font-bold">V</div>
+<h1 class="text-[#111318] dark:text-white text-sm font-semibold leading-normal truncate">Vocab Bank</h1>
+<span class="material-symbols-outlined text-gray-400 text-[16px] ml-auto">unfold_more</span>
+</div>
+</div>
+<nav class="flex-1 overflow-y-auto px-2 py-2 flex flex-col gap-1">
+<div class="mb-4">
+<p class="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Favorites</p>
+<a class="flex items-center gap-3 px-3 py-1.5 rounded-lg bg-[#e0e7ff] dark:bg-primary/20 text-primary dark:text-white group" href="#">
+<span class="material-symbols-outlined text-[20px]" data-weight="fill">book_2</span>
+<span class="text-sm font-medium">All Words</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800 text-[#616f89] dark:text-gray-300 transition-colors group" href="#">
+<span class="material-symbols-outlined text-[20px]">schedule</span>
+<span class="text-sm font-medium">Review Today</span>
+<span class="ml-auto text-xs bg-gray-200 dark:bg-gray-700 px-1.5 rounded text-gray-600 dark:text-gray-300">12</span>
+</a>
+</div>
+<div>
+<p class="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex justify-between items-center group cursor-pointer">
+                Collections
+                <span class="material-symbols-outlined text-[16px] opacity-0 group-hover:opacity-100 transition-opacity">add</span>
+</p>
+<a class="flex items-center gap-3 px-3 py-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800 text-[#616f89] dark:text-gray-300 transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">description</span>
+<span class="text-sm font-medium">Reading List</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800 text-[#616f89] dark:text-gray-300 transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">business_center</span>
+<span class="text-sm font-medium">Business English</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800 text-[#616f89] dark:text-gray-300 transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">forum</span>
+<span class="text-sm font-medium">Idioms</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800 text-[#616f89] dark:text-gray-300 transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">inventory_2</span>
+<span class="text-sm font-medium">Archive</span>
+</a>
+</div>
+</nav>
+<div class="p-3 border-t border-[#e5e7eb] dark:border-[#1f2937]">
+<button class="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg h-9 bg-primary text-white text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm">
+<span class="material-symbols-outlined text-[18px]">add</span>
+<span>New Word</span>
+</button>
+<div class="mt-3 flex items-center gap-2 px-2 text-[#616f89] dark:text-gray-400 cursor-pointer hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[20px]">settings</span>
+<span class="text-sm font-medium">Settings</span>
+</div>
+</div>
+</aside>
+<main class="flex-1 flex flex-col h-full overflow-hidden bg-white dark:bg-[#0b0f17]">
+<header class="h-14 flex-shrink-0 border-b border-[#e5e7eb] dark:border-[#1f2937] flex items-center justify-between px-4 bg-white dark:bg-[#0b0f17] z-10">
+<div class="flex items-center gap-2 text-sm">
+<a class="text-[#616f89] dark:text-gray-400 hover:text-primary dark:hover:text-white transition-colors flex items-center gap-1" href="#">
+<span class="material-symbols-outlined text-[18px]">home</span>
+</a>
+<span class="text-[#616f89] dark:text-gray-500">/</span>
+<span class="flex items-center gap-1 text-[#111318] dark:text-white font-medium">
+<span class="material-symbols-outlined text-[18px] text-primary">book_2</span>
+                All Words
+            </span>
+</div>
+<div class="flex items-center gap-3">
+<div class="relative group">
+<span class="absolute left-2.5 top-1.5 material-symbols-outlined text-gray-400 text-[20px]">search</span>
+<input class="pl-9 pr-3 py-1.5 h-8 w-64 text-sm bg-gray-100 dark:bg-gray-800 border-none rounded-md focus:ring-1 focus:ring-primary text-[#111318] dark:text-white placeholder:text-gray-400 transition-all focus:w-80" placeholder="Search..." type="text"/>
+<div class="absolute right-2 top-1.5 flex items-center gap-1">
+<kbd class="hidden sm:inline-block border border-gray-300 dark:border-gray-600 rounded px-1 text-[10px] font-mono text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-700">⌘K</kbd>
+</div>
+</div>
+<div class="h-4 w-[1px] bg-gray-300 dark:bg-gray-700 mx-1"></div>
+<button class="p-1.5 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors relative">
+<span class="material-symbols-outlined text-[20px]">notifications</span>
+<span class="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-[#0b0f17]"></span>
+</button>
+<button class="p-1.5 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors">
+<span class="material-symbols-outlined text-[20px]">more_horiz</span>
+</button>
+</div>
+</header>
+<div class="px-8 pt-8 pb-4 flex flex-col gap-6">
+<div class="flex flex-col gap-1">
+<div class="flex items-center gap-3">
+<div class="p-2 bg-primary/10 rounded-lg">
+<span class="material-symbols-outlined text-primary text-[32px]">book_2</span>
+</div>
+<h1 class="text-3xl font-bold text-[#111318] dark:text-white tracking-tight">All Words</h1>
+</div>
+<p class="text-[#616f89] dark:text-gray-400 text-sm ml-[60px]">Manage your entire vocabulary collection, track progress, and review context.</p>
+</div>
+<div class="flex flex-col sm:flex-row justify-between items-end sm:items-center gap-4 border-b border-[#e5e7eb] dark:border-[#1f2937]">
+<div class="flex gap-6 -mb-[1px]">
+<button class="group flex items-center gap-2 pb-3 border-b-2 border-primary text-primary dark:text-white font-medium text-sm">
+<span class="material-symbols-outlined text-[18px]" data-weight="fill">table_chart</span>
+                    Table
+                </button>
+<button class="group flex items-center gap-2 pb-3 border-b-2 border-transparent hover:border-gray-300 dark:hover:border-gray-600 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 font-medium text-sm transition-all">
+<span class="material-symbols-outlined text-[18px]">grid_view</span>
+                    Gallery
+                </button>
+<button class="group flex items-center gap-2 pb-3 border-b-2 border-transparent hover:border-gray-300 dark:hover:border-gray-600 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 font-medium text-sm transition-all">
+<span class="material-symbols-outlined text-[18px]">view_kanban</span>
+                    Kanban
+                </button>
+</div>
+<div class="flex items-center gap-2 pb-2">
+<button class="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-primary hover:bg-primary/10 rounded-md border border-transparent transition-colors mr-2">
+<span class="material-symbols-outlined text-[18px]">play_circle</span>
+                    Start Selection Review
+                </button>
+<div class="h-4 w-[1px] bg-gray-300 dark:bg-gray-700 mx-1"></div>
+<button class="flex items-center gap-1.5 px-2 py-1 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors">
+<span class="material-symbols-outlined text-[18px]">filter_list</span>
+                    Filter
+                </button>
+<button class="flex items-center gap-1.5 px-2 py-1 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors">
+<span class="material-symbols-outlined text-[18px]">sort</span>
+                    Sort
+                </button>
+<button class="flex items-center gap-1.5 px-2 py-1 text-sm text-primary hover:bg-primary/10 rounded transition-colors ml-2">
+<span class="material-symbols-outlined text-[18px]">add</span>
+                    New
+                </button>
+</div>
+</div>
+</div>
+<div class="flex-1 overflow-auto px-8 pb-8">
+<div class="min-w-[800px] pb-20">
+<div class="grid grid-cols-[2fr_2fr_3fr_1.5fr_1fr_1fr_0.5fr] gap-4 px-3 py-2 border-b border-[#e5e7eb] dark:border-[#1f2937] text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider sticky top-0 bg-white dark:bg-[#0b0f17] z-10">
+<div class="flex items-center gap-2 cursor-pointer hover:text-gray-700 dark:hover:text-gray-200">
+<input class="w-4 h-4 text-primary bg-gray-100 border-gray-300 rounded focus:ring-primary dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600" type="checkbox"/>
+<span class="flex items-center gap-1">Word <span class="material-symbols-outlined text-[14px]">arrow_downward</span></span>
+</div>
+<div class="flex items-center gap-1">Definition</div>
+<div class="flex items-center gap-1">Context</div>
+<div class="flex items-center gap-1">Tags</div>
+<div class="flex items-center gap-1">Status</div>
+<div class="flex items-center gap-1">Added</div>
+<div class="flex items-center gap-1"></div>
+</div>
+<div class="flex flex-col">
+<div class="group grid grid-cols-[2fr_2fr_3fr_1.5fr_1fr_1fr_0.5fr] gap-4 px-3 py-3 border-b border-[#f3f4f6] dark:border-[#1f2937] items-center hover:bg-primary/5 dark:hover:bg-white/5 transition-colors cursor-pointer rounded-md -mx-3 bg-gray-50/50 dark:bg-white/[0.02]">
+<div class="flex items-center gap-3 relative">
+<input class="w-4 h-4 text-primary bg-gray-100 border-gray-300 rounded focus:ring-primary dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 opacity-0 group-hover:opacity-100 transition-opacity" type="checkbox"/>
+<div class="flex items-center gap-1">
+<button class="w-6 h-6 flex items-center justify-center rounded hover:bg-black/10 dark:hover:bg-white/10 text-gray-500 transition-colors">
+<span class="material-symbols-outlined text-[22px]">arrow_drop_down</span>
+</button>
+<span class="font-bold text-[#111318] dark:text-white">Grow</span>
+<span class="ml-2 px-1.5 py-0.5 rounded text-[10px] font-bold bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300">2</span>
+</div>
+</div>
+<div class="text-sm text-gray-600 dark:text-gray-300 truncate pr-2">Undergo natural development by increasing in size.</div>
+<div class="text-sm text-gray-500 dark:text-gray-400 italic truncate pr-2">"He would watch the nickels and dimes grow into dollars."</div>
+<div class="flex flex-wrap gap-1.5">
+<span class="px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-medium border border-blue-200 dark:border-blue-800">Verb</span>
+</div>
+<div>
+<span class="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-green-100 dark:bg-green-900/20 w-fit">
+<span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+<span class="text-xs font-medium text-green-700 dark:text-green-400">Mastered</span>
+</span>
+</div>
+<div class="text-xs text-gray-400">Nov 03, 2023</div>
+<div class="flex justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="flex items-center gap-1 px-2 py-1 bg-primary/10 hover:bg-primary/20 text-primary rounded text-xs font-medium transition-colors" title="Review Set">
+<span class="material-symbols-outlined text-[16px]">play_circle</span>
+    Review
+</button>
+</div>
+</div>
+<div class="group grid grid-cols-[2fr_2fr_3fr_1.5fr_1fr_1fr_0.5fr] gap-4 px-3 py-2 border-b border-[#f3f4f6] dark:border-[#1f2937] items-center hover:bg-primary/5 dark:hover:bg-white/5 transition-colors cursor-pointer rounded-md -mx-3 relative">
+<div class="flex items-center gap-3 relative">
+<div class="w-4"></div>
+<div class="flex items-center gap-2 pl-8">
+<span class="material-symbols-outlined text-gray-300 dark:text-gray-600 text-[18px]">subdirectory_arrow_right</span>
+<span class="font-medium text-[#111318] dark:text-white text-sm">Grow up</span>
+</div>
+</div>
+<div class="text-sm text-gray-500 dark:text-gray-400 truncate pr-2">Advance to maturity; spend one's childhood.</div>
+<div class="text-sm text-gray-500 dark:text-gray-400 italic truncate pr-2">"I grew up in a farming community."</div>
+<div class="flex flex-wrap gap-1.5">
+<span class="px-2 py-0.5 rounded bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-[10px] font-medium border border-purple-200 dark:border-purple-800">Phrasal Verb</span>
+</div>
+<div>
+<span class="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-green-100 dark:bg-green-900/20 w-fit">
+<span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+<span class="text-xs font-medium text-green-700 dark:text-green-400">Mastered</span>
+</span>
+</div>
+<div class="text-xs text-gray-400">Nov 03, 2023</div>
+<div></div>
+</div>
+<div class="group grid grid-cols-[2fr_2fr_3fr_1.5fr_1fr_1fr_0.5fr] gap-4 px-3 py-2 border-b border-[#f3f4f6] dark:border-[#1f2937] items-center hover:bg-primary/5 dark:hover:bg-white/5 transition-colors cursor-pointer rounded-md -mx-3">
+<div class="flex items-center gap-3 relative">
+<div class="w-4"></div>
+<div class="flex items-center gap-2 pl-8">
+<span class="material-symbols-outlined text-gray-300 dark:text-gray-600 text-[18px]">subdirectory_arrow_right</span>
+<span class="font-medium text-[#111318] dark:text-white text-sm">Grow into</span>
+</div>
+</div>
+<div class="text-sm text-gray-500 dark:text-gray-400 truncate pr-2">Become large enough for a garment.</div>
+<div class="text-sm text-gray-500 dark:text-gray-400 italic truncate pr-2">"The kid will grow into that coat."</div>
+<div class="flex flex-wrap gap-1.5">
+<span class="px-2 py-0.5 rounded bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-[10px] font-medium border border-purple-200 dark:border-purple-800">Phrasal Verb</span>
+</div>
+<div>
+<span class="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-yellow-100 dark:bg-yellow-900/20 w-fit">
+<span class="w-1.5 h-1.5 rounded-full bg-yellow-500"></span>
+<span class="text-xs font-medium text-yellow-700 dark:text-yellow-400">Learning</span>
+</span>
+</div>
+<div class="text-xs text-gray-400">Nov 03, 2023</div>
+<div></div>
+</div>
+<div class="group grid grid-cols-[2fr_2fr_3fr_1.5fr_1fr_1fr_0.5fr] gap-4 px-3 py-3 border-b border-[#f3f4f6] dark:border-[#1f2937] items-center hover:bg-primary/5 dark:hover:bg-white/5 transition-colors cursor-pointer rounded-md -mx-3 bg-blue-50/50 dark:bg-blue-900/[0.05]">
+<div class="flex items-center gap-3 relative">
+<input checked="" class="w-4 h-4 text-primary bg-gray-100 border-gray-300 rounded focus:ring-primary dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 opacity-100 transition-opacity" type="checkbox"/>
+<div class="flex items-center gap-1">
+<div class="w-6 h-6 flex-shrink-0"></div>
+<span class="font-bold text-[#111318] dark:text-white">Serendipity</span>
+<button class="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-primary transition-all ml-auto">
+<span class="material-symbols-outlined text-[16px]">open_in_new</span>
+</button>
+</div>
+</div>
+<div class="text-sm text-gray-600 dark:text-gray-300 truncate pr-2">The occurrence of events by chance in a happy way.</div>
+<div class="text-sm text-gray-500 dark:text-gray-400 italic truncate pr-2">"It was pure serendipity that we met at the..."</div>
+<div class="flex flex-wrap gap-1.5">
+<span class="px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-medium border border-blue-200 dark:border-blue-800">Noun</span>
+<span class="px-2 py-0.5 rounded bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-xs font-medium border border-green-200 dark:border-green-800">Positive</span>
+</div>
+<div>
+<span class="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-yellow-100 dark:bg-yellow-900/20 w-fit">
+<span class="w-1.5 h-1.5 rounded-full bg-yellow-500"></span>
+<span class="text-xs font-medium text-yellow-700 dark:text-yellow-400">Learning</span>
+</span>
+</div>
+<div class="text-xs text-gray-400">Oct 24, 2023</div>
+<div class="flex justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="flex items-center gap-1 px-2 py-1 bg-primary/10 hover:bg-primary/20 text-primary rounded text-xs font-medium transition-colors" title="Review Single">
+<span class="material-symbols-outlined text-[16px]">play_circle</span>
+    Review
+</button>
+</div>
+</div>
+<div class="group grid grid-cols-[2fr_2fr_3fr_1.5fr_1fr_1fr_0.5fr] gap-4 px-3 py-3 border-b border-[#f3f4f6] dark:border-[#1f2937] items-center hover:bg-primary/5 dark:hover:bg-white/5 transition-colors cursor-pointer rounded-md -mx-3">
+<div class="flex items-center gap-3 relative">
+<input class="w-4 h-4 text-primary bg-gray-100 border-gray-300 rounded focus:ring-primary dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 opacity-0 group-hover:opacity-100 transition-opacity" type="checkbox"/>
+<div class="flex items-center gap-1">
+<div class="w-6 h-6 flex-shrink-0"></div>
+<span class="font-bold text-[#111318] dark:text-white">Ephemeral</span>
+<button class="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-primary transition-all ml-auto">
+<span class="material-symbols-outlined text-[16px]">open_in_new</span>
+</button>
+</div>
+</div>
+<div class="text-sm text-gray-600 dark:text-gray-300 truncate pr-2">Lasting for a very short time.</div>
+<div class="text-sm text-gray-500 dark:text-gray-400 italic truncate pr-2">"Fashions are ephemeral, changing with every season."</div>
+<div class="flex flex-wrap gap-1.5">
+<span class="px-2 py-0.5 rounded bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-xs font-medium border border-purple-200 dark:border-purple-800">Adjective</span>
+</div>
+<div>
+<span class="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-green-100 dark:bg-green-900/20 w-fit">
+<span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+<span class="text-xs font-medium text-green-700 dark:text-green-400">Mastered</span>
+</span>
+</div>
+<div class="text-xs text-gray-400">Oct 22, 2023</div>
+<div class="flex justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="flex items-center gap-1 px-2 py-1 bg-primary/10 hover:bg-primary/20 text-primary rounded text-xs font-medium transition-colors" title="Review Single">
+<span class="material-symbols-outlined text-[16px]">play_circle</span>
+    Review
+</button>
+</div>
+</div>
+<div class="group grid grid-cols-[2fr_2fr_3fr_1.5fr_1fr_1fr_0.5fr] gap-4 px-3 py-3 border-b border-[#f3f4f6] dark:border-[#1f2937] items-center hover:bg-primary/5 dark:hover:bg-white/5 transition-colors cursor-pointer rounded-md -mx-3">
+<div class="flex items-center gap-3 relative">
+<input class="w-4 h-4 text-primary bg-gray-100 border-gray-300 rounded focus:ring-primary dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 opacity-0 group-hover:opacity-100 transition-opacity" type="checkbox"/>
+<div class="flex items-center gap-1">
+<div class="w-6 h-6 flex-shrink-0"></div>
+<span class="font-bold text-[#111318] dark:text-white">Mellifluous</span>
+<button class="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-primary transition-all ml-auto">
+<span class="material-symbols-outlined text-[16px]">open_in_new</span>
+</button>
+</div>
+</div>
+<div class="text-sm text-gray-600 dark:text-gray-300 truncate pr-2">(of a voice or words) sweet or musical; pleasant to hear.</div>
+<div class="text-sm text-gray-500 dark:text-gray-400 italic truncate pr-2">"She had a rich, mellifluous voice."</div>
+<div class="flex flex-wrap gap-1.5">
+<span class="px-2 py-0.5 rounded bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-xs font-medium border border-purple-200 dark:border-purple-800">Adjective</span>
+<span class="px-2 py-0.5 rounded bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 text-xs font-medium border border-orange-200 dark:border-orange-800">Advanced</span>
+</div>
+<div>
+<span class="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 w-fit">
+<span class="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
+<span class="text-xs font-medium text-gray-600 dark:text-gray-400">New</span>
+</span>
+</div>
+<div class="text-xs text-gray-400">Oct 20, 2023</div>
+<div class="flex justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="flex items-center gap-1 px-2 py-1 bg-primary/10 hover:bg-primary/20 text-primary rounded text-xs font-medium transition-colors" title="Review Single">
+<span class="material-symbols-outlined text-[16px]">play_circle</span>
+    Review
+</button>
+</div>
+</div>
+<div class="group grid grid-cols-[2fr_2fr_3fr_1.5fr_1fr_1fr_0.5fr] gap-4 px-3 py-3 border-b border-[#f3f4f6] dark:border-[#1f2937] items-center hover:bg-primary/5 dark:hover:bg-white/5 transition-colors cursor-pointer rounded-md -mx-3">
+<div class="flex items-center gap-3 relative">
+<input class="w-4 h-4 text-primary bg-gray-100 border-gray-300 rounded focus:ring-primary dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 opacity-0 group-hover:opacity-100 transition-opacity" type="checkbox"/>
+<div class="flex items-center gap-1">
+<div class="w-6 h-6 flex-shrink-0"></div>
+<span class="font-bold text-[#111318] dark:text-white">Bottom Line</span>
+<button class="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-primary transition-all ml-auto">
+<span class="material-symbols-outlined text-[16px]">open_in_new</span>
+</button>
+</div>
+</div>
+<div class="text-sm text-gray-600 dark:text-gray-300 truncate pr-2">The final total of an account, balance sheet, or other financial document.</div>
+<div class="text-sm text-gray-500 dark:text-gray-400 italic truncate pr-2">"The bottom line is that we need to cut costs."</div>
+<div class="flex flex-wrap gap-1.5">
+<span class="px-2 py-0.5 rounded bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300 text-xs font-medium border border-teal-200 dark:border-teal-800">Business</span>
+<span class="px-2 py-0.5 rounded bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-300 text-xs font-medium border border-pink-200 dark:border-pink-800">Idiom</span>
+</div>
+<div>
+<span class="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-yellow-100 dark:bg-yellow-900/20 w-fit">
+<span class="w-1.5 h-1.5 rounded-full bg-yellow-500"></span>
+<span class="text-xs font-medium text-yellow-700 dark:text-yellow-400">Learning</span>
+</span>
+</div>
+<div class="text-xs text-gray-400">Oct 18, 2023</div>
+<div class="flex justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="flex items-center gap-1 px-2 py-1 bg-primary/10 hover:bg-primary/20 text-primary rounded text-xs font-medium transition-colors" title="Review Single">
+<span class="material-symbols-outlined text-[16px]">play_circle</span>
+    Review
+</button>
+</div>
+</div>
+<div class="group grid grid-cols-[2fr_2fr_3fr_1.5fr_1fr_1fr_0.5fr] gap-4 px-3 py-3 border-b border-transparent items-center hover:bg-gray-50 dark:hover:bg-white/5 transition-colors cursor-text rounded-md -mx-3 opacity-60">
+<div class="flex items-center gap-3 text-gray-400 pl-6">
+<div class="w-4"></div>
+<span class="material-symbols-outlined text-[18px]">add</span>
+<span class="text-sm italic">New</span>
+</div>
+<div></div>
+<div></div>
+<div></div>
+<div></div>
+<div></div>
+<div></div>
+</div>
+</div>
+<div class="mt-4 px-3 text-xs text-gray-400 flex justify-between items-center">
+<span>Count: 6</span>
+<button class="hover:text-primary transition-colors">Calculate</button>
+</div>
+</div>
+</div>
+</main>
+<div aria-labelledby="modal-title" aria-modal="true" class="relative z-[100]" role="dialog">
+<div class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity"></div>
+<div class="fixed inset-0 z-10 w-screen overflow-y-auto">
+<div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+<div class="relative transform overflow-hidden rounded-2xl bg-white dark:bg-[#0b0f17] text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-2xl border border-gray-200 dark:border-gray-800">
+<div class="px-6 py-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between bg-gray-50/50 dark:bg-white/[0.02]">
+<h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Word Details</h3>
+<div class="flex items-center gap-2">
+<button class="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+<span class="material-symbols-outlined text-[20px]">star</span>
+</button>
+<button class="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+<span class="material-symbols-outlined text-[20px]">more_horiz</span>
+</button>
+<button class="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ml-2">
+<span class="material-symbols-outlined text-[22px]">close</span>
+</button>
+</div>
+</div>
+<div class="p-8 max-h-[75vh] overflow-y-auto">
+<div class="flex flex-col sm:flex-row sm:items-start justify-between mb-8 gap-6">
+<div>
+<h2 class="text-4xl font-black text-[#111318] dark:text-white tracking-tight mb-3">Serendipity</h2>
+<div class="flex items-center gap-2 flex-wrap">
+<span class="px-2.5 py-1 rounded-md bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-semibold">Noun</span>
+<span class="px-2.5 py-1 rounded-md bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-xs font-semibold">Positive</span>
+</div>
+</div>
+<div class="bg-primary/5 dark:bg-primary/10 rounded-xl p-4 border border-primary/20 flex flex-col gap-3 w-full sm:w-64">
+<div class="flex flex-col gap-0.5">
+<div class="text-xs font-bold text-primary dark:text-blue-300 uppercase flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">school</span>
+                                            Review Session
+                                        </div>
+<div class="text-xs font-medium text-gray-600 dark:text-gray-400">Include "Serendipity" in a new session?</div>
+</div>
+<button class="flex w-full items-center justify-center gap-2 px-3 py-2 bg-primary hover:bg-blue-600 text-white rounded-lg text-sm font-semibold transition-colors shadow-sm">
+<span class="material-symbols-outlined text-[18px]">play_circle</span>
+                                        Start Review
+                                    </button>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+<div class="space-y-6">
+<div class="flex flex-col gap-2">
+<label class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Definition</label>
+<p class="text-base text-[#111318] dark:text-gray-200 leading-relaxed">The occurrence and development of events by chance in a happy or beneficial way.</p>
+</div>
+<div class="flex flex-col gap-2">
+<label class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</label>
+<div class="flex items-center gap-2">
+<span class="flex h-3 w-3 relative">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span>
+<span class="relative inline-flex rounded-full h-3 w-3 bg-yellow-500"></span>
+</span>
+<span class="text-sm font-medium text-[#111318] dark:text-gray-200">Learning</span>
+</div>
+</div>
+<div class="flex flex-col gap-2">
+<label class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Pronunciation</label>
+<div class="flex items-center gap-3 text-sm text-[#616f89] dark:text-gray-400">
+<span class="font-mono bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-base">/ˌserənˈdipədē/</span>
+<button class="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors text-primary">
+<span class="material-symbols-outlined text-[20px]">volume_up</span>
+</button>
+</div>
+</div>
+</div>
+<div class="space-y-4">
+<div class="flex items-center gap-2 text-[#111318] dark:text-white font-semibold text-sm">
+<span class="material-symbols-outlined text-[18px]">format_quote</span>
+                                        Example Sentences
+                                    </div>
+<div class="bg-gray-50 dark:bg-white/5 p-4 rounded-lg border-l-4 border-primary">
+<p class="text-sm text-gray-700 dark:text-gray-300 italic mb-1 leading-relaxed">"It was pure serendipity that we met at the coffee shop right before the rain started."</p>
+</div>
+<div class="bg-gray-50 dark:bg-white/5 p-4 rounded-lg border-l-4 border-gray-300 dark:border-gray-600">
+<p class="text-sm text-gray-700 dark:text-gray-300 italic leading-relaxed">"Nature has created a wonderful serendipity."</p>
+</div>
+<button class="flex items-center gap-2 text-sm text-gray-500 hover:text-primary mt-1 px-1">
+<span class="material-symbols-outlined text-[18px]">add</span>
+                                        Add example
+                                    </button>
+</div>
+</div>
+<div class="flex flex-col gap-3 pt-6 border-t border-gray-100 dark:border-gray-800">
+<div class="flex items-center gap-2 text-[#111318] dark:text-white font-semibold text-sm">
+<span class="material-symbols-outlined text-[18px]">sticky_note_2</span>
+                                    Notes
+                                </div>
+<textarea class="w-full h-24 p-4 text-sm bg-white dark:bg-[#0b0f17] border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-1 focus:ring-primary focus:border-primary resize-none placeholder:text-gray-400 transition-colors" placeholder="Add your personal notes, mnemonics, or related words here..."></textarea>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</body></html>

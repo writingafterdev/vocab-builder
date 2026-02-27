@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Debate History - VocabBank</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#135bec",
+                        "primary-dark": "#0e4ac5",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#101622",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "2xl": "1rem", "full": "9999px"},
+                    boxShadow: {
+                        "card": "0 2px 8px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02)",
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #e5e7eb;
+            border-radius: 3px;
+        }
+        .dark ::-webkit-scrollbar-thumb {
+            background: #374151;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            font-size: 20px;
+        }
+        .icon-filled {
+            font-variation-settings: 'FILL' 1;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-[#111318] dark:text-gray-100 font-display h-screen w-full overflow-hidden flex selection:bg-primary/20 selection:text-primary">
+<aside class="w-64 border-r border-[#e5e7eb] dark:border-gray-800 bg-white dark:bg-[#151b2b] hidden md:flex flex-col z-20">
+<div class="h-16 flex items-center px-6 border-b border-[#f0f2f4] dark:border-gray-800">
+<div class="flex items-center gap-2 text-primary">
+<span class="material-symbols-outlined icon-filled">school</span>
+<span class="font-bold text-lg tracking-tight text-[#111318] dark:text-white">VocabBank</span>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto p-4 flex flex-col gap-6">
+<nav class="flex flex-col gap-1">
+<a class="flex items-center gap-3 px-3 py-2 text-sm font-medium text-[#616f89] dark:text-gray-400 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-[#111318] dark:hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+                    Dashboard
+                </a>
+<a class="flex items-center gap-3 px-3 py-2 text-sm font-medium text-[#616f89] dark:text-gray-400 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-[#111318] dark:hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined">book_2</span>
+                    Vocabulary Library
+                </a>
+<a class="flex items-center gap-3 px-3 py-2 text-sm font-medium bg-primary/5 text-primary rounded-lg" href="#">
+<span class="material-symbols-outlined icon-filled">history_edu</span>
+                    Debate History
+                </a>
+<a class="flex items-center gap-3 px-3 py-2 text-sm font-medium text-[#616f89] dark:text-gray-400 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-[#111318] dark:hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined">analytics</span>
+                    Performance Analytics
+                </a>
+</nav>
+<div class="border-t border-[#f0f2f4] dark:border-gray-800 pt-4">
+<p class="text-xs font-semibold uppercase tracking-wider text-[#616f89] dark:text-gray-400 px-2 mb-3">Overall Stats</p>
+<div class="flex flex-col gap-3 px-2">
+<div class="flex items-center justify-between">
+<span class="text-sm text-gray-600 dark:text-gray-400">Total Sessions</span>
+<span class="text-sm font-bold text-[#111318] dark:text-white">24</span>
+</div>
+<div class="flex items-center justify-between">
+<span class="text-sm text-gray-600 dark:text-gray-400">Avg. Score</span>
+<span class="text-sm font-bold text-[#111318] dark:text-white">82/100</span>
+</div>
+<div class="flex items-center justify-between">
+<span class="text-sm text-gray-600 dark:text-gray-400">Words Mastered</span>
+<span class="text-sm font-bold text-green-600 dark:text-green-400">145</span>
+</div>
+</div>
+</div>
+<div class="mt-auto bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 p-4 rounded-xl border border-indigo-100 dark:border-indigo-900/30">
+<div class="flex items-center gap-2 mb-2">
+<span class="material-symbols-outlined text-indigo-600 dark:text-indigo-400">stars</span>
+<span class="font-semibold text-sm text-indigo-900 dark:text-indigo-200">Weekly Goal</span>
+</div>
+<p class="text-xs text-indigo-700 dark:text-indigo-300 mb-3">Complete 2 more debates to reach your weekly target!</p>
+<div class="w-full h-1.5 bg-indigo-200 dark:bg-indigo-900/50 rounded-full overflow-hidden">
+<div class="h-full bg-indigo-500 w-3/5 rounded-full"></div>
+</div>
+</div>
+</div>
+<div class="p-4 border-t border-[#f0f2f4] dark:border-gray-800">
+<button class="flex items-center gap-2 text-sm font-medium text-[#616f89] hover:text-[#111318] dark:text-gray-400 dark:hover:text-white transition-colors w-full p-2 rounded hover:bg-[#f0f2f4] dark:hover:bg-gray-800">
+<span class="material-symbols-outlined">settings</span>
+<span>Settings</span>
+</button>
+</div>
+</aside>
+<div class="flex-1 flex flex-col relative h-full">
+<header class="h-16 bg-white dark:bg-[#151b2b] border-b border-[#f0f2f4] dark:border-gray-800 px-6 flex items-center justify-between shrink-0 z-10">
+<div class="flex items-center gap-4">
+<div class="md:hidden text-[#616f89]">
+<span class="material-symbols-outlined">menu</span>
+</div>
+<div class="flex flex-col">
+<h1 class="font-bold text-[#111318] dark:text-white text-lg leading-tight">Debate History</h1>
+<span class="text-xs text-[#616f89] dark:text-gray-400">Review your past sessions and transcripts</span>
+</div>
+</div>
+<div class="flex-1 max-w-md mx-6 hidden md:block">
+<div class="relative group">
+<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+<span class="material-symbols-outlined text-gray-400 group-focus-within:text-primary transition-colors">search</span>
+</div>
+<input class="block w-full pl-10 pr-3 py-2 border border-[#e5e7eb] dark:border-gray-700 rounded-lg leading-5 bg-[#f9fafb] dark:bg-[#0d1117] text-gray-900 dark:text-gray-100 placeholder-gray-500 focus:outline-none focus:bg-white dark:focus:bg-[#151b2b] focus:border-primary focus:ring-1 focus:ring-primary sm:text-sm transition-all shadow-sm" placeholder="Search topics, vocabulary, or dates..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<button class="size-8 flex items-center justify-center text-[#616f89] hover:text-primary hover:bg-primary/5 rounded-full transition-colors dark:text-gray-400 dark:hover:text-white">
+<span class="material-symbols-outlined">filter_list</span>
+</button>
+<div class="h-8 w-[1px] bg-gray-200 dark:bg-gray-700 mx-1 hidden sm:block"></div>
+<button class="hidden sm:flex items-center gap-2 text-sm font-medium text-[#616f89] hover:text-[#111318] dark:text-gray-400 dark:hover:text-white transition-colors">
+<div class="size-8 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xs shadow-md">
+                        JD
+                    </div>
+</button>
+</div>
+</header>
+<main class="flex-1 overflow-y-auto p-4 md:p-8 bg-background-light dark:bg-background-dark scroll-smooth">
+<div class="max-w-5xl mx-auto flex flex-col gap-6">
+<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+<div class="flex gap-2 overflow-x-auto pb-2 sm:pb-0 scrollbar-hide w-full sm:w-auto">
+<button class="whitespace-nowrap px-4 py-2 bg-white dark:bg-[#1e2532] border border-[#e5e7eb] dark:border-gray-700 rounded-lg text-sm font-medium text-[#111318] dark:text-white hover:border-gray-400 shadow-sm transition-colors">
+                            All Sessions
+                        </button>
+<button class="whitespace-nowrap px-4 py-2 bg-transparent border border-transparent rounded-lg text-sm font-medium text-gray-500 hover:bg-white hover:border-gray-200 dark:hover:bg-[#1e2532] dark:hover:border-gray-700 transition-colors">
+                            High Scores
+                        </button>
+<button class="whitespace-nowrap px-4 py-2 bg-transparent border border-transparent rounded-lg text-sm font-medium text-gray-500 hover:bg-white hover:border-gray-200 dark:hover:bg-[#1e2532] dark:hover:border-gray-700 transition-colors">
+                            Bookmarks
+                        </button>
+</div>
+<div class="flex items-center gap-2 text-sm text-gray-500">
+<span>Sort by:</span>
+<select class="bg-transparent border-none py-0 pl-2 pr-8 text-sm font-medium text-[#111318] dark:text-white focus:ring-0 cursor-pointer">
+<option>Newest First</option>
+<option>Oldest First</option>
+<option>Highest Score</option>
+</select>
+</div>
+</div>
+<div class="grid grid-cols-1 gap-4">
+<div class="group relative bg-white dark:bg-[#1e2532] border border-[#e5e7eb] dark:border-gray-700 rounded-xl p-5 hover:shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] dark:hover:shadow-black/40 transition-all cursor-pointer">
+<div class="flex flex-col sm:flex-row justify-between sm:items-start gap-4 mb-4">
+<div class="flex gap-4">
+<div class="size-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined">smart_toy</span>
+</div>
+<div>
+<h3 class="font-bold text-lg text-[#111318] dark:text-white group-hover:text-primary transition-colors leading-tight">Artificial Intelligence in Education</h3>
+<div class="flex flex-wrap items-center gap-2 mt-1.5">
+<span class="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">calendar_today</span>
+                                            Oct 24, 2023
+                                        </span>
+<span class="text-gray-300 dark:text-gray-600">•</span>
+<span class="text-xs text-gray-500 dark:text-gray-400">15 min session</span>
+</div>
+</div>
+</div>
+<div class="flex items-center sm:flex-col sm:items-end gap-2 sm:gap-0 pl-14 sm:pl-0">
+<span class="text-xs font-semibold uppercase text-gray-400 mb-0.5">Score</span>
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-green-500 text-[20px] icon-filled">check_circle</span>
+<span class="text-xl font-bold text-[#111318] dark:text-white">85<span class="text-sm text-gray-400 font-normal">/100</span></span>
+</div>
+</div>
+</div>
+<div class="pl-14">
+<div class="mb-4">
+<p class="text-[11px] text-gray-400 mb-2 uppercase tracking-wide font-semibold">Vocabulary Mastered</p>
+<div class="flex flex-wrap gap-2">
+<span class="px-2.5 py-1 bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-900/30 text-xs font-medium rounded-md text-green-700 dark:text-green-300">Mitigate</span>
+<span class="px-2.5 py-1 bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-900/30 text-xs font-medium rounded-md text-green-700 dark:text-green-300">Nuance</span>
+<span class="px-2.5 py-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs text-gray-600 dark:text-gray-400 rounded-md">Paradigm shift</span>
+</div>
+</div>
+<div class="flex items-center justify-between pt-4 border-t border-[#f0f2f4] dark:border-gray-800">
+<span class="text-xs text-gray-400 italic">Opponent: Debate AI (Standard)</span>
+<div class="flex gap-3">
+<button class="text-sm font-medium text-gray-500 hover:text-[#111318] dark:hover:text-white transition-colors">Summary</button>
+<button class="text-sm font-medium text-primary flex items-center gap-1 hover:underline">
+                                        Review Transcript <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<div class="group relative bg-white dark:bg-[#1e2532] border border-[#e5e7eb] dark:border-gray-700 rounded-xl p-5 hover:shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] dark:hover:shadow-black/40 transition-all cursor-pointer">
+<div class="flex flex-col sm:flex-row justify-between sm:items-start gap-4 mb-4">
+<div class="flex gap-4">
+<div class="size-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined">gavel</span>
+</div>
+<div>
+<h3 class="font-bold text-lg text-[#111318] dark:text-white group-hover:text-primary transition-colors leading-tight">Universal Basic Income: Pros &amp; Cons</h3>
+<div class="flex flex-wrap items-center gap-2 mt-1.5">
+<span class="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">calendar_today</span>
+                                            Oct 22, 2023
+                                        </span>
+<span class="text-gray-300 dark:text-gray-600">•</span>
+<span class="text-xs text-gray-500 dark:text-gray-400">22 min session</span>
+</div>
+</div>
+</div>
+<div class="flex items-center sm:flex-col sm:items-end gap-2 sm:gap-0 pl-14 sm:pl-0">
+<span class="text-xs font-semibold uppercase text-gray-400 mb-0.5">Score</span>
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-green-500 text-[20px] icon-filled">stars</span>
+<span class="text-xl font-bold text-[#111318] dark:text-white">92<span class="text-sm text-gray-400 font-normal">/100</span></span>
+</div>
+</div>
+</div>
+<div class="pl-14">
+<div class="mb-4">
+<p class="text-[11px] text-gray-400 mb-2 uppercase tracking-wide font-semibold">Vocabulary Mastered</p>
+<div class="flex flex-wrap gap-2">
+<span class="px-2.5 py-1 bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-900/30 text-xs font-medium rounded-md text-green-700 dark:text-green-300">Incentivize</span>
+<span class="px-2.5 py-1 bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-900/30 text-xs font-medium rounded-md text-green-700 dark:text-green-300">Disparity</span>
+<span class="px-2.5 py-1 bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-900/30 text-xs font-medium rounded-md text-green-700 dark:text-green-300">Subsistence</span>
+<span class="px-2.5 py-1 bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-900/30 text-xs font-medium rounded-md text-green-700 dark:text-green-300">Automation</span>
+</div>
+</div>
+<div class="flex items-center justify-between pt-4 border-t border-[#f0f2f4] dark:border-gray-800">
+<span class="text-xs text-gray-400 italic">Opponent: Debate AI (Advanced)</span>
+<div class="flex gap-3">
+<button class="text-sm font-medium text-gray-500 hover:text-[#111318] dark:hover:text-white transition-colors">Summary</button>
+<button class="text-sm font-medium text-primary flex items-center gap-1 hover:underline">
+                                        Review Transcript <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<div class="group relative bg-white dark:bg-[#1e2532] border border-[#e5e7eb] dark:border-gray-700 rounded-xl p-5 hover:shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] dark:hover:shadow-black/40 transition-all cursor-pointer opacity-80 hover:opacity-100">
+<div class="flex flex-col sm:flex-row justify-between sm:items-start gap-4 mb-4">
+<div class="flex gap-4">
+<div class="size-10 rounded-lg bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined">rocket_launch</span>
+</div>
+<div>
+<h3 class="font-bold text-lg text-[#111318] dark:text-white group-hover:text-primary transition-colors leading-tight">Space Exploration Funding</h3>
+<div class="flex flex-wrap items-center gap-2 mt-1.5">
+<span class="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">calendar_today</span>
+                                            Oct 18, 2023
+                                        </span>
+<span class="text-gray-300 dark:text-gray-600">•</span>
+<span class="text-xs text-gray-500 dark:text-gray-400">10 min session</span>
+</div>
+</div>
+</div>
+<div class="flex items-center sm:flex-col sm:items-end gap-2 sm:gap-0 pl-14 sm:pl-0">
+<span class="text-xs font-semibold uppercase text-gray-400 mb-0.5">Score</span>
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-yellow-500 text-[20px] icon-filled">remove_circle</span>
+<span class="text-xl font-bold text-[#111318] dark:text-white">74<span class="text-sm text-gray-400 font-normal">/100</span></span>
+</div>
+</div>
+</div>
+<div class="pl-14">
+<div class="mb-4">
+<p class="text-[11px] text-gray-400 mb-2 uppercase tracking-wide font-semibold">Vocabulary Mastered</p>
+<div class="flex flex-wrap gap-2">
+<span class="px-2.5 py-1 bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-900/30 text-xs font-medium rounded-md text-green-700 dark:text-green-300">Allocation</span>
+<span class="px-2.5 py-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs text-gray-600 dark:text-gray-400 rounded-md">Fiscal</span>
+</div>
+</div>
+<div class="flex items-center justify-between pt-4 border-t border-[#f0f2f4] dark:border-gray-800">
+<span class="text-xs text-gray-400 italic">Opponent: Debate AI (Standard)</span>
+<div class="flex gap-3">
+<button class="text-sm font-medium text-gray-500 hover:text-[#111318] dark:hover:text-white transition-colors">Summary</button>
+<button class="text-sm font-medium text-primary flex items-center gap-1 hover:underline">
+                                        Review Transcript <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<div class="group relative bg-white dark:bg-[#1e2532] border border-[#e5e7eb] dark:border-gray-700 rounded-xl p-5 hover:shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] dark:hover:shadow-black/40 transition-all cursor-pointer">
+<div class="flex flex-col sm:flex-row justify-between sm:items-start gap-4 mb-4">
+<div class="flex gap-4">
+<div class="size-10 rounded-lg bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined">work</span>
+</div>
+<div>
+<h3 class="font-bold text-lg text-[#111318] dark:text-white group-hover:text-primary transition-colors leading-tight">Remote Work Culture</h3>
+<div class="flex flex-wrap items-center gap-2 mt-1.5">
+<span class="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">calendar_today</span>
+                                            Oct 10, 2023
+                                        </span>
+<span class="text-gray-300 dark:text-gray-600">•</span>
+<span class="text-xs text-gray-500 dark:text-gray-400">18 min session</span>
+</div>
+</div>
+</div>
+<div class="flex items-center sm:flex-col sm:items-end gap-2 sm:gap-0 pl-14 sm:pl-0">
+<span class="text-xs font-semibold uppercase text-gray-400 mb-0.5">Score</span>
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-green-500 text-[20px] icon-filled">check_circle</span>
+<span class="text-xl font-bold text-[#111318] dark:text-white">88<span class="text-sm text-gray-400 font-normal">/100</span></span>
+</div>
+</div>
+</div>
+<div class="pl-14">
+<div class="mb-4">
+<p class="text-[11px] text-gray-400 mb-2 uppercase tracking-wide font-semibold">Vocabulary Mastered</p>
+<div class="flex flex-wrap gap-2">
+<span class="px-2.5 py-1 bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-900/30 text-xs font-medium rounded-md text-green-700 dark:text-green-300">Autonomy</span>
+<span class="px-2.5 py-1 bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-900/30 text-xs font-medium rounded-md text-green-700 dark:text-green-300">Isolation</span>
+<span class="px-2.5 py-1 bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-900/30 text-xs font-medium rounded-md text-green-700 dark:text-green-300">Asynchronous</span>
+</div>
+</div>
+<div class="flex items-center justify-between pt-4 border-t border-[#f0f2f4] dark:border-gray-800">
+<span class="text-xs text-gray-400 italic">Opponent: Debate AI (Standard)</span>
+<div class="flex gap-3">
+<button class="text-sm font-medium text-gray-500 hover:text-[#111318] dark:hover:text-white transition-colors">Summary</button>
+<button class="text-sm font-medium text-primary flex items-center gap-1 hover:underline">
+                                        Review Transcript <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="flex justify-center pt-4 pb-8">
+<button class="px-4 py-2 text-sm font-medium text-gray-500 hover:text-[#111318] dark:hover:text-white border border-[#e5e7eb] dark:border-gray-700 rounded-lg hover:bg-white dark:hover:bg-[#1e2532] transition-colors">
+                        Load More History
+                    </button>
+</div>
+</div>
+</main>
+</div>
+
+</body></html>

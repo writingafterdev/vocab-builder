@@ -1,0 +1,679 @@
+# COMPREHENSIVE USER FLOW EXAMPLE
+
+## **USER PROFILE: Jenny**
+
+- Learning English for professional development
+- Currently reading tech articles and business blogs on the platform
+- Has been using the app for 2 weeks
+
+---
+
+## **CONTEXT: What Jenny Saved Yesterday**
+
+While reading a TechCrunch article about startup failures, Jenny saved these words/phrases because they felt important but she wasn't 100% confident:
+
+1. **"back" (verb)** - to support something
+2. **"pull off"** - to succeed at something difficult
+3. **"take off"** - to become successful suddenly
+4. **"burn through"** - to spend money quickly
+5. **"pivot"** - to change business direction
+
+The system registered these 5 root words and prepared the SRS cycle.
+
+---
+
+## **DAY 1: FIRST REVIEW SESSION (Today)**
+
+### **Jenny opens the app**
+
+**Dashboard shows:**
+
+```other
+🎯 Today's Review: 5 words ready
+📚 2 Passive Exercises (Reading)
+🎭 2 Active Exercises (Role-play)
+⏱️ ~25 minutes
+```
+
+---
+
+## **PASSIVE EXERCISE 1: Reading**
+
+### **What Jenny Sees**
+
+**Title:** "Group Chat: The Failed Hackathon Project"
+
+**Context hint (top of screen):** *"A team of friends discussing why their weekend project didn't work out"*
+
+**Reading Content:**
+
+```other
+Saturday 10:23 PM
+
+Alex: ok real talk, why didn't this take off? we had 
+3 months to build it
+
+Maria: honestly? we burned through our budget on 
+that fancy office space
+
+Jake: yeah but even WITH funding, we couldn't pull 
+off the technical part
+
+Emma: maybe we should've pivoted earlier when we 
+saw the user feedback
+
+Alex: true... I thought investors would back us 
+after the demo though
+
+Maria: they did back the IDEA, just not our execution
+
+Jake: the concept was solid, we just burned through 
+time debugging instead of marketing
+
+Emma: next time we need to pull off the MVP first, 
+THEN worry about scale
+
+Alex: agreed. also maybe pick something that can 
+actually take off without $50k
+
+Maria: 😅 yeah let's back each other on something 
+more realistic
+```
+
+**Jenny reads this** (takes ~2 minutes). She notices the words she saved yesterday appearing naturally in a real conversation. Some phrases click immediately, others she has to reread.
+
+---
+
+### **Questions Appear**
+
+**Question 1:** **"What was the main reason their project failed?"**
+
+Options:
+
+- A) They didn't have enough time
+- B) They spent money and time on wrong priorities
+- C) The technology was too difficult
+- D) Investors didn't support them
+
+*Jenny thinks: "Hmm... they 'burned through' budget on office space and time on debugging... and they mentioned they should have done MVP first..."*
+
+**Jenny selects: B**
+
+✅ **Correct!**
+
+Behind the scenes: System notes she understood "burn through" (waste resources) in context ✓
+
+---
+
+**Question 2:** **"According to the conversation, what DID the investors do?"**
+
+Options:
+
+- A) They refused to support the project
+- B) They supported the idea but not the execution
+- C) They gave money but withdrew it later
+- D) They only attended the demo
+
+*Jenny thinks: "Maria said 'they did back the IDEA, just not our execution'... so back means support here"*
+
+**Jenny selects: B**
+
+✅ **Correct!**
+
+Behind the scenes: System notes she understood "back" (support) + caught the nuance ✓
+
+---
+
+**Question 3:** **"What does Emma think they should have done differently?"**
+
+Options:
+
+- A) Spent more money on marketing
+- B) Changed their business idea when they got feedback
+- C) Hired more developers
+- D) Focused on getting more investors
+
+*Jenny thinks: "Emma said 'should've pivoted earlier when we saw user feedback'... and later she said do MVP first then scale... so pivot means change direction?"*
+
+**Jenny selects: B**
+
+✅ **Correct!**
+
+Behind the scenes: System notes she understood "pivot" (change direction) ✓
+
+---
+
+**Question 4:** **"What's the difference between what Alex thought would happen vs. what actually happened with their launch?"**
+
+Options:
+
+- A) He thought it would take off quickly, but it didn't gain traction
+- B) He thought they could pull off the technical build, but they couldn't
+- C) He thought they'd save money, but they burned through it
+- D) He thought investors would back them after the demo, but they didn't like the execution
+
+*Jenny pauses: "This is tricky... Alex said 'why didn't this take off' at the start, so he expected it to become successful... but they couldn't 'pull off' the technical part... and investors issue was execution... Hmm, the question is about LAUNCH specifically..."*
+
+**Jenny selects: A**
+
+✅ **Correct!**
+
+Behind the scenes: System notes she distinguished "take off" (sudden success) from "pull off" (accomplish something difficult) ✓
+
+---
+
+**Question 5:** **"How did the group's attitude shift from the beginning to the end of the conversation?"**
+
+Options:
+
+- A) From blaming each other to blaming investors
+- B) From defensive to analyzing what went wrong
+- C) From confident to completely giving up
+- D) From discussing the past to making new plans
+
+*Jenny thinks: "They started asking 'why didn't this work' and ended with 'next time let's back each other on something realistic'... so they learned from mistakes?"*
+
+**Jenny selects: D**
+
+✅ **Correct!**
+
+Behind the scenes: System notes she tracked "back" appearing again in different context (mutual support) ✓
+
+---
+
+**Passive Exercise 1 Complete!**
+
+**Feedback shown:**
+
+```other
+✨ Great comprehension!
+You've encountered these phrases in context:
+- burn through (appeared 2x)
+- back (appeared 2x) 
+- take off, pull off, pivot
+
+Next: See them in a different scenario →
+```
+
+---
+
+## **PASSIVE EXERCISE 2: Listening**
+
+### **What Jenny Sees**
+
+**Title:** "Coffee Shop Conversation: Career Advice"
+
+**Context hint:** *"Two colleagues talking about their friend's job situation"*
+
+**Audio player interface:**
+
+- Play button
+- Can't see full text (only current line highlights as audio plays)
+- ~90 seconds audio
+
+**Jenny presses play** 🎧
+
+---
+
+**Audio Content** (Text-to-speech, conversational tone):
+
+```other
+[Casual coffee shop ambiance]
+
+Person A: "So Sarah finally decided to pivot from 
+          consulting to tech?"
+
+Person B: "Yeah, she's been talking about it for a 
+          year but never pulled it off. This time 
+          she's serious."
+
+Person A: "That's huge. Is anyone backing her? Like 
+          financially?"
+
+Person B: "Her parents are helping with living costs 
+          while she learns to code. But she's burning 
+          through her savings pretty fast."
+
+Person A: "Hmm. Think she can actually make it take 
+          off? Tech interviews are brutal."
+
+Person B: "I think so. She's not the type to quit. 
+          If she couldn't pull off the career switch, 
+          she'd never have left her $120k job."
+
+Person A: "True. Well, I'm backing her 100%. She's 
+          got this."
+```
+
+**Jenny listens** (concentrating because she can't read ahead). She hears the same words but in a completely different context - career change instead of startup failure.
+
+---
+
+### **Questions Appear**
+
+**Question 1:** **"What's Sarah doing differently this time?"**
+
+Options:
+
+- A) She's asking more people for money
+- B) She's actually taking action instead of just talking
+- C) She's keeping her consulting job while learning
+- D) She's starting a business instead of joining a company
+
+*Jenny thinks: "Person B said she's been talking about it but never 'pulled it off' before, but this time she's serious... so this time she's actually doing it"*
+
+**Jenny selects: B**
+
+✅ **Correct!**
+
+Behind the scenes: "pull off" comprehension confirmed in new context ✓
+
+---
+
+**Question 2:** **"What's the financial situation?"**
+
+Options:
+
+- A) Sarah is making money while learning to code
+- B) Sarah's parents are fully funding her career change
+- C) Sarah is spending her own savings quickly, with some help from parents
+- D) Sarah has investors backing her learning journey
+
+*Jenny thinks: "They said parents help with living costs, but she's 'burning through her savings'... and earlier they asked if anyone is backing her financially..."*
+
+**Jenny selects: C**
+
+✅ **Correct!**
+
+Behind the scenes: "burn through" + "backing" (financial support) confirmed ✓
+
+---
+
+**Question 3:** **"Why does Person B think Sarah will succeed?"**
+
+Options:
+
+- A) Because she has a lot of money saved
+- B) Because her parents are supporting her
+- C) Because leaving a high-paying job shows serious commitment
+- D) Because tech interviews are easy for her
+
+*Jenny thinks: "Person B said if she couldn't 'pull off' the career switch, she wouldn't have left her $120k job... so leaving proves she's committed?"*
+
+**Jenny selects: C**
+
+✅ **Correct!**
+
+Behind the scenes: "pull off" understood as accomplish/succeed ✓
+
+---
+
+**Question 4:** **"What does Person A mean in the final line?"**
+
+Options:
+
+- A) They will financially support Sarah
+- B) They believe in and support Sarah's decision
+- C) They will help Sarah with job applications
+- D) They think Sarah should back out
+
+*Jenny thinks: "'I'm backing her 100%'... in this context it's not money, it's like... believing in her? Supporting her emotionally?"*
+
+**Jenny selects: B**
+
+✅ **Correct!**
+
+Behind the scenes: "backing" nuance (emotional vs. financial support) distinguished ✓
+
+---
+
+**Passive Exercise 2 Complete!**
+
+**Feedback shown:**
+
+```other
+🎧 Listening comprehension excellent!
+You noticed how the same phrases work in 
+different contexts:
+- "burn through" - money (both scenarios)
+- "back" - financial vs. emotional support
+- "pull off" - startup vs. career change
+- "pivot" - business vs. personal decision
+
+Ready to use these phrases yourself? →
+```
+
+**Progress bar:** 2/4 exercises done
+
+---
+
+## **Jenny takes a break, grabs water, comes back**
+
+---
+
+## **ACTIVE EXERCISE 1: Role-play**
+
+### **What Jenny Sees**
+
+**Scenario Card:**
+
+```other
+🎭 ROLE-PLAY SCENARIO
+
+You are: Sam, a team lead at a startup
+Situation: Your colleague wants to add a major 
+           new feature, but you think it's risky
+
+Your goal: 
+- Express concerns professionally
+- Suggest an alternative approach
+- Keep the team relationship positive
+
+Start the conversation →
+```
+
+**Jenny clicks "Start"**
+
+---
+
+**AI (as "Jordan"):**
+
+```other
+Hey Sam! I've been thinking... what if we add 
+AI-powered recommendations to the app? I think 
+it could really make us take off in the market. 
+Users would love it!
+```
+
+**Jenny's turn** (text input box appears)
+
+*Jenny thinks: "Okay, I need to be careful here... I should say this might be too ambitious? And maybe suggest starting smaller?"*
+
+**Jenny types:**
+
+```other
+Hmm, I like the idea, but I'm worried we might 
+burn through our development time on this. 
+What if we can't pull it off before the deadline?
+```
+
+**AI responds:**
+
+```other
+That's fair... but don't you think investors 
+would back us more if we had this feature? 
+It's pretty innovative.
+```
+
+**Jenny's turn**
+
+*Jenny thinks: "Need to acknowledge their point but suggest being realistic... maybe use pivot?"*
+
+**Jenny types:**
+
+```other
+Maybe, but I think we should pivot our focus 
+to finishing the core features first. If we 
+can pull those off really well, THEN add AI 
+recommendations in version 2?
+```
+
+**AI responds:**
+
+```other
+Okay, I see your point. So you're saying nail 
+the basics first, then expand?
+```
+
+**Jenny's turn**
+
+*Jenny thinks: "Yes! And I should be supportive..."*
+
+**Jenny types:**
+
+```other
+Exactly! And I'm totally backing your AI idea 
+for v2. Let's just make sure v1 can actually 
+take off first.
+```
+
+**AI responds:**
+
+```other
+Alright, that makes sense. Thanks for thinking 
+this through with me!
+```
+
+**🎭 Scenario Complete!**
+
+---
+
+**Feedback shown:**
+
+```other
+✨ Natural conversation!
+
+You used:
+✓ "burn through" - resource management context
+✓ "pull off" (2x) - accomplishing tasks
+✓ "pivot" - changing strategy
+✓ "backing" - showing support
+✓ "take off" - product success
+
+Your tone was professional and supportive. Great work!
+```
+
+Behind the scenes: System notes successful production of 5/5 target phrases in appropriate contexts ✓
+
+---
+
+## **ACTIVE EXERCISE 2: Role-play**
+
+### **What Jenny Sees**
+
+**Scenario Card:**
+
+```other
+🎭 ROLE-PLAY SCENARIO
+
+You are: Casey, talking to your friend
+Situation: Your friend is asking for advice about 
+           their side project that's struggling
+
+Your goal:
+- Be a supportive friend
+- Give honest feedback
+- Help them see their options
+
+Start the conversation →
+```
+
+**Jenny clicks "Start"**
+
+---
+
+**AI (as "Taylor"):**
+
+```other
+Ugh, I don't know what to do about my freelance 
+business... I've been working on it for 6 months 
+and it's just not growing. Should I quit?
+```
+
+**Jenny's turn**
+
+*Jenny thinks: "Be supportive but honest... maybe ask what's going wrong?"*
+
+**Jenny types:**
+
+```other
+Don't give up yet! What do you think is the 
+main issue? Are you burning through money, 
+or is it more about getting clients?
+```
+
+**AI responds:**
+
+```other
+Honestly both... I spent too much on that fancy 
+website and now I'm barely breaking even. And 
+I only have like 3 regular clients.
+```
+
+**Jenny's turn**
+
+*Jenny thinks: "Sounds like they need to change approach..."*
+
+**Jenny types:**
+
+```other
+Maybe you need to pivot your strategy? Like 
+focus less on the website and more on 
+networking? Or pull off a few small wins 
+to build momentum?
+```
+
+**AI responds:**
+
+```other
+Yeah, maybe... I just thought if I built it 
+they would come, you know? But it's not 
+taking off like I imagined.
+```
+
+**Jenny's turn**
+
+*Jenny thinks: "Need to be encouraging..."*
+
+**Jenny types:**
+
+```other
+I totally believe you can pull this off! 
+And I'm backing you no matter what. Maybe 
+just try the pivot for 2 months and see 
+what happens?
+```
+
+**AI responds:**
+
+```other
+You're right. Thanks for talking me through 
+this. I'm going to refocus on getting more 
+clients instead of perfect branding.
+```
+
+**🎭 Scenario Complete!**
+
+---
+
+**Feedback shown:**
+
+```other
+💪 Supportive and practical!
+
+You used:
+✓ "burn through" - asking about expenses
+✓ "pivot" (2x) - suggesting strategy change
+✓ "pull off" (2x) - building confidence
+✓ "take off" - acknowledging expectations
+✓ "backing" - showing friendship support
+
+You balanced honesty with encouragement perfectly!
+```
+
+Behind the scenes: All 5 phrases used naturally, register appropriate (casual/friendly), nuances correctly applied ✓
+
+---
+
+## **SESSION COMPLETE! 🎉**
+
+### **Summary Screen Jenny Sees:**
+
+```other
+📊 TODAY'S REVIEW SUMMARY
+
+Words Reviewed: 5
+├─ back (support) ⭐⭐⭐
+├─ pull off (succeed at) ⭐⭐⭐
+├─ take off (become successful) ⭐⭐⭐
+├─ burn through (waste/spend quickly) ⭐⭐⭐
+└─ pivot (change direction) ⭐⭐⭐
+
+🎯 Comprehension: Excellent
+💬 Production: Natural usage
+📅 Next Review: January 18 (3 days)
+
+New phrases encountered today:
+- "back someone on something" - support a specific effort
+- "burn through time" - waste time (not just money)
+- "pull off a win" - achieve success in challenge
+
+These will be added to your review cycle!
+```
+
+---
+
+## **WHAT HAPPENED BEHIND THE SCENES**
+
+### **System Tracking:**
+
+**From Passive Exercises:**
+
+- ✅ All 5 root words comprehended in multiple contexts
+- ✅ Nuance between "back" (financial vs. emotional) noticed
+- ✅ "Burn through" understood with different objects (money, time, budget)
+- ✅ "Pull off" vs. "take off" distinguished correctly
+- ✅ "Pivot" understood in both business and personal contexts
+
+**Child Elements Encountered (First Time):**
+
+- "back someone on something" (appeared in Reading 1)
+- "burn through time" (appeared in Reading 1)
+- These are now added to Jenny's vocab bank
+- Their SRS cycle starts today
+- Next appearance: in 3 days, integrated into different content
+
+**From Active Exercises:**
+
+- ✅ All 5 phrases produced naturally in appropriate contexts
+- ✅ Register correctly adjusted (professional vs. casual)
+- ✅ No awkward forced usage
+- ✅ Phrases served communicative goals (not just vocabulary display)
+
+**Updated SRS Schedule:**
+
+- Original 5 words: Next review in 3 days (Day 4)
+- 2 new child elements: Will appear in Day 3 review content
+- If Jenny succeeds again on Day 4, interval increases to 7 days
+
+---
+
+## **JENNY'S EXPERIENCE (Her Internal Thoughts)**
+
+**After Passive Exercise 1:** *"Oh wow, these are the words I saved yesterday! They make so much more sense now in a real conversation. I wasn't sure about 'back' but seeing it twice in different ways helped. And 'burn through' clicked - it's about wasting resources."*
+
+**After Passive Exercise 2:** *"Interesting, same words but totally different situation. 'Pull off' works for projects AND career changes. 'Backing' can be emotional support, not just money. This is actually helpful."*
+
+**After Active Exercise 1:** *"Okay that felt natural... I wasn't thinking 'I need to use these words,' I was just trying to handle the situation and the words came out. That's cool."*
+
+**After Active Exercise 2:** *"I'm getting more comfortable with these! I used 'pivot' twice without thinking. And 'backing' feels natural now for showing support."*
+
+**Overall:** *"That was actually engaging. Didn't feel like studying vocabulary at all - just reading conversations and chatting. But I definitely learned the words better than if I'd just memorized definitions. 25 minutes flew by."*
+
+---
+
+## **KEY SUCCESS FACTORS IN THIS FLOW**
+
+✅ **Content-first worked:** Jenny was focused on understanding conversations and solving scenarios, not "studying words"
+
+✅ **Natural progression:** Encounter in reading → hear in different context → use in production
+
+✅ **Question efficiency:** 9 total questions tested 5 root words + multiple child elements + nuances
+
+✅ **Engagement maintained:** Variety (group chat, career talk, work scenario, friend scenario) kept it interesting
+
+✅ **Child elements introduced organically:** "Back someone on something" and "burn through time" appeared naturally, now in Jenny's bank for future review
+
+✅ **Spaced repetition primed:** Jenny succeeded, so intervals increase, but system knows which contexts work for her
+
+---

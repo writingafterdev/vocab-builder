@@ -1,0 +1,16 @@
+name = "vocab-cron-worker"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+# Runs daily at 10 PM UTC (5 AM ICT next day)
+# Adjust based on when you want audio pre-generated before users wake up
+[triggers]
+crons = ["0 22 * * *"]
+
+# Environment variables (non-sensitive)
+# [vars]
+# APP_URL = "https://your-vocab-app.pages.dev"
+
+# For production, use wrangler secret:
+# wrangler secret put CRON_SECRET
+# wrangler secret put APP_URL

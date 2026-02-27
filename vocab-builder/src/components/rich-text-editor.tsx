@@ -2,7 +2,6 @@
 
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import Link from '@tiptap/extension-link';
 import Placeholder from '@tiptap/extension-placeholder';
 import Image from '@tiptap/extension-image';
 import {
@@ -13,7 +12,6 @@ import {
     Quote,
     Heading2,
     Heading3,
-    Link as LinkIcon,
     Undo,
     Redo,
     ImageIcon
@@ -33,12 +31,8 @@ export function RichTextEditor({ content, onChange, placeholder = 'Start writing
                 heading: {
                     levels: [2, 3],
                 },
-            }),
-            Link.configure({
-                openOnClick: false,
-                HTMLAttributes: {
-                    class: 'text-blue-600 underline',
-                },
+                // Disable links entirely
+                link: false,
             }),
             Placeholder.configure({
                 placeholder,
@@ -67,12 +61,6 @@ export function RichTextEditor({ content, onChange, placeholder = 'Start writing
         return null;
     }
 
-    const setLink = () => {
-        const url = window.prompt('Enter URL:');
-        if (url) {
-            editor.chain().focus().setLink({ href: url }).run();
-        }
-    };
 
     const addImage = () => {
         const url = window.prompt('Enter image URL:');
@@ -151,15 +139,6 @@ export function RichTextEditor({ content, onChange, placeholder = 'Start writing
                     <Quote className="h-4 w-4" />
                 </Button>
                 <div className="w-px h-6 bg-neutral-200 mx-1" />
-                <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={setLink}
-                    className={editor.isActive('link') ? 'bg-neutral-200' : ''}
-                >
-                    <LinkIcon className="h-4 w-4" />
-                </Button>
                 <Button
                     type="button"
                     variant="ghost"

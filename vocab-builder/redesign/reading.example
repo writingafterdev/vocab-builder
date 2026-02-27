@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Reading Workspace</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#135bec",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#101622",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"],
+                        "serif": ["Merriweather", "serif"],
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #d1d5db;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #9ca3af;
+        }
+        .dark ::-webkit-scrollbar-thumb {
+            background: #374151;
+        }
+        .dark ::-webkit-scrollbar-thumb:hover {
+            background: #4b5563;
+        }::selection {
+            background: rgba(19, 91, 236, 0.2);
+            color: inherit;
+        }@keyframes float-in {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-float-in {
+            animation: float-in 0.2s ease-out forwards;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 font-display overflow-hidden">
+<div class="flex h-screen w-full">
+<aside class="w-64 flex-shrink-0 flex flex-col border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-gray-900 z-20">
+<div class="flex flex-col h-full p-4 justify-between">
+<div class="flex flex-col gap-6">
+<div class="flex items-center gap-3 px-2">
+<div class="size-8 rounded-lg bg-primary flex items-center justify-center text-white">
+<span class="material-symbols-outlined text-[20px]">school</span>
+</div>
+<div class="flex flex-col">
+<h1 class="text-base font-bold leading-none tracking-tight">VocabBuilder</h1>
+<p class="text-slate-500 dark:text-slate-400 text-xs font-medium mt-1">Workspace</p>
+</div>
+</div>
+<nav class="flex flex-col gap-1">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-primary dark:text-blue-400 group transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px] font-variation-settings-'FILL'1">menu_book</span>
+<span class="text-sm font-medium">Library</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">database</span>
+<span class="text-sm font-medium">Vocab Bank</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">bar_chart</span>
+<span class="text-sm font-medium">Stats</span>
+</a>
+</nav>
+<div class="flex flex-col gap-2 mt-2 px-3">
+<p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Collections</p>
+<a class="flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-primary text-sm" href="#">
+<span class="w-2 h-2 rounded-full bg-orange-400"></span>
+                        Spanish B2
+                    </a>
+<a class="flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-primary text-sm" href="#">
+<span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                        Tech Jargon
+                    </a>
+<a class="flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-primary text-sm" href="#">
+<span class="w-2 h-2 rounded-full bg-purple-400"></span>
+                        Daily Reads
+                    </a>
+</div>
+</div>
+<div class="flex flex-col gap-2 border-t border-slate-100 dark:border-slate-800 pt-4">
+<button class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition-colors">
+<span class="material-symbols-outlined text-[20px]">settings</span>
+<span class="text-sm font-medium">Settings</span>
+</button>
+<div class="flex items-center gap-3 px-3 py-2">
+<div class="size-8 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden" data-alt="User profile picture placeholder, generic avatar" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCIQ0zQOyBitCJLtpOHL28Pb-JdGnbPhbq3BydavtVt_bu6QxlzAsBPKXEInixuVpWl0E39S0OcUDCnOK3k3xyWjGJaCTR5xBoTyzpEbeh0zOduZTY-Ak08egIDgkiRAa4oZXeQZITMPVHo6z1gsU3si0ugvBU8ZPMKCd9v5WU50UIi2m6eAARrYAuLAdCFY6F5fmzTF_I3zLN5bJzy8tw_fGfnL3PuPd0xmkaT26kRPr619ku-gy0uZYDEv7K_yofiyIREL6oM1uA'); background-size: cover;">
+</div>
+<div class="flex flex-col">
+<span class="text-sm font-medium leading-none">Jane Doe</span>
+<span class="text-xs text-slate-500">Free Plan</span>
+</div>
+</div>
+</div>
+</div>
+</aside>
+<main class="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative transition-all duration-300">
+<header class="h-16 flex items-center justify-between px-8 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-gray-900 z-10">
+<div class="flex items-center gap-2 text-sm">
+<a class="text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-colors" href="#">Library</a>
+<span class="text-slate-300 dark:text-slate-600">/</span>
+<span class="text-slate-900 dark:text-slate-100 font-medium truncate max-w-[200px]">The Future of Language Learning</span>
+</div>
+<div class="flex items-center gap-2">
+<div class="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-2"></div>
+<div class="flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg p-1 gap-1">
+<button class="p-1.5 rounded-md hover:bg-white dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 shadow-sm transition-all" title="Font Settings">
+<span class="material-symbols-outlined text-[20px]">text_fields</span>
+</button>
+<button class="p-1.5 rounded-md hover:bg-white dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-all" title="Theme">
+<span class="material-symbols-outlined text-[20px]">light_mode</span>
+</button>
+</div>
+<button class="ml-2 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary hover:bg-blue-600 text-white text-sm font-semibold transition-colors">
+<span class="material-symbols-outlined text-[18px]">edit</span>
+<span>Edit Source</span>
+</button>
+</div>
+</header>
+<div class="flex-1 overflow-y-auto bg-background-light dark:bg-background-dark scroll-smooth">
+<div class="max-w-5xl mx-auto my-8 px-4 sm:px-8 lg:px-12 pb-32">
+<article class="bg-white dark:bg-gray-900 rounded-xl shadow-sm dark:shadow-none min-h-[1000px] p-10 md:p-16 relative group/paper">
+<div class="flex flex-col gap-6 mb-10 border-b border-slate-100 dark:border-slate-800 pb-8">
+<div class="flex flex-col gap-3">
+<h1 class="text-4xl md:text-5xl font-black leading-tight tracking-tight text-slate-900 dark:text-slate-100 font-serif">
+                                The Future of Language Learning
+                            </h1>
+<div class="flex items-center justify-between mt-2">
+<div class="flex items-center gap-3 text-sm text-slate-500 dark:text-slate-400">
+<div class="flex items-center gap-2">
+<div class="size-6 rounded-full bg-slate-200" data-alt="Author avatar" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBR3S0tW-qGsxhiqnPO9saWVaa2iO9yURHSyYEU6Uq6B1qo57QFjnWTjnpw8cr7vzREUNdDHIge2bZPB3qc3u42AKMKbl7SfBH05l1JjioXbxPlTmuAFnWduU5ClFl64ugXXLBLNhwCumvwdRIR1TndQ_jovSsIVsgrU32AAU302T0Ri3leG_3QxKYYiWb1jh70QXdUnAnmKAbiWyATWpTCrceIDaS9HCYwrrMl68dm5g7KvS2tc60VnABn_2yGs1dpYBlOzKZbBDg'); background-size: cover;"></div>
+<span class="font-medium text-slate-700 dark:text-slate-300">Elena Fisher</span>
+</div>
+<span>•</span>
+<span>5 min read</span>
+<span>•</span>
+<span class="text-slate-400">Added Oct 12</span>
+</div>
+<div class="flex gap-2">
+<span class="px-2 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 text-xs rounded-md font-medium">Education</span>
+<span class="px-2 py-1 bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-300 text-xs rounded-md font-medium">Tech</span>
+</div>
+</div>
+</div>
+<div class="flex flex-col gap-2">
+<div class="flex justify-between text-xs font-medium text-slate-500">
+<span>Reading Progress</span>
+<span>35%</span>
+</div>
+<div class="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+<div class="h-full bg-primary w-[35%] rounded-full"></div>
+</div>
+</div>
+</div>
+<div class="prose prose-lg prose-slate dark:prose-invert max-w-none font-serif leading-loose text-slate-800 dark:text-slate-200">
+<p class="mb-6">
+                            In an era defined by rapid technological advancement, the way we acquire new languages is undergoing a fundamental shift. Gone are the days of rote memorization and dusty textbooks. Today, we stand on the precipice of a new frontier: <span class="bg-yellow-100 dark:bg-yellow-900/30 px-1 rounded">immersive AI-driven environments</span> that adapt to our unique learning styles in real-time.
+                        </p>
+<p class="mb-6">
+                            The concept of "comprehensible input," championed by linguist Stephen Krashen, posits that we acquire language best when we understand messages that are slightly above our current level of competence. Artificial intelligence is now making this theoretical framework practically scalable. By analyzing a learner's vocabulary bank, algorithms can curate content that hits the perfect "Goldilocks zone" of difficulty.
+                        </p>
+<h2 class="text-2xl font-bold mt-10 mb-4 text-slate-900 dark:text-slate-100 font-display">Contextual Acquisition</h2>
+<p class="mb-6 relative">
+                            Perhaps the most promising development is the integration of <span class="bg-primary/20 text-slate-900 dark:text-white rounded px-0.5 relative inline-block cursor-text">instant contextual analysis</span>. Instead of breaking flow to consult a dictionary, learners can now interact directly with the text. This friction-less approach maintains the cognitive state necessary for deep reading while simultaneously building a robust vocabulary bank.
+</p><div class="absolute top-[-50px] left-[180px] z-50 animate-float-in">
+<div class="flex items-center gap-1 p-1 bg-slate-800 text-white rounded-lg shadow-xl ring-1 ring-slate-900/5 backdrop-blur-sm">
+<button class="flex items-center gap-1.5 px-3 py-1.5 hover:bg-slate-700 rounded-md transition-colors">
+<span class="material-symbols-outlined text-[18px]">add_circle</span>
+<span class="text-sm font-semibold">Save</span>
+</button>
+<div class="w-px h-4 bg-slate-600 mx-1"></div>
+<button class="p-1.5 hover:bg-slate-700 rounded-md transition-colors" title="Define">
+<span class="material-symbols-outlined text-[18px]">search</span>
+</button>
+<button class="p-1.5 hover:bg-slate-700 rounded-md transition-colors" title="Translate">
+<span class="material-symbols-outlined text-[18px]">translate</span>
+</button>
+<button class="p-1.5 hover:bg-slate-700 rounded-md transition-colors" title="Highlight Color">
+<span class="w-3 h-3 rounded-full bg-yellow-400 block"></span>
+</button>
+</div>
+<div class="absolute bottom-[-6px] left-1/2 -translate-x-1/2 w-3 h-3 bg-slate-800 rotate-45 transform"></div>
+</div>
+<p></p>
+<p class="mb-6">
+                            Furthermore, the social aspect of language cannot be ignored. While software provides the scaffolding, human connection provides the motivation. New platforms are emerging that blend the utility of a vocabulary tracker with the community of a social network, allowing users to share "decks" of learned phrases and compete in friendly challenges.
+                        </p>
+<figure class="my-10">
+<img alt="A modern classroom setting with digital tablets and students discussing" class="w-full h-64 object-cover rounded-xl shadow-md" data-alt="Blurred classroom background with focus on digital learning device" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCWBebfGKjmAsIzZgtGKYwyS9zQGOejNyLSYD6lK5F3_44SB3cDhJ-UV3tuc88eDQhtIM4YFkqpcHbCB2H4SDOJnoPIeLrlL8LQucNItZkWNw40Ftfxc3dkiKGW6y04niFuRtEvj382-7zZvPTmj1JOHemW5wO-mvGxSnTa3rfukj7SV2pH59d_ALivfHC3fXSMPflHDizRCStwc4TDRXr22rny8SmVgHIdrNwD6nLt71aOyLsDzzy7aHaIbXSL9TiatrVc0k8hrNs"/>
+<figcaption class="mt-3 text-center text-sm text-slate-500 italic">Digital tools are reshaping the traditional classroom environment.</figcaption>
+</figure>
+<p>
+                            As we look toward the next decade, the line between learning and consuming content will continue to blur. Your morning news feed will become your primary textbook, and your favorite novel will double as your tutor.
+                        </p>
+</div>
+</article>
+</div>
+</div>
+</main>
+<aside class="w-16 flex-shrink-0 bg-white dark:bg-gray-900 border-l border-slate-200 dark:border-slate-800 flex flex-col items-center z-20 transition-all duration-300 ease-in-out group/sidebar">
+<div class="h-16 w-full flex items-center justify-center border-b border-slate-100 dark:border-slate-800">
+<button class="p-2 rounded-lg text-slate-400 hover:text-primary hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" title="Expand Sidebar">
+<span class="material-symbols-outlined text-[24px]">keyboard_double_arrow_left</span>
+</button>
+</div>
+<div class="flex-1 flex flex-col items-center py-6 gap-8 overflow-hidden">
+<div class="flex flex-col items-center gap-3 cursor-pointer" title="Open Session Vocab">
+<div class="rotate-180 text-sm font-semibold text-slate-500 group-hover/sidebar:text-primary transition-colors tracking-widest uppercase whitespace-nowrap py-2" style="writing-mode: vertical-rl; text-orientation: mixed;">
+                    Session Vocab
+                </div>
+<span class="flex h-2 w-2 relative">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+</span>
+</div>
+<div class="w-8 h-px bg-slate-100 dark:bg-slate-800"></div>
+<div class="flex flex-col gap-4 w-full px-2">
+<button class="w-full aspect-square flex items-center justify-center rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 hover:text-primary transition-colors relative" title="Saved Items">
+<span class="material-symbols-outlined text-[20px]">bookmarks</span>
+<span class="absolute top-2 right-2 w-1.5 h-1.5 bg-primary rounded-full"></span>
+</button>
+<button class="w-full aspect-square flex items-center justify-center rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 hover:text-primary transition-colors" title="Filter">
+<span class="material-symbols-outlined text-[20px]">filter_list</span>
+</button>
+</div>
+<div class="mt-auto mb-2 w-full px-2">
+<button class="w-full aspect-square flex items-center justify-center rounded-lg border border-dashed border-slate-300 dark:border-slate-700 text-slate-400 hover:text-primary hover:border-primary hover:bg-slate-50 dark:hover:bg-slate-800 transition-all" title="Add Note">
+<span class="material-symbols-outlined text-[20px]">add</span>
+</button>
+</div>
+</div>
+</aside>
+</div>
+
+</body></html>

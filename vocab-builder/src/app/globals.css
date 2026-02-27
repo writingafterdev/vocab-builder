@@ -41,54 +41,62 @@
 :root {
   /* Font families - defined here so body can reference them */
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --font-serif: var(--font-garamond), Georgia, serif;
-  /* Juana for display headings only */
-  --font-display: var(--font-juana), Georgia, serif;
+  /* --font-serif is set by next/font Instrument_Serif in layout.tsx */
+  --font-display: var(--font-serif), Georgia, serif;
   --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
 
-  /* Design System Colors */
-  --background: #FDFCFB;
-  /* Off-white/Cream */
-  --foreground: #1A1A1A;
-  /* Primary Text */
+  /* === MONOCHROME COLOR SCHEME (Vercel Style) === */
 
+  /* Base */
+  --background: #FFFFFF;
+  --foreground: #0A0A0A;
+
+  /* Cards & Containers */
   --card: #FFFFFF;
-  --card-foreground: #1A1A1A;
+  --card-foreground: #0A0A0A;
 
   --popover: #FFFFFF;
-  --popover-foreground: #1A1A1A;
+  --popover-foreground: #0A0A0A;
 
-  --primary: #FF6B6B;
-  /* Coral */
+  /* Primary - Black (for buttons, links) */
+  --primary: #0A0A0A;
   --primary-foreground: #FFFFFF;
 
-  --secondary: #9B87F5;
-  /* Soft Purple */
-  --secondary-foreground: #FFFFFF;
+  /* Secondary - Light gray */
+  --secondary: #F4F4F5;
+  --secondary-foreground: #0A0A0A;
 
-  --muted: #F7F7F7;
-  /* Light Gray */
-  --muted-foreground: #666666;
-  /* Secondary Text */
+  /* Muted - Subtle gray */
+  --muted: #F4F4F5;
+  --muted-foreground: #71717A;
 
-  --accent: #4ECDC4;
-  /* Teal/Cyan */
-  --accent-foreground: #FFFFFF;
+  /* Accent - Same as primary for monochrome */
+  --accent: #F4F4F5;
+  --accent-foreground: #0A0A0A;
 
-  --destructive: #F44336;
+  /* Destructive - Red for errors */
+  --destructive: #EF4444;
   --destructive-foreground: #FFFFFF;
 
-  --border: #E0E0E0;
-  --input: #E0E0E0;
-  --ring: #FF6B6B;
+  /* Borders & Inputs */
+  --border: #E4E4E7;
+  --input: #E4E4E7;
+  --ring: #0A0A0A;
 
-  --radius: 0.5rem;
-  /* 8px */
+  --radius: 0;
 
-  /* Ellipsus specific custom vars */
-  --coral: #FF6B6B;
-  --cream: #FDFCFB;
-  --teal: #4ECDC4;
+  /* === SUBTLE ACCENT COLORS (for status indicators only) === */
+  --success: #22C55E;
+  /* Green */
+  --warning: #F59E0B;
+  /* Amber */
+  --info: #3B82F6;
+  /* Blue */
+
+  /* Legacy vars for compatibility */
+  --coral: #0A0A0A;
+  --cream: #FFFFFF;
+  --teal: #22C55E;
 }
 
 /* Notebook Paper Pattern */
@@ -122,33 +130,40 @@
 }
 
 .dark {
+  /* === DARK MODE MONOCHROME === */
   --background: #0A0A0A;
-  --foreground: #E0E0E0;
+  --foreground: #FAFAFA;
 
-  --card: #1A1A1A;
-  --card-foreground: #E0E0E0;
+  --card: #18181B;
+  --card-foreground: #FAFAFA;
 
-  --popover: #1A1A1A;
-  --popover-foreground: #E0E0E0;
+  --popover: #18181B;
+  --popover-foreground: #FAFAFA;
 
-  --primary: #FF6B6B;
-  --primary-foreground: #FFFFFF;
+  /* Primary - White (for buttons, links) */
+  --primary: #FAFAFA;
+  --primary-foreground: #0A0A0A;
 
-  --secondary: #9B87F5;
-  --secondary-foreground: #FFFFFF;
+  /* Secondary - Dark gray */
+  --secondary: #27272A;
+  --secondary-foreground: #FAFAFA;
 
-  --muted: #1E1E1E;
-  --muted-foreground: #AAAAAA;
+  /* Muted */
+  --muted: #27272A;
+  --muted-foreground: #A1A1AA;
 
-  --accent: #4ECDC4;
-  --accent-foreground: #FFFFFF;
+  /* Accent */
+  --accent: #27272A;
+  --accent-foreground: #FAFAFA;
 
-  --destructive: #EF5350;
+  /* Destructive */
+  --destructive: #EF4444;
   --destructive-foreground: #FFFFFF;
 
-  --border: #333333;
-  --input: #333333;
-  --ring: #FF6B6B;
+  /* Borders */
+  --border: #27272A;
+  --input: #27272A;
+  --ring: #FAFAFA;
 }
 
 @layer base {
@@ -182,4 +197,35 @@
   .font-article {
     font-family: var(--font-garamond), Georgia, serif;
   }
+}
+
+/* Global Phrase Dictionary - Hover effect for clickable text */
+.article-clickable-text {
+  cursor: text;
+}
+
+.article-clickable-text::selection {
+  background-color: hsl(var(--primary) / 0.3);
+}
+
+/* Word hover effect - shows underline on hover */
+.word-hover-active {
+  text-decoration: underline;
+  text-decoration-color: #3b82f6;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 2px;
+  cursor: pointer;
+  transition: text-decoration-color 0.15s ease;
+}
+
+/* Already saved/highlighted phrase */
+.article-clickable-text mark {
+  background-color: hsl(var(--accent) / 0.2);
+  padding: 0 2px;
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.article-clickable-text mark:hover {
+  background-color: hsl(var(--accent) / 0.4);
 }

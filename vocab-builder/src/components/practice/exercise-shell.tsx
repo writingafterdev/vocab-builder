@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, CheckCircle, XCircle, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -148,6 +148,13 @@ export default function ExerciseShell({ session, onComplete, onClose }: Exercise
 
     const currentQuestion = allQuestions[currentIndex];
     const progress = allQuestions.length > 0 ? ((currentIndex + 1) / allQuestions.length) * 100 : 0;
+
+    // Find if the current question contains any of the child expressions
+    const matchedUsage = useMemo(() => {
+        if (!session.usagesIncluded || session.usagesIncluded.length === 0 || !currentQuestion) return null;
+        const qText = JSON.stringify(currentQuestion.content).toLowerCase();
+        return session.usagesIncluded.find(u => qText.includes(u.usage.phrase.toLowerCase()));
+    }, [currentQuestion, session.usagesIncluded]);
 
     // Guard: empty questions array
     if (allQuestions.length === 0) {
@@ -414,27 +421,63 @@ export default function ExerciseShell({ session, onComplete, onClose }: Exercise
                                 />
                             </div>
                         ) : (
-                            /* Simple feedback for MCQ questions */
+                            /* Simple feedback with dynamic explanation/trivia */
                             <div className="px-6 py-5">
-                                <div className="max-w-5xl mx-auto flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        {lastAnswer.correct ? (
-                                            <CheckCircle className="w-6 h-6 text-blue-600" />
-                                        ) : (
-                                            <XCircle className="w-6 h-6 text-neutral-900" />
-                                        )}
-                                        <div>
-                                            <p className="font-semibold text-neutral-900">
-                                                {lastAnswer.correct ? 'Correct' : 'Not quite'}
-                                            </p>
-                                            <p className="text-[11px] uppercase tracking-[0.15em] text-neutral-400">
-                                                {lastAnswer.correct ? 'Well done' : 'Keep going'}
-                                            </p>
+                                <div className="max-w-5xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                    <div className="flex items-start gap-4">
+                                        <div className="mt-0.5 shrink-0">
+                                            {lastAnswer.correct ? (
+                                                <CheckCircle className="w-6 h-6 text-blue-600" />
+                                            ) : (
+                                                <XCircle className="w-6 h-6 text-neutral-900" />
+                                            )}
+                                        </div>
+                                        <div className="flex flex-col gap-1">
+                                            <div className="flex items-center gap-2">
+                                                <p className="font-semibold text-neutral-900">
+                                                    {lastAnswer.correct ? 'Correct' : 'Not quite'}
+                                                </p>
+                                                <p className="text-[11px] uppercase tracking-[0.15em] text-neutral-400">
+                                                    {lastAnswer.correct ? 'Well done' : 'Keep going'}
+                                                </p>
+                                            </div>
+
+                                            {/* Rich Explanation / Trivia */}
+                                            {!lastAnswer.correct && currentQuestion.explanation && (
+                                                <p className="text-sm text-neutral-600 max-w-2xl mt-1 leading-relaxed">
+                                                    {currentQuestion.explanation}
+                                                </p>
+                                            )}
+                                            {lastAnswer.correct && currentQuestion.trivia && (
+                                                <div className="mt-1 max-w-2xl">
+                                                    <p className="text-xs font-bold uppercase tracking-wider text-blue-600 mb-0.5">
+                                                        Did you know?
+                                                    </p>
+                                                    <p className="text-sm text-neutral-600 leading-relaxed">
+                                                        {currentQuestion.trivia}
+                                                    </p>
+                                                </div>
+                                            )}
+
+                                            {/* Child Expression Tip */}
+                                            {matchedUsage && (
+                                                <div className="mt-2 max-w-2xl bg-indigo-50/50 border border-indigo-100/50 rounded-lg p-3">
+                                                    <p className="text-xs font-bold uppercase tracking-wider text-indigo-600 mb-0.5 flex items-center gap-1.5">
+                                                        💡 Tip: Related Expression
+                                                    </p>
+                                                    <p className="text-sm text-neutral-700 leading-relaxed">
+                                                        This question uses <strong>&quot;{matchedUsage.usage.phrase}&quot;</strong>,
+                                                        a variant of <em>{matchedUsage.parentPhrase}</em>.
+                                                        {matchedUsage.usage.type ? ` Often used as a ${matchedUsage.usage.type.replace('_', ' ')}. ` : ' '}
+                                                        Useful for your daily communication, you should save it!
+                                                    </p>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                     <button
                                         onClick={handleNext}
-                                        className="bg-neutral-900 text-white px-6 py-2.5 text-xs font-semibold uppercase tracking-[0.1em] hover:bg-neutral-800 transition-colors flex items-center gap-2"
+                                        className="bg-neutral-900 text-white px-6 py-2.5 text-xs font-semibold uppercase tracking-[0.1em] hover:bg-neutral-800 transition-colors flex items-center gap-2 self-start md:self-auto shrink-0 mt-2 md:mt-0"
                                     >
                                         Continue
                                         <ArrowRight className="w-3.5 h-3.5" />

@@ -135,6 +135,12 @@ export async function getDocument(
         return null;
     }
 
+    // Firestore often returns 403 for non-existent documents (depends on security rules)
+    // Treat this as "not found" rather than an error
+    if (response.status === 403) {
+        return null;
+    }
+
     if (!response.ok) {
         const error = await response.text();
         console.error('Firestore getDocument error:', error);
@@ -250,6 +256,81 @@ export async function queryCollection(
 
     const result = await response.json();
     return (result.documents || []).map(documentToObject);
+}
+
+/**
+ * Execute a structured query via REST API (needed for filtering)
+ * Supports both simple collection names and full paths like "users/{userId}/savedPhrases"
+ */
+export async function runQuery(
+    collectionPath: string,
+    filters: { field: string; op: 'EQUAL' | 'ARRAY_CONTAINS' | 'LESS_THAN' | 'LESS_THAN_OR_EQUAL' | 'GREATER_THAN' | 'GREATER_THAN_OR_EQUAL' | 'NOT_EQUAL'; value: unknown }[],
+    limit?: number
+): Promise<Array<Record<string, unknown> & { id: string }>> {
+    // Parse the collection path - it could be "savedPhrases" or "users/{userId}/savedPhrases"
+    const pathParts = collectionPath.split('/');
+    const collectionId = pathParts[pathParts.length - 1]; // Last segment is the collection
+    const parentPath = pathParts.length > 1 ? pathParts.slice(0, -1).join('/') : null;
+
+    const structuredQuery: any = {
+        from: [{ collectionId }]
+    };
+
+    if (filters.length > 0) {
+        if (filters.length === 1) {
+            const f = filters[0];
+            structuredQuery.where = {
+                fieldFilter: {
+                    field: { fieldPath: f.field },
+                    op: f.op,
+                    value: toFirestoreValue(f.value)
+                }
+            };
+        } else {
+            // Composite filter (AND)
+            structuredQuery.where = {
+                compositeFilter: {
+                    op: 'AND',
+                    filters: filters.map(f => ({
+                        fieldFilter: {
+                            field: { fieldPath: f.field },
+                            op: f.op,
+                            value: toFirestoreValue(f.value)
+                        }
+                    }))
+                }
+            };
+        }
+    }
+
+    if (limit) {
+        structuredQuery.limit = { value: limit };
+    }
+
+    // Build the URL - if there's a parent path, include it
+    const baseUrl = parentPath
+        ? `${FIRESTORE_BASE_URL}/${parentPath}:runQuery`
+        : `${FIRESTORE_BASE_URL}:runQuery`;
+
+    const response = await fetch(baseUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ structuredQuery })
+    });
+
+    if (!response.ok) {
+        const error = await response.text();
+        console.error('Firestore runQuery error:', error);
+        throw new Error(`Failed to run query: ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    // runQuery returns a stream of results, slightly different format
+    // Each item has "document": { ... } or "readTime" (if no results or end of stream)
+    return result
+        .filter((item: any) => item.document)
+        .map((item: any) => documentToObject(item.document));
 }
 
 /**

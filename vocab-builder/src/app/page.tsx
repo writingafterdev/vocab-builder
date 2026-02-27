@@ -4,6 +4,7 @@ import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { EditorialLoader } from '@/components/ui/editorial-loader';
 
 // Conversation script - each message in the flow
 type MessageType = 'harry' | 'user';
@@ -38,7 +39,7 @@ const conversation: Message[] = [
     { id: 11, type: 'harry', text: "Here's how it works:", trigger: 'interaction' },
     { id: 12, type: 'harry', text: "You read something that actually interests you.", trigger: 'auto', delay: 1000 },
     { id: 13, type: 'harry', text: "You find a phrase that feels right. You save it.", trigger: 'auto', delay: 1500 },
-    { id: 14, type: 'harry', text: "Later, you don't just review it — you use it. In debate. In writing.", trigger: 'auto', delay: 1500 },
+    { id: 14, type: 'harry', text: "Later, you don't just review it — you use it. In conversations. In writing.", trigger: 'auto', delay: 1500 },
     { id: 15, type: 'user', text: "That sounds... actually doable.", trigger: 'auto', delay: 2000 },
 
     // Scene 5: The Conversational CTA
@@ -225,7 +226,7 @@ export default function LandingPage() {
     if (loading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-white">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black"></div>
+                <EditorialLoader size="md" />
             </div>
         );
     }
@@ -257,10 +258,13 @@ export default function LandingPage() {
                                 className="mt-8"
                             >
                                 <button
-                                    onClick={signInWithGoogle}
-                                    className="text-2xl md:text-4xl font-normal text-black hover:text-[#666] transition-colors duration-300"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        signInWithGoogle();
+                                    }}
+                                    className="text-2xl md:text-4xl font-normal text-black hover:text-[#666] transition-colors duration-300 cursor-pointer"
                                 >
-                                    Yeah, let's go →
+                                    Yeah, let&apos;s go →
                                 </button>
                             </motion.div>
                         )}

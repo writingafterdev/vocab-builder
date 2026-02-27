@@ -21,6 +21,12 @@ export interface UserStats {
     currentStreak: number;
     longestStreak: number;
     lastStudyDate: Date | null;
+    // Gamification
+    xp: number;                    // Total XP earned
+    level: number;                 // Current level
+    xpToday: number;              // XP earned today (for daily cap)
+    xpTodayDate: string | null;   // Date string for xpToday reset
+    redeemedDays: number;         // Total premium days redeemed
 }
 
 export interface Subscription {
@@ -28,7 +34,7 @@ export interface Subscription {
     plan: 'monthly' | 'yearly' | null;
     trialEndsAt: Date | null;
     currentPeriodEnd: Date | null;
-    paymentProvider?: 'momo' | 'zalopay' | 'stripe';
+    paymentProvider?: 'momo' | 'zalopay' | 'stripe' | 'xp_redeem';
 }
 
 export interface UserSettings {
@@ -36,6 +42,64 @@ export interface UserSettings {
     preferredStyles: string[];
     notificationsEnabled: boolean;
 }
+
+// Gamification - XP System
+export type XpSource =
+    | 'daily_drill_complete'
+    | 'reading_session_complete'
+    | 'listening_session_complete'
+    | 'speaking_chunk_complete'
+    | 'phrase_saved'
+    | 'streak_bonus'
+    | 'perfect_score_bonus'
+    | 'redeem_premium';
+
+export interface XpTransaction {
+    id: string;
+    userId: string;
+    amount: number;           // +50 or -500
+    type: 'earn' | 'redeem';
+    source: XpSource;
+    createdAt: Date;
+    metadata?: {
+        sessionId?: string;
+        score?: number;
+        streakDays?: number;
+        daysRedeemed?: number;
+    };
+}
+
+// XP configuration
+export const XP_CONFIG = {
+    // Base rewards
+    PHRASE_SAVED: 5,
+    DAILY_DRILL: 20,
+    READING_SESSION: 25,
+    LISTENING_SESSION: 25,
+    SPEAKING_CHUNK: 15,
+    STREAK_MULTIPLIER: 10,  // 10 * streak days
+    STREAK_CAP: 100,
+
+    // Bonus thresholds
+    PERFECT_THRESHOLD: 90,
+    PERFECT_BONUS: 10,
+    SUPER_PERFECT_THRESHOLD: 95,
+    SUPER_PERFECT_BONUS: 15,
+
+    // Daily caps
+    DAILY_CAP_SESSIONS: 150,
+    DAILY_CAP_PHRASES: 50,
+    DAILY_CAP_STREAK: 100,
+    DAILY_CAP_TOTAL: 300,
+
+    // Redemption rates (XP cost -> days)
+    REDEEM_1_DAY: 500,
+    REDEEM_7_DAYS: 3000,
+    REDEEM_30_DAYS: 10000,
+
+    // Level calculation (XP required per level)
+    XP_PER_LEVEL: 100,
+} as const;
 
 // Phrases
 
@@ -69,6 +133,13 @@ export interface Phrase {
     currentContextIndex: number;    // Which context is active
 }
 
+// Speaking Chunks (for Read & Speak mode)
+export interface SpeakingChunk {
+    text: string;
+    audioUrl?: string;      // Firebase Storage URL (cached TTS)
+    generatedAt?: number;   // Timestamp when audio was generated
+}
+
 // Posts
 export interface Post {
     id: string;
@@ -88,6 +159,8 @@ export interface Post {
     repostCount: number;
     engagement: PostEngagement;
     task: PostTask | null;
+    // Speaking mode chunks with cached TTS
+    speakingChunks?: SpeakingChunk[];
 }
 
 export interface AIPersona {

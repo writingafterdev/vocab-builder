@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>User Social Profile - VocabBuilder</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#135bec",
+                        "background-light": "#ffffff",
+                        "background-dark": "#101622",
+                        "surface-light": "#f6f6f8", 
+                        "surface-dark": "#1e2430",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-[#111318] dark:text-white antialiased">
+<div class="relative flex min-h-screen w-full flex-col overflow-x-hidden">
+<!-- Top Navigation -->
+<div class="border-b border-solid border-[#f0f2f4] dark:border-[#2a3140] bg-white dark:bg-[#101622]">
+<header class="flex items-center justify-between whitespace-nowrap px-10 py-3 mx-auto max-w-[1200px]">
+<div class="flex items-center gap-8">
+<div class="flex items-center gap-4 text-[#111318] dark:text-white">
+<div class="size-8 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-3xl">book_5</span>
+</div>
+<h2 class="text-[#111318] dark:text-white text-lg font-bold leading-tight tracking-[-0.015em]">VocabBuilder</h2>
+</div>
+<!-- Search Bar -->
+<label class="hidden md:flex flex-col min-w-40 !h-10 max-w-64">
+<div class="flex w-full flex-1 items-stretch rounded-lg h-full">
+<div class="text-[#616f89] dark:text-[#9ca3af] flex border-none bg-[#f0f2f4] dark:bg-[#1e2430] items-center justify-center pl-4 rounded-l-lg border-r-0">
+<span class="material-symbols-outlined text-[20px]">search</span>
+</div>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-[#111318] dark:text-white focus:outline-0 focus:ring-0 border-none bg-[#f0f2f4] dark:bg-[#1e2430] focus:border-none h-full placeholder:text-[#616f89] px-4 rounded-l-none border-l-0 pl-2 text-sm font-normal leading-normal" placeholder="Search..." value=""/>
+</div>
+</label>
+</div>
+<div class="flex flex-1 justify-end gap-8 items-center">
+<div class="hidden md:flex items-center gap-6">
+<a class="text-[#111318] dark:text-gray-200 text-sm font-medium leading-normal hover:text-primary transition-colors" href="#">My Library</a>
+<a class="text-[#111318] dark:text-gray-200 text-sm font-medium leading-normal hover:text-primary transition-colors" href="#">Practice</a>
+<a class="text-[#111318] dark:text-gray-200 text-sm font-medium leading-normal hover:text-primary transition-colors" href="#">Community</a>
+</div>
+<div class="flex items-center gap-4">
+<button class="relative text-[#616f89] dark:text-gray-400 hover:text-primary">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-0 right-0 size-2 bg-red-500 rounded-full"></span>
+</button>
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-9 border border-[#f0f2f4] dark:border-[#2a3140]" data-alt="User profile picture placeholder" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuCUJE3JZEgUEtMweFYaVUVyUMAKWa_Qj7kUoe05QpQcH8FlnsBeGmrg9ZBJHti8kMYOY7esaBix_bRt3mpPznXH65h--Zij74ji_J_opx-8iEgpBRX4uLHzeWmFd3pYxri9c8cvowPyi4c3FNMQIdKXTE99reH2RhQj2_NPEfLzvdwlygoZEqMnAqP3DUdsPhg6tohvWNL80IROCPIM7fSjUe4dOmJZlFrpY0pzUCsbSW5KXupaXTi2ajFtZaBG_Om--BA8vLlMlm8");'></div>
+</div>
+</div>
+</header>
+</div>
+<main class="flex-1 w-full max-w-[1200px] mx-auto px-4 md:px-10 py-6">
+<!-- Breadcrumbs -->
+<div class="flex flex-wrap gap-2 pb-4">
+<a class="text-[#616f89] dark:text-gray-400 text-sm font-medium hover:underline" href="#">Home</a>
+<span class="text-[#616f89] dark:text-gray-400 text-sm font-medium">/</span>
+<a class="text-[#616f89] dark:text-gray-400 text-sm font-medium hover:underline" href="#">Community</a>
+<span class="text-[#616f89] dark:text-gray-400 text-sm font-medium">/</span>
+<span class="text-[#111318] dark:text-white text-sm font-medium">Alex Lexicon</span>
+</div>
+<!-- Profile Header -->
+<div class="w-full mb-8">
+<!-- Cover Photo (Optional) -->
+<div class="h-32 md:h-48 w-full rounded-t-xl bg-gradient-to-r from-blue-100 to-indigo-100 dark:from-[#1e2430] dark:to-[#2a3140] relative overflow-hidden" data-alt="Abstract gradient header background">
+<div class="absolute inset-0 opacity-10 bg-[radial-gradient(#135bec_1px,transparent_1px)] [background-size:16px_16px]"></div>
+</div>
+<div class="relative px-6 pb-6 -mt-12 flex flex-col md:flex-row items-end md:items-end gap-6">
+<div class="relative group">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full h-32 w-32 border-4 border-white dark:border-[#101622] shadow-sm bg-white" data-alt="Profile picture of a smiling young man" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuB-wHhSDj-VJAC7zCfdGDtOabRU3spsvTkJ6VtASdp-AtojKh2pvEH-_LNM-Qiw8qJH01ylJ4TPoHcFNX7l4D6pwZKnIVT4Wanco_HDX1bHYbnIhX9OtW76opgVbtt89PI83KvLCm3gFJMvj8Eo5aisKWm4siMs6K6-Rm9MiO1qTScb6MTXQf3-AvWNVlc0cF7A_eJLRywLgTqgy3pRsIOtVgdbnlwLCgXqS5STHOEBucBVaDCOXKiKUCpLF3xkFuSqvzmpceHw3Mg");'></div>
+<div class="absolute bottom-2 right-2 bg-green-500 border-2 border-white dark:border-[#101622] size-5 rounded-full" title="Online"></div>
+</div>
+<div class="flex-1 mb-2">
+<div class="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
+<div>
+<h1 class="text-[#111318] dark:text-white text-3xl font-bold leading-tight tracking-tight">Alex Lexicon</h1>
+<p class="text-[#616f89] dark:text-gray-400 text-base font-normal mt-1 flex items-center gap-1">
+<span class="material-symbols-outlined text-[18px]">school</span>
+                                    Linguistics enthusiast | Japanese N2 Learner
+                                </p>
+<div class="flex gap-4 mt-3 text-sm text-[#616f89] dark:text-gray-400">
+<span class="flex items-center gap-1"><span class="font-bold text-[#111318] dark:text-white">542</span> followers</span>
+<span class="flex items-center gap-1"><span class="font-bold text-[#111318] dark:text-white">128</span> following</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[16px]">location_on</span> San Francisco, CA</span>
+</div>
+</div>
+<div class="flex gap-3 mt-4 md:mt-0">
+<button class="flex items-center justify-center gap-2 rounded-lg h-10 px-6 bg-primary text-white text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm shadow-blue-200 dark:shadow-none">
+<span class="material-symbols-outlined text-[18px]">add</span>
+                                    Follow
+                                </button>
+<button class="flex items-center justify-center gap-2 rounded-lg h-10 px-6 bg-white dark:bg-[#1e2430] border border-[#dbdfe6] dark:border-[#2a3140] text-[#111318] dark:text-white text-sm font-medium hover:bg-gray-50 dark:hover:bg-[#2a3140] transition-colors">
+<span class="material-symbols-outlined text-[18px]">mail</span>
+                                    Message
+                                </button>
+<button class="flex items-center justify-center rounded-lg size-10 bg-white dark:bg-[#1e2430] border border-[#dbdfe6] dark:border-[#2a3140] text-[#616f89] dark:text-gray-400 hover:text-[#111318] dark:hover:text-white transition-colors">
+<span class="material-symbols-outlined text-[20px]">more_horiz</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Stats Dashboard -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+<div class="flex flex-col gap-1 rounded-xl p-5 border border-[#e5e7eb] dark:border-[#2a3140] bg-surface-light dark:bg-[#1e2430] relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+<span class="material-symbols-outlined text-4xl text-primary">bookmark</span>
+</div>
+<p class="text-[#616f89] dark:text-gray-400 text-sm font-medium">Words Saved</p>
+<div class="flex items-end gap-2">
+<p class="text-[#111318] dark:text-white text-2xl font-bold leading-none">1,240</p>
+<span class="text-green-600 text-xs font-bold bg-green-100 dark:bg-green-900/30 px-1.5 py-0.5 rounded">+12%</span>
+</div>
+</div>
+<div class="flex flex-col gap-1 rounded-xl p-5 border border-[#e5e7eb] dark:border-[#2a3140] bg-surface-light dark:bg-[#1e2430] relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+<span class="material-symbols-outlined text-4xl text-orange-500">local_fire_department</span>
+</div>
+<p class="text-[#616f89] dark:text-gray-400 text-sm font-medium">Day Streak</p>
+<div class="flex items-end gap-2">
+<p class="text-[#111318] dark:text-white text-2xl font-bold leading-none">42</p>
+<span class="text-orange-600 text-xs font-bold bg-orange-100 dark:bg-orange-900/30 px-1.5 py-0.5 rounded">Active</span>
+</div>
+</div>
+<div class="flex flex-col gap-1 rounded-xl p-5 border border-[#e5e7eb] dark:border-[#2a3140] bg-surface-light dark:bg-[#1e2430] relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+<span class="material-symbols-outlined text-4xl text-purple-500">gavel</span>
+</div>
+<p class="text-[#616f89] dark:text-gray-400 text-sm font-medium">Debates Won</p>
+<div class="flex items-end gap-2">
+<p class="text-[#111318] dark:text-white text-2xl font-bold leading-none">15</p>
+<span class="text-[#616f89] dark:text-gray-500 text-xs font-normal">Rank #402</span>
+</div>
+</div>
+<div class="flex flex-col gap-1 rounded-xl p-5 border border-[#e5e7eb] dark:border-[#2a3140] bg-surface-light dark:bg-[#1e2430] relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+<span class="material-symbols-outlined text-4xl text-teal-500">psychology</span>
+</div>
+<p class="text-[#616f89] dark:text-gray-400 text-sm font-medium">Mastery</p>
+<div class="flex items-end gap-2">
+<p class="text-[#111318] dark:text-white text-2xl font-bold leading-none">8</p>
+<span class="text-[#616f89] dark:text-gray-500 text-xs font-normal">Topics</span>
+</div>
+</div>
+</div>
+<!-- Content Grid: Main + Sidebar -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+<!-- Left Column: Main Content (Tabs + Feed) -->
+<div class="lg:col-span-8 flex flex-col gap-6">
+<!-- Tabs -->
+<div class="border-b border-[#dbdfe6] dark:border-[#2a3140]">
+<nav aria-label="Tabs" class="flex gap-8">
+<a class="border-b-[3px] border-primary text-[#111318] dark:text-white font-medium text-sm py-3 px-1" href="#">Overview</a>
+<a class="border-b-[3px] border-transparent text-[#616f89] dark:text-gray-400 hover:text-[#111318] dark:hover:text-white hover:border-gray-300 transition-all font-medium text-sm py-3 px-1" href="#">Vocab Bank</a>
+<a class="border-b-[3px] border-transparent text-[#616f89] dark:text-gray-400 hover:text-[#111318] dark:hover:text-white hover:border-gray-300 transition-all font-medium text-sm py-3 px-1" href="#">Debate History</a>
+<a class="border-b-[3px] border-transparent text-[#616f89] dark:text-gray-400 hover:text-[#111318] dark:hover:text-white hover:border-gray-300 transition-all font-medium text-sm py-3 px-1" href="#">Insights</a>
+</nav>
+</div>
+<!-- Activity Feed -->
+<div class="flex flex-col gap-6">
+<h3 class="text-lg font-bold text-[#111318] dark:text-white">Recent Activity</h3>
+<!-- Feed Item 1 -->
+<div class="flex gap-4 p-4 rounded-xl bg-white dark:bg-[#1e2430] border border-[#f0f2f4] dark:border-[#2a3140] shadow-sm">
+<div class="flex-shrink-0">
+<div class="size-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">school</span>
+</div>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start">
+<div>
+<p class="text-[#111318] dark:text-white text-sm font-medium">
+                                            Alex mastered the <span class="font-bold">"Legal Terminology"</span> deck
+                                        </p>
+<p class="text-[#616f89] dark:text-gray-500 text-xs mt-1">2 hours ago</p>
+</div>
+<button class="text-[#616f89] dark:text-gray-400 hover:text-primary">
+<span class="material-symbols-outlined text-[20px]">more_horiz</span>
+</button>
+</div>
+<div class="mt-3 flex gap-2">
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-[#2a3140] text-gray-800 dark:text-gray-200">
+                                        pro-bono
+                                    </span>
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-[#2a3140] text-gray-800 dark:text-gray-200">
+                                        affidavit
+                                    </span>
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-[#2a3140] text-gray-800 dark:text-gray-200">
+                                        +18 more
+                                    </span>
+</div>
+<div class="mt-4 flex gap-4 border-t border-[#f0f2f4] dark:border-[#2a3140] pt-3">
+<button class="flex items-center gap-1.5 text-xs font-medium text-[#616f89] dark:text-gray-400 hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[18px]">thumb_up</span>
+                                        12 Likes
+                                    </button>
+<button class="flex items-center gap-1.5 text-xs font-medium text-[#616f89] dark:text-gray-400 hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[18px]">comment</span>
+                                        2 Comments
+                                    </button>
+</div>
+</div>
+</div>
+<!-- Feed Item 2 -->
+<div class="flex gap-4 p-4 rounded-xl bg-white dark:bg-[#1e2430] border border-[#f0f2f4] dark:border-[#2a3140] shadow-sm">
+<div class="flex-shrink-0">
+<div class="size-10 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center text-purple-600">
+<span class="material-symbols-outlined">forum</span>
+</div>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start">
+<div>
+<p class="text-[#111318] dark:text-white text-sm font-medium">
+                                            Won a debate on <span class="font-bold">AI Ethics</span>
+</p>
+<p class="text-[#616f89] dark:text-gray-500 text-xs mt-1">Yesterday at 4:30 PM</p>
+</div>
+<button class="text-[#616f89] dark:text-gray-400 hover:text-primary">
+<span class="material-symbols-outlined text-[20px]">more_horiz</span>
+</button>
+</div>
+<div class="mt-3 p-3 bg-surface-light dark:bg-[#2a3140] rounded-lg border border-[#f0f2f4] dark:border-[#374151]">
+<p class="text-sm text-[#111318] dark:text-gray-300 italic">"The distinction between artificial sentience and mimicked empathy is crucial when discussing rights..."</p>
+</div>
+<div class="mt-4 flex gap-4 border-t border-[#f0f2f4] dark:border-[#2a3140] pt-3">
+<button class="flex items-center gap-1.5 text-xs font-medium text-[#616f89] dark:text-gray-400 hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[18px]">thumb_up</span>
+                                        48 Likes
+                                    </button>
+<button class="flex items-center gap-1.5 text-xs font-medium text-[#616f89] dark:text-gray-400 hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[18px]">comment</span>
+                                        8 Comments
+                                    </button>
+<button class="flex items-center gap-1.5 text-xs font-medium text-[#616f89] dark:text-gray-400 hover:text-primary transition-colors ml-auto">
+<span class="material-symbols-outlined text-[18px]">share</span>
+                                        Share
+                                    </button>
+</div>
+</div>
+</div>
+<!-- Feed Item 3 -->
+<div class="flex gap-4 p-4 rounded-xl bg-white dark:bg-[#1e2430] border border-[#f0f2f4] dark:border-[#2a3140] shadow-sm">
+<div class="flex-shrink-0">
+<div class="size-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-600">
+<span class="material-symbols-outlined">edit_note</span>
+</div>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start">
+<div>
+<p class="text-[#111318] dark:text-white text-sm font-medium">
+                                            Shared a note: <span class="font-bold">Affect vs. Effect</span>
+</p>
+<p class="text-[#616f89] dark:text-gray-500 text-xs mt-1">2 days ago</p>
+</div>
+<button class="text-[#616f89] dark:text-gray-400 hover:text-primary">
+<span class="material-symbols-outlined text-[20px]">more_horiz</span>
+</button>
+</div>
+<div class="mt-4 flex gap-4 border-t border-[#f0f2f4] dark:border-[#2a3140] pt-3">
+<button class="flex items-center gap-1.5 text-xs font-medium text-[#616f89] dark:text-gray-400 hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[18px]">thumb_up</span>
+                                        5 Likes
+                                    </button>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Right Column: Sidebar -->
+<div class="lg:col-span-4 flex flex-col gap-6">
+<!-- Shared Lists Card -->
+<div class="bg-white dark:bg-[#1e2430] rounded-xl border border-[#e5e7eb] dark:border-[#2a3140] p-5 shadow-sm">
+<div class="flex items-center justify-between mb-4">
+<h3 class="text-base font-bold text-[#111318] dark:text-white">Shared Vocab Lists</h3>
+<a class="text-xs text-primary font-medium hover:underline" href="#">View All</a>
+</div>
+<ul class="flex flex-col gap-3">
+<li>
+<a class="group flex items-center justify-between p-3 rounded-lg hover:bg-surface-light dark:hover:bg-[#2a3140] transition-colors border border-transparent hover:border-[#e5e7eb] dark:hover:border-[#374151]" href="#">
+<div class="flex items-center gap-3">
+<div class="size-8 rounded bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center text-orange-600">
+<span class="material-symbols-outlined text-[18px]">book</span>
+</div>
+<div>
+<p class="text-sm font-medium text-[#111318] dark:text-white">GRE Prep 2024</p>
+<p class="text-xs text-[#616f89] dark:text-gray-500">342 words</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-[#9ca3af] group-hover:text-primary text-[20px]">chevron_right</span>
+</a>
+</li>
+<li>
+<a class="group flex items-center justify-between p-3 rounded-lg hover:bg-surface-light dark:hover:bg-[#2a3140] transition-colors border border-transparent hover:border-[#e5e7eb] dark:hover:border-[#374151]" href="#">
+<div class="flex items-center gap-3">
+<div class="size-8 rounded bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600">
+<span class="material-symbols-outlined text-[18px]">restaurant</span>
+</div>
+<div>
+<p class="text-sm font-medium text-[#111318] dark:text-white">Culinary French</p>
+<p class="text-xs text-[#616f89] dark:text-gray-500">85 words</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-[#9ca3af] group-hover:text-primary text-[20px]">chevron_right</span>
+</a>
+</li>
+<li>
+<a class="group flex items-center justify-between p-3 rounded-lg hover:bg-surface-light dark:hover:bg-[#2a3140] transition-colors border border-transparent hover:border-[#e5e7eb] dark:hover:border-[#374151]" href="#">
+<div class="flex items-center gap-3">
+<div class="size-8 rounded bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center text-purple-600">
+<span class="material-symbols-outlined text-[18px]">code</span>
+</div>
+<div>
+<p class="text-sm font-medium text-[#111318] dark:text-white">Dev Jargon</p>
+<p class="text-xs text-[#616f89] dark:text-gray-500">120 words</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-[#9ca3af] group-hover:text-primary text-[20px]">lock</span>
+</a>
+</li>
+</ul>
+</div>
+<!-- Achievements / Badges -->
+<div class="bg-white dark:bg-[#1e2430] rounded-xl border border-[#e5e7eb] dark:border-[#2a3140] p-5 shadow-sm">
+<div class="flex items-center justify-between mb-4">
+<h3 class="text-base font-bold text-[#111318] dark:text-white">Badges</h3>
+</div>
+<div class="flex flex-wrap gap-2">
+<div class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-900/50 text-xs font-medium" title="Saved 1000+ Words">
+<span class="material-symbols-outlined text-[16px]">military_tech</span>
+                                Lexicon Master
+                             </div>
+<div class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-900/50 text-xs font-medium" title="30 Day Streak">
+<span class="material-symbols-outlined text-[16px]">local_fire_department</span>
+                                On Fire
+                             </div>
+<div class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-900/50 text-xs font-medium" title="Community Contributor">
+<span class="material-symbols-outlined text-[16px]">groups</span>
+                                Top Contributor
+                             </div>
+</div>
+</div>
+<!-- Suggested Connections -->
+<div class="bg-white dark:bg-[#1e2430] rounded-xl border border-[#e5e7eb] dark:border-[#2a3140] p-5 shadow-sm">
+<h3 class="text-base font-bold text-[#111318] dark:text-white mb-4">Suggested for you</h3>
+<div class="flex flex-col gap-4">
+<!-- User 1 -->
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="bg-center bg-no-repeat bg-cover rounded-full size-10" data-alt="Portrait of Sarah" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBR_5BvhOPmS22mWUPX3pISAY349Woi-2ulfdBlNx1RrSu-lvqzwgZc_OnEZ2omTwHOY16rVVjFPEW_VYjz6Rz1CmJioduL5kL6v1Srt-6vYXD9JFPdGDf2GfCMuziMR7e4QQOg3olt9bYsiXqx5FJSWLUPC8hAzDrkk5uWNMdxDY8lRTnyWBm2eA0D8NpAx5Wf_Bw3HWcHcogHUTuia1x_3IKchWxT4tU381LcdkGw3xmN1ftgUXChdoQmNSQMRDcY1ZSE4mpjdgQ");'></div>
+<div>
+<p class="text-sm font-medium text-[#111318] dark:text-white">Sarah Jenkins</p>
+<p class="text-xs text-[#616f89] dark:text-gray-500">French B1</p>
+</div>
+</div>
+<button class="text-primary text-xs font-bold hover:underline">Follow</button>
+</div>
+<!-- User 2 -->
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="bg-center bg-no-repeat bg-cover rounded-full size-10" data-alt="Portrait of Mike" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuCXKj3qx6eMKGTD8j33VdKiDvMbLTWrLuT2dIDgACjO3KXy2OPl8CBIMdbRQc-4tj5C93H4fD460n20gzGDWSOYJvNKJQEYh8J25VWSXsuak-Q_x6mWsGpVTeWctXXqg5GJxgdUJdbZtQ4TK-KmjtndC76xOQpSPX2eyMoXdz_-JGp4MB30Iz1T_RR6xh0x3cnI1Ebc2gp7LoJ4xgHUunZy9RI7o1RO1eq_O0o1H5OB4yr2tDqtLbZepljN2XEubykxeCEv_EFLlfs");'></div>
+<div>
+<p class="text-sm font-medium text-[#111318] dark:text-white">Mike Chen</p>
+<p class="text-xs text-[#616f89] dark:text-gray-500">Mandarin Native</p>
+</div>
+</div>
+<button class="text-primary text-xs font-bold hover:underline">Follow</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>

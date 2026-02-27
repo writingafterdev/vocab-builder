@@ -118,3 +118,71 @@ export async function updateUserStreak(userId: string): Promise<void> {
         });
     }
 }
+
+/**
+ * Get and increment review day count for reading/listening alternation
+ * Returns the CURRENT day's count (before increment for next day)
+ * 
+ * Even (0, 2, 4...) = Reading day
+ * Odd (1, 3, 5...) = Listening day
+ */
+export async function getReviewDayCount(userId: string): Promise<number> {
+    const firestore = await getDbAsync();
+    const userRef = doc(firestore, 'users', userId);
+    const userSnap = await getDoc(userRef);
+
+    if (!userSnap.exists()) return 0;
+
+    const userData = userSnap.data();
+    const stats = userData.stats || {};
+    return stats.reviewDayCount || 0;
+}
+
+/**
+ * Increment review day count when user starts a practice session
+ * Call this once per day when user opens practice
+ */
+export async function incrementReviewDayCount(userId: string): Promise<number> {
+    const firestore = await getDbAsync();
+    const userRef = doc(firestore, 'users', userId);
+    const userSnap = await getDoc(userRef);
+
+    if (!userSnap.exists()) return 0;
+
+    const userData = userSnap.data();
+    const stats = userData.stats || {};
+    const lastReviewDate = stats.lastReviewDate?.toDate?.() || null;
+    const currentCount = stats.reviewDayCount || 0;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Check if already incremented today
+    if (lastReviewDate) {
+        const lastDate = new Date(lastReviewDate);
+        lastDate.setHours(0, 0, 0, 0);
+
+        if (lastDate.getTime() === today.getTime()) {
+            // Already counted today, return current count
+            return currentCount;
+        }
+    }
+
+    // Increment for new day
+    const newCount = currentCount + 1;
+    await updateDoc(userRef, {
+        'stats.reviewDayCount': newCount,
+        'stats.lastReviewDate': serverTimestamp(),
+    });
+
+    return newCount;
+}
+
+/**
+ * Check if today is a listening day (odd review day count)
+ */
+export async function isListeningDay(userId: string): Promise<boolean> {
+    const count = await getReviewDayCount(userId);
+    return count % 2 === 1;
+}
+

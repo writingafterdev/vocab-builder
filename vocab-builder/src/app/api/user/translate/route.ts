@@ -10,7 +10,12 @@ const DEEPSEEK_URL = 'https://api.deepseek.com/v1/chat/completions';
 
 export async function POST(request: NextRequest) {
     try {
-        const userEmail = request.headers.get('x-user-email');
+        // Secure authentication - verify Firebase ID token (edge-compatible)
+        const { getAuthFromRequest } = await import('@/lib/firebase-admin');
+        const authUser = await getAuthFromRequest(request);
+
+        // Fallback for backward compatibility
+        const userEmail = authUser?.userEmail || request.headers.get('x-user-email');
         if (!userEmail) {
             return NextResponse.json(
                 { error: 'Authentication required' },

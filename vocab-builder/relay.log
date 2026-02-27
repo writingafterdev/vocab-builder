@@ -1,0 +1,212 @@
+[2026-01-24T13:43:12.732Z] Local Relay Server running on ws://localhost:8081
+[2026-01-24T13:43:12.733Z] Targeting: wss://generativelanguage.googleapis.com/v1/realtime
+[2026-01-24T13:49:23.995Z] Client connected
+[2026-01-24T13:49:24.015Z] Buffering...
+[2026-01-24T13:49:24.015Z] Buffering...
+[2026-01-24T13:49:24.040Z] Client connected
+[2026-01-24T13:49:24.042Z] Buffering...
+[2026-01-24T13:49:24.042Z] Buffering...
+[2026-01-24T13:49:24.114Z] Buffering...
+[2026-01-24T13:49:24.115Z] Buffering...
+[2026-01-24T13:49:24.205Z] Buffering...
+[2026-01-24T13:49:24.206Z] Buffering...
+[2026-01-24T13:49:24.285Z] Buffering...
+[2026-01-24T13:49:24.286Z] Buffering...
+[2026-01-24T13:49:24.375Z] Buffering...
+[2026-01-24T13:49:24.376Z] Buffering...
+[2026-01-24T13:49:24.455Z] Buffering...
+[2026-01-24T13:49:24.457Z] Buffering...
+[2026-01-24T13:49:24.544Z] Buffering...
+[2026-01-24T13:49:24.546Z] Buffering...
+[2026-01-24T13:49:24.625Z] Buffering...
+[2026-01-24T13:49:24.626Z] Buffering...
+[2026-01-24T13:49:24.715Z] Buffering...
+[2026-01-24T13:49:24.716Z] Buffering...
+[2026-01-24T13:49:24.795Z] Buffering...
+[2026-01-24T13:49:24.795Z] Buffering...
+[2026-01-24T13:49:24.875Z] Connected to Gemini Upstream
+[2026-01-24T13:49:24.885Z] Buffering...
+[2026-01-24T13:49:24.965Z] Buffering...
+[2026-01-24T13:49:24.965Z] Buffering...
+[2026-01-24T13:49:25.055Z] Buffering...
+[2026-01-24T13:49:25.055Z] Buffering...
+[2026-01-24T13:49:25.064Z] Gemini Upstream Closed: Code 1011 Reason: You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: h
+[2026-01-24T13:49:25.065Z] Client disconnected
+[2026-01-24T13:49:25.066Z] Client disconnected
+[2026-01-24T13:49:25.066Z] Gemini Upstream Error: Error: WebSocket was closed before the connection was established
+[2026-01-24T13:49:25.066Z] Gemini Upstream Closed: Code 1006 Reason: 
+[2026-01-24T13:51:15.429Z] Loaded 5 API keys for rotation.
+[2026-01-24T13:51:15.430Z] Local Relay Server running on ws://localhost:8081
+[2026-01-24T13:51:15.430Z] Targeting: wss://generativelanguage.googleapis.com/v1/realtime
+[2026-01-24T13:51:55.131Z] Client connected
+[2026-01-24T13:51:55.132Z] Using API Key ending in ...It3w
+[2026-01-24T13:51:55.151Z] Buffering...
+[2026-01-24T13:51:55.151Z] Buffering...
+[2026-01-24T13:51:55.182Z] Client connected
+[2026-01-24T13:51:55.182Z] Using API Key ending in ...It3w
+[2026-01-24T13:51:55.183Z] Buffering...
+[2026-01-24T13:51:55.183Z] Buffering...
+[2026-01-24T13:51:55.253Z] Buffering...
+[2026-01-24T13:51:55.255Z] Buffering...
+[2026-01-24T13:51:55.343Z] Buffering...
+[2026-01-24T13:51:55.345Z] Buffering...
+[2026-01-24T13:51:55.424Z] Buffering...
+[2026-01-24T13:51:55.426Z] Buffering...
+[2026-01-24T13:51:55.514Z] Buffering...
+[2026-01-24T13:51:55.515Z] Buffering...
+[2026-01-24T13:51:55.597Z] Buffering...
+[2026-01-24T13:51:55.598Z] Buffering...
+[2026-01-24T13:51:55.684Z] Buffering...
+[2026-01-24T13:51:55.684Z] Buffering...
+[2026-01-24T13:51:55.763Z] Buffering...
+[2026-01-24T13:51:55.764Z] Buffering...
+[2026-01-24T13:51:55.854Z] Buffering...
+[2026-01-24T13:51:55.854Z] Buffering...
+[2026-01-24T13:51:55.934Z] Buffering...
+[2026-01-24T13:51:55.935Z] Buffering...
+[2026-01-24T13:51:56.024Z] Buffering...
+[2026-01-24T13:51:56.025Z] Buffering...
+[2026-01-24T13:51:56.104Z] Buffering...
+[2026-01-24T13:51:56.113Z] Buffering...
+[2026-01-24T13:51:56.144Z] Connected to Gemini Upstream
+[2026-01-24T13:51:56.194Z] Buffering...
+[2026-01-24T13:51:56.198Z] Connected to Gemini Upstream
+[2026-01-24T13:51:56.274Z] Buffering...
+[2026-01-24T13:51:56.364Z] Buffering...
+[2026-01-24T13:51:56.369Z] Gemini Upstream Closed: Code 1011 Reason: You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: h
+[2026-01-24T13:51:56.376Z] Client disconnected
+[2026-01-24T13:51:56.385Z] Buffering...
+[2026-01-24T13:51:56.414Z] Gemini Upstream Closed: Code 1011 Reason: You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: h
+[2026-01-24T13:51:56.415Z] Client disconnected
+[2026-01-24T13:53:30.993Z] Loaded 5 API keys for rotation.
+[2026-01-24T13:53:30.995Z] Local Relay Server running on ws://localhost:8081
+[2026-01-24T13:53:30.995Z] Targeting: wss://generativelanguage.googleapis.com/v1/realtime
+[2026-01-24T13:55:21.225Z] Client connected
+[2026-01-24T13:55:21.226Z] Attempt 1: Using API Key ending in ...It3w
+[2026-01-24T13:55:21.271Z] Client connected
+[2026-01-24T13:55:21.271Z] Attempt 1: Using API Key ending in ...It3w
+[2026-01-24T13:55:22.166Z] Connected to Gemini Upstream
+[2026-01-24T13:55:22.310Z] Connected to Gemini Upstream
+[2026-01-24T13:55:22.372Z] Gemini Upstream Closed: Code 1011 Reason: You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: h
+[2026-01-24T13:55:22.372Z] Client disconnected
+[2026-01-24T13:55:22.558Z] Gemini Upstream Closed: Code 1011 Reason: You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: h
+[2026-01-24T13:55:22.561Z] Client disconnected
+[2026-01-24T13:58:23.602Z] Client connected
+[2026-01-24T13:58:23.603Z] Attempt 1: Using API Key ending in ...It3w
+[2026-01-24T13:58:23.648Z] Client connected
+[2026-01-24T13:58:23.649Z] Attempt 1: Using API Key ending in ...6qM0
+[2026-01-24T13:58:26.791Z] Connected to Gemini Upstream
+[2026-01-24T13:58:26.795Z] Connected to Gemini Upstream
+[2026-01-24T13:58:27.125Z] Gemini Upstream Closed: Code 1011 Reason: You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: h
+[2026-01-24T13:58:27.128Z] Client disconnected
+[2026-01-24T13:58:27.129Z] Client disconnected
+[2026-01-24T13:58:27.142Z] Gemini Upstream Closed: Code 1011 Reason: You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: h
+[2026-01-24T13:58:48.018Z] Client connected
+[2026-01-24T13:58:48.018Z] Attempt 1: Using API Key ending in ...EFCU
+[2026-01-24T13:58:48.030Z] Client connected
+[2026-01-24T13:58:48.030Z] Attempt 1: Using API Key ending in ...EFCU
+[2026-01-24T13:58:48.189Z] Connected to Gemini Upstream
+[2026-01-24T13:58:48.323Z] Gemini Upstream Closed: Code 1011 Reason: You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: h
+[2026-01-24T13:58:48.325Z] Client disconnected
+[2026-01-24T13:58:48.860Z] Connected to Gemini Upstream
+[2026-01-24T13:58:49.004Z] Gemini Upstream Closed: Code 1011 Reason: Internal error encountered.
+[2026-01-24T13:58:49.006Z] Client disconnected
+[2026-01-24T14:01:38.422Z] Loaded 5 API keys for rotation.
+[2026-01-24T14:01:38.424Z] Local Relay Server running on ws://localhost:8081
+[2026-01-24T14:01:38.424Z] Targeting: wss://generativelanguage.googleapis.com/v1/realtime
+[2026-01-24T14:02:19.447Z] Client connected
+[2026-01-24T14:02:19.448Z] Attempt 1: Using API Key ending in ...dC_M
+[2026-01-24T14:02:19.499Z] Client connected
+[2026-01-24T14:02:19.499Z] Attempt 1: Using API Key ending in ...It3w
+[2026-01-24T14:02:20.417Z] Connected to Gemini Upstream
+[2026-01-24T14:02:20.556Z] Gemini Upstream Closed: Code 1008 Reason: models/gemini-2.5-flash-native-audio-dialog is not found for API version v1alpha, or is not supported for bidiGenerateConte
+[2026-01-24T14:02:20.556Z] [DEBUG] Code: 1008, QuotaErr: false, Connected: true, Dur: 138ms, QuickFail: true
+[2026-01-24T14:02:20.557Z] Client disconnected
+[2026-01-24T14:02:20.610Z] Connected to Gemini Upstream
+[2026-01-24T14:02:20.824Z] Gemini Upstream Closed: Code 1008 Reason: models/gemini-2.5-flash-native-audio-dialog is not found for API version v1alpha, or is not supported for bidiGenerateConte
+[2026-01-24T14:02:20.824Z] [DEBUG] Code: 1008, QuotaErr: false, Connected: true, Dur: 214ms, QuickFail: true
+[2026-01-24T14:02:20.826Z] Client disconnected
+[2026-01-24T14:05:11.790Z] Loaded 5 API keys for rotation.
+[2026-01-24T14:05:11.792Z] Local Relay Server running on ws://localhost:8081
+[2026-01-24T14:05:11.792Z] Targeting: wss://generativelanguage.googleapis.com/v1/realtime
+[2026-01-24T14:05:48.987Z] Client connected
+[2026-01-24T14:05:48.988Z] Attempt 1: Using API Key ending in ...It3w
+[2026-01-24T14:05:49.032Z] Client connected
+[2026-01-24T14:05:49.033Z] Attempt 1: Using API Key ending in ...It3w
+[2026-01-24T14:05:49.848Z] Connected to Gemini Upstream
+[2026-01-24T14:05:50.006Z] Gemini Upstream Closed: Code 1008 Reason: models/gemini-2.5-flash-native-audio-dialog is not found for API version v1beta, or is not supported for bidiGenerateConten
+[2026-01-24T14:05:50.007Z] [DEBUG] Code: 1008, QuotaErr: false, Connected: true, Dur: 158ms, QuickFail: true
+[2026-01-24T14:05:50.009Z] Client disconnected
+[2026-01-24T14:05:50.010Z] Client disconnected
+[2026-01-24T14:05:50.010Z] Gemini Upstream Error: Error: WebSocket was closed before the connection was established
+[2026-01-24T14:05:50.010Z] Gemini Upstream Closed: Code 1006 Reason: 
+[2026-01-24T14:05:50.010Z] [DEBUG] Code: 1006, QuotaErr: false, Connected: false, Dur: 1769263550010ms, QuickFail: true
+[2026-01-24T14:07:55.796Z] Client connected
+[2026-01-24T14:07:55.798Z] Attempt 1: Using API Key ending in ...EFCU
+[2026-01-24T14:07:55.843Z] Client connected
+[2026-01-24T14:07:55.843Z] Attempt 1: Using API Key ending in ...dC_M
+[2026-01-24T14:07:56.848Z] Connected to Gemini Upstream
+[2026-01-24T14:07:56.921Z] Connected to Gemini Upstream
+[2026-01-24T14:07:57.108Z] Gemini Upstream Closed: Code 1008 Reason: models/gemini-2.5-flash is not found for API version v1beta, or is not supported for bidiGenerateContent. Call ListModels t
+[2026-01-24T14:07:57.109Z] [DEBUG] Code: 1008, QuotaErr: false, Connected: true, Dur: 261ms, QuickFail: true
+[2026-01-24T14:07:57.111Z] Client disconnected
+[2026-01-24T14:07:57.222Z] Gemini Upstream Closed: Code 1008 Reason: models/gemini-2.5-flash is not found for API version v1beta, or is not supported for bidiGenerateContent. Call ListModels t
+[2026-01-24T14:07:57.222Z] [DEBUG] Code: 1008, QuotaErr: false, Connected: true, Dur: 300ms, QuickFail: true
+[2026-01-24T14:07:57.224Z] Client disconnected
+[2026-01-24T14:09:55.898Z] Client connected
+[2026-01-24T14:09:55.900Z] Attempt 1: Using API Key ending in ...6Tto
+[2026-01-24T14:09:55.946Z] Client connected
+[2026-01-24T14:09:55.947Z] Attempt 1: Using API Key ending in ...It3w
+[2026-01-24T14:09:56.966Z] Connected to Gemini Upstream
+[2026-01-24T14:09:56.983Z] Connected to Gemini Upstream
+[2026-01-24T14:09:57.318Z] Gemini Upstream Closed: Code 1011 Reason: You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: h
+[2026-01-24T14:09:57.319Z] [DEBUG] Code: 1011, QuotaErr: true, Connected: true, Dur: 352ms, QuickFail: true
+[2026-01-24T14:09:57.320Z] Quota error detected for key ...6Tto. Adding to cooldown.
+[2026-01-24T14:09:57.362Z] Gemini Upstream Closed: Code 1011 Reason: You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: h
+[2026-01-24T14:09:57.363Z] [DEBUG] Code: 1011, QuotaErr: true, Connected: true, Dur: 380ms, QuickFail: true
+[2026-01-24T14:09:57.363Z] Quota error detected for key ...It3w. Adding to cooldown.
+[2026-01-24T14:09:57.822Z] Attempt 2: Using API Key ending in ...dC_M
+[2026-01-24T14:09:57.864Z] Attempt 2: Using API Key ending in ...EFCU
+[2026-01-24T14:09:58.038Z] Connected to Gemini Upstream
+[2026-01-24T14:09:58.158Z] Gemini Upstream Closed: Code 1011 Reason: Internal error encountered.
+[2026-01-24T14:09:58.158Z] [DEBUG] Code: 1011, QuotaErr: true, Connected: true, Dur: 119ms, QuickFail: true
+[2026-01-24T14:09:58.159Z] Quota error detected for key ...EFCU. Adding to cooldown.
+[2026-01-24T14:09:58.660Z] Attempt 3: Using API Key ending in ...6qM0
+[2026-01-24T14:09:58.811Z] Connected to Gemini Upstream
+[2026-01-24T14:09:58.823Z] Connected to Gemini Upstream
+[2026-01-24T14:09:58.969Z] Gemini Upstream Closed: Code 1011 Reason: Internal error encountered.
+[2026-01-24T14:09:58.970Z] [DEBUG] Code: 1011, QuotaErr: true, Connected: true, Dur: 147ms, QuickFail: true
+[2026-01-24T14:09:58.971Z] Quota error detected for key ...6qM0. Adding to cooldown.
+[2026-01-24T14:09:59.077Z] Gemini Upstream Closed: Code 1011 Reason: Internal error encountered.
+[2026-01-24T14:09:59.078Z] [DEBUG] Code: 1011, QuotaErr: true, Connected: true, Dur: 266ms, QuickFail: true
+[2026-01-24T14:09:59.078Z] Quota error detected for key ...dC_M. Adding to cooldown.
+[2026-01-24T14:09:59.471Z] WARNING: All keys in cooldown! Resetting cooldowns to fail-safe.
+[2026-01-24T14:09:59.472Z] Attempt 4: Using API Key ending in ...It3w
+[2026-01-24T14:09:59.580Z] Attempt 3: Using API Key ending in ...6qM0
+[2026-01-24T14:09:59.745Z] Connected to Gemini Upstream
+[2026-01-24T14:09:59.879Z] Gemini Upstream Closed: Code 1011 Reason: Internal error encountered.
+[2026-01-24T14:09:59.880Z] [DEBUG] Code: 1011, QuotaErr: true, Connected: true, Dur: 134ms, QuickFail: true
+[2026-01-24T14:09:59.881Z] Quota error detected for key ...6qM0. Adding to cooldown.
+[2026-01-24T14:10:00.380Z] Attempt 4: Using API Key ending in ...dC_M
+[2026-01-24T14:10:00.501Z] Connected to Gemini Upstream
+[2026-01-24T14:10:00.552Z] Connected to Gemini Upstream
+[2026-01-24T14:10:00.696Z] Gemini Upstream Closed: Code 1011 Reason: Internal error encountered.
+[2026-01-24T14:10:00.697Z] [DEBUG] Code: 1011, QuotaErr: true, Connected: true, Dur: 144ms, QuickFail: true
+[2026-01-24T14:10:00.697Z] Quota error detected for key ...dC_M. Adding to cooldown.
+[2026-01-24T14:10:00.791Z] Gemini Upstream Closed: Code 1011 Reason: Internal error encountered.
+[2026-01-24T14:10:00.791Z] [DEBUG] Code: 1011, QuotaErr: true, Connected: true, Dur: 289ms, QuickFail: true
+[2026-01-24T14:10:00.792Z] Quota error detected for key ...It3w. Adding to cooldown.
+[2026-01-24T14:10:01.198Z] Attempt 5: Using API Key ending in ...6Tto
+[2026-01-24T14:10:01.292Z] Attempt 5: Using API Key ending in ...EFCU
+[2026-01-24T14:10:01.354Z] Connected to Gemini Upstream
+[2026-01-24T14:10:01.454Z] Connected to Gemini Upstream
+[2026-01-24T14:10:01.468Z] Gemini Upstream Closed: Code 1011 Reason: Internal error encountered.
+[2026-01-24T14:10:01.468Z] [DEBUG] Code: 1011, QuotaErr: true, Connected: true, Dur: 113ms, QuickFail: true
+[2026-01-24T14:10:01.469Z] Quota error detected for key ...6Tto. Adding to cooldown.
+[2026-01-24T14:10:01.574Z] Gemini Upstream Closed: Code 1011 Reason: Internal error encountered.
+[2026-01-24T14:10:01.575Z] [DEBUG] Code: 1011, QuotaErr: true, Connected: true, Dur: 120ms, QuickFail: true
+[2026-01-24T14:10:01.575Z] Quota error detected for key ...EFCU. Adding to cooldown.
+[2026-01-24T14:10:01.969Z] All API keys exhausted. Closing connection.
+[2026-01-24T14:10:01.972Z] Client disconnected
+[2026-01-24T14:10:01.973Z] Client disconnected
+[2026-01-24T14:10:02.075Z] All API keys exhausted. Closing connection.

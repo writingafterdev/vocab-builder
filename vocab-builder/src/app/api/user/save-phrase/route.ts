@@ -318,9 +318,8 @@ export async function POST(request: NextRequest) {
         let assignedSubtopic: string | null = subtopics?.[0] || null;
 
         if (!assignedTopic) {
-            const assigned = await assignTopics(phrase, meaning, resolvedUserId, userEmail || '');
-            assignedTopic = assigned.topic;
-            assignedSubtopic = assigned.subtopic || null;
+            assignedTopic = 'pending_ai';
+            assignedSubtopic = null;
         }
 
         const phraseData = {
@@ -392,6 +391,27 @@ export async function POST(request: NextRequest) {
                 console.error('Failed to update parent phrase:', parentUpdateError);
                 // Continue - the phrase was saved, just parent link failed
             }
+        }
+
+        // --- BACKGROUND PROCESSING (Non-blocking) ---
+        // If topic needs AI assignment, do it in the background to keep the API fast
+        if (!topics?.[0]) {
+            // Self-executing async function that won't block the API response
+            (async () => {
+                try {
+                    const assigned = await assignTopics(phrase, meaning, resolvedUserId, userEmail || '');
+                    if (assigned.topic && assigned.topic !== 'pending_ai') {
+                        const { updateDocument } = await import('@/lib/firestore-rest');
+                        await updateDocument('savedPhrases', phraseId, {
+                            topic: assigned.topic,
+                            subtopic: assigned.subtopic || null,
+                        });
+                        console.log(`[save-phrase] Background AI topic assigned: ${assigned.topic} for phrase ${phraseId}`);
+                    }
+                } catch (bgError) {
+                    console.error('[save-phrase] Background topic assignment failed:', bgError);
+                }
+            })();
         }
 
         // Count after save (including children)

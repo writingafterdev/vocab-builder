@@ -3,8 +3,7 @@ import { logTokenUsage } from '@/lib/db/token-tracking';
 
 /**
  * Process article content using Gemini 3 Flash
- * - Extracts phrases
- * - Generates caption
+ * - Extracts IELTS-focused phrases with meanings + optional collocations
  * - Translates title and content to Vietnamese
  * Admin-only endpoint
  */
@@ -47,26 +46,51 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const prompt = `You are an expert content editor and translator. Process this English article for a Vietnamese audience.
+        const prompt = `You are a vocabulary expert for English learners. Analyze this article and extract useful phrases.
 
-Tasks:
-1. Extract 20-30 natural English phrases/expressions/idioms from the text.
-2. Generate a short, witty, and engaging caption (2-3 sentences) in the style of The New Yorker's Instagram. It should be lowercase, slightly dry/humorous or deep/observational, and often uses first-person "i" or generic "you". Avoid "Explore..." or "Discover..." or standard formal summaries. Make it feel like a mood.
-3. Translate the Title to natural Vietnamese.
-4. Translate the Content to natural Vietnamese (Html format preserved).
-
-Input Title: "${title || ''}"
-Input Content:
+ARTICLE TITLE: "${title || ''}"
+ARTICLE CONTENT:
 """
 ${content.substring(0, 50000)}
 """
 
-Return JSON format:
+TASK:
+1. Identify the article's main topic
+2. Extract 15-25 phrases that are:
+   - Collocations, discourse markers, academic expressions, or topic-specific vocabulary
+   - Widely used in formal English (academic writing or professional speaking)
+   - Relevant to the article's topic
+   
+For each phrase:
+- phrase: The exact phrase
+- meaning: Clear, concise definition
+- example: Natural usage example (can use from article or create new)
+- mode: "spoken" if more common in speaking, "written" if more common in writing, "neutral" if both
+- topics: 1-2 relevant topics
+- commonUsages: Related collocations or phrasal verbs (MAX 3, empty array if none exist naturally)
+  - Each: { phrase, meaning, example, type: "collocation"|"phrasal_verb"|"idiom"|"expression", mode, topics }
+
+CRITICAL RULES:
+- Only include commonUsages if they genuinely exist and are common
+- Empty commonUsages array is perfectly fine for standalone phrases
+- Focus on phrases that sound natural and educated, not textbook
+- Vary types: include markers ("on the other hand"), collocations ("drive growth"), expressions ("in light of")
+
+Return JSON:
 {
-  "phrases": ["phrase 1", "phrase 2"],
-  "caption": "English caption...",
-  "translatedTitle": "Vietnamese title...",
-  "translatedContent": "Vietnamese content..."
+  "detectedTopic": "Topic name",
+  "phrases": [
+    {
+      "phrase": "drive economic growth",
+      "meaning": "To be the main cause of economic development",
+      "example": "Technology continues to drive economic growth in Asia.",
+      "mode": "written",
+      "topics": ["economics", "business"],
+      "commonUsages": []
+    }
+  ],
+  "translatedTitle": "Vietnamese title",
+  "translatedContent": "Vietnamese content (HTML preserved)"
 }`;
 
         const response = await fetch(`${GEMINI_BASE_URL}/gemini-3-flash-preview:generateContent?key=${GEMINI_API_KEY}`, {
@@ -112,9 +136,42 @@ Return JSON format:
 
         try {
             const parsed = JSON.parse(text);
+
+            // Validate and clean phrases
+            const validTypes = ['collocation', 'phrasal_verb', 'idiom', 'expression'];
+            const phrases = (parsed.phrases || []).map((p: {
+                phrase: string;
+                meaning: string;
+                example?: string;
+                mode?: string;
+                topics?: string[];
+                commonUsages?: Array<{
+                    phrase: string;
+                    meaning: string;
+                    example?: string;
+                    type?: string;
+                    mode?: string;
+                    topics?: string[];
+                }>;
+            }) => ({
+                phrase: p.phrase,
+                meaning: p.meaning,
+                example: p.example || '',
+                mode: p.mode || 'neutral',
+                topics: Array.isArray(p.topics) ? p.topics : [],
+                commonUsages: (p.commonUsages || []).slice(0, 3).map(u => ({
+                    phrase: u.phrase,
+                    meaning: u.meaning,
+                    example: u.example || '',
+                    type: validTypes.includes(u.type || '') ? u.type : 'expression',
+                    mode: u.mode || 'neutral',
+                    topics: Array.isArray(u.topics) ? u.topics : [],
+                })),
+            }));
+
             return NextResponse.json({
-                phrases: parsed.phrases || [],
-                caption: parsed.caption || '',
+                detectedTopic: parsed.detectedTopic || 'General',
+                phrases,
                 translatedTitle: parsed.translatedTitle || '',
                 translatedContent: parsed.translatedContent || '',
                 success: true

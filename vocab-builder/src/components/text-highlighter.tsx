@@ -21,7 +21,7 @@ import CollocationSelectionModal from './collocation-selection-modal';
 interface SavePhraseModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSave: (data: { phrase: string; context: string; meaning: string; usage?: 'spoken' | 'written' | 'neutral' }) => void;
+    onSave: (data: { phrase: string; context: string; meaning: string; register?: 'casual' | 'consultative' | 'formal'; nuance?: 'positive' | 'slightly_positive' | 'neutral' | 'slightly_negative' | 'negative' }) => void;
     initialPhrase: string;
     initialContext: string;
     userId?: string;
@@ -40,20 +40,23 @@ function SavePhraseModal({
     const [phrase, setPhrase] = useState(initialPhrase);
     const [context, setContext] = useState(initialContext);
     const [meaning, setMeaning] = useState('');
-    const [usage, setUsage] = useState<'spoken' | 'written' | 'neutral'>('neutral');
+    const [register, setRegister] = useState<'casual' | 'consultative' | 'formal'>('consultative');
+    const [nuance, setNuance] = useState<'positive' | 'slightly_positive' | 'neutral' | 'slightly_negative' | 'negative'>('neutral');
     const [generatingMeaning, setGeneratingMeaning] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
         setPhrase(initialPhrase);
         setContext(initialContext);
         setMeaning('');
-        setUsage('neutral');
+        setRegister('consultative');
+        setNuance('neutral');
     }, [initialPhrase, initialContext]);
 
     const handleGenerateMeaning = async () => {
         setGeneratingMeaning(true);
         try {
-            const response = await fetch('/api/generate-meaning', {
+            const response = await fetch('/api/user/lookup-phrase', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -70,10 +73,18 @@ function SavePhraseModal({
                 throw new Error('Failed to generate meaning');
             }
 
-            const data = await response.json();
+            const result = await response.json();
+            const data = result.data || result;
             setMeaning(data.meaning || 'Could not generate meaning');
-            if (data.usage) {
-                setUsage(data.usage);
+            if (data.register) {
+                // Handle array or single value
+                const reg = Array.isArray(data.register) ? data.register[0] : data.register;
+                setRegister(reg);
+            }
+            if (data.nuance) {
+                // Handle array or single value
+                const nua = Array.isArray(data.nuance) ? data.nuance[0] : data.nuance;
+                setNuance(nua);
             }
         } catch (error) {
             console.error('Error generating meaning:', error);
@@ -82,7 +93,7 @@ function SavePhraseModal({
         setGeneratingMeaning(false);
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (!phrase.trim()) {
             toast.error('Please enter a phrase');
             return;
@@ -91,29 +102,37 @@ function SavePhraseModal({
             toast.error('Please add a meaning');
             return;
         }
-        onSave({
-            phrase: phrase.trim(),
-            context: context.trim(),
-            meaning: meaning.trim(),
-            usage
-        });
-        onClose();
-        toast.success('Phrase saved to Vocab Bank!');
+        if (isSaving) return;
+
+        setIsSaving(true);
+        try {
+            await Promise.resolve(onSave({
+                phrase: phrase.trim(),
+                context: context.trim(),
+                meaning: meaning.trim(),
+                register,
+                nuance
+            }));
+            onClose();
+            toast.success('Phrase saved to Vocab Bank!');
+        } finally {
+            setIsSaving(false);
+        }
     };
 
-    const getUsageColor = (u: string) => {
-        switch (u) {
-            case 'spoken': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300';
-            case 'written': return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300';
+    const getRegisterColor = (r: string) => {
+        switch (r) {
+            case 'casual': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300';
+            case 'formal': return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300';
             default: return 'bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300';
         }
     };
 
-    const getUsageLabel = (u: string) => {
-        switch (u) {
-            case 'spoken': return '🗣️ Spoken';
-            case 'written': return '✍️ Written';
-            default: return '↔️ Neutral';
+    const getRegisterLabel = (r: string) => {
+        switch (r) {
+            case 'casual': return '🗣️ Casual';
+            case 'formal': return '✍️ Formal';
+            default: return '↔️ Consultative';
         }
     };
 
@@ -136,10 +155,10 @@ function SavePhraseModal({
                         <div className="flex justify-between items-center">
                             <label className="text-sm font-medium">Phrase</label>
                             {generatingMeaning ? (
-                                <span className="text-xs text-muted-foreground animate-pulse">Analyzing usage...</span>
+                                <span className="text-xs text-muted-foreground animate-pulse">Analyzing...</span>
                             ) : (
-                                <div className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${getUsageColor(usage)}`}>
-                                    {getUsageLabel(usage)}
+                                <div className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${getRegisterColor(register)}`}>
+                                    {getRegisterLabel(register)}
                                 </div>
                             )}
                         </div>
@@ -197,11 +216,15 @@ function SavePhraseModal({
                 </div>
 
                 <DialogFooter className="gap-2">
-                    <Button variant="outline" onClick={onClose}>
+                    <Button variant="outline" onClick={onClose} disabled={isSaving}>
                         Cancel
                     </Button>
-                    <Button onClick={handleSave}>
-                        Save to Vocab Bank
+                    <Button onClick={handleSave} disabled={isSaving}>
+                        {isSaving ? (
+                            <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving...</>
+                        ) : (
+                            'Save to Vocab Bank'
+                        )}
                     </Button>
                 </DialogFooter>
             </DialogContent>
@@ -246,7 +269,8 @@ interface TextHighlighterProps {
     userEmail?: string;
     userName?: string;
     userUsername?: string;
-    onPhraseSaved?: (data: { phrase: string; context: string; meaning: string; usage?: 'spoken' | 'written' | 'neutral' }) => void;
+    onPhraseSaved?: (data: { phrase: string; context: string; meaning: string; register?: 'casual' | 'consultative' | 'formal'; nuance?: 'positive' | 'slightly_positive' | 'neutral' | 'slightly_negative' | 'negative' }) => void;
+    onVocabLookup?: (phrase: string, context: string) => void; // New: for sidebar mode
 }
 
 export default function TextHighlighter({
@@ -255,7 +279,8 @@ export default function TextHighlighter({
     userEmail,
     userName,
     userUsername,
-    onPhraseSaved
+    onPhraseSaved,
+    onVocabLookup
 }: TextHighlighterProps) {
     const { profile } = useAuth();
     const [selectedText, setSelectedText] = useState('');
@@ -350,7 +375,16 @@ export default function TextHighlighter({
 
     const handleOpenModal = () => {
         setShowFloatingButton(false);
-        // Show collocation selection modal instead of direct save modal
+
+        // If sidebar mode is enabled (onVocabLookup provided), use that instead of modal
+        if (onVocabLookup) {
+            onVocabLookup(selectedText, selectedContext);
+            setSelectedText('');
+            setSelectedContext('');
+            return;
+        }
+
+        // Otherwise show collocation selection modal (original behavior)
         setShowCollocationModal(true);
     };
 
@@ -413,7 +447,7 @@ export default function TextHighlighter({
                 phrase: data.rootWord,
                 context: selectedContext,
                 meaning: data.meaning,
-                usage: data.mode
+                register: data.mode === 'spoken' ? 'casual' : data.mode === 'written' ? 'formal' : 'consultative'
             });
 
             setSelectedText('');
@@ -424,7 +458,7 @@ export default function TextHighlighter({
         }
     };
 
-    const handleSave = async (data: { phrase: string; context: string; meaning: string; usage?: 'spoken' | 'written' | 'neutral' }) => {
+    const handleSave = async (data: { phrase: string; context: string; meaning: string; register?: 'casual' | 'consultative' | 'formal'; nuance?: 'positive' | 'slightly_positive' | 'neutral' | 'slightly_negative' | 'negative' }) => {
         // Require user to be logged in
         if (!userId || !userEmail) {
             toast.error('Please log in to save phrases');
@@ -444,7 +478,8 @@ export default function TextHighlighter({
                     phrase: data.phrase,
                     meaning: data.meaning,
                     context: data.context,
-                    mode: data.usage || 'neutral',
+                    register: data.register || 'consultative',
+                    nuance: data.nuance || 'neutral',
                 }),
             });
 

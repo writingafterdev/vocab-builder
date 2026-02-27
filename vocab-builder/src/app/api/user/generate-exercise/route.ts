@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logTokenUsage } from '@/lib/db/token-tracking';
+import { safeParseAIJson } from '@/lib/ai-utils';
 
 /**
  * Generate bundled exercise for contextualized learning
@@ -33,7 +34,12 @@ interface GeneratedBundle {
 
 export async function POST(request: NextRequest) {
     try {
-        const userEmail = request.headers.get('x-user-email');
+        // Secure authentication - verify Firebase ID token (edge-compatible)
+        const { getAuthFromRequest } = await import('@/lib/firebase-admin');
+        const authUser = await getAuthFromRequest(request);
+
+        // Fallback for backward compatibility
+        const userEmail = authUser?.userEmail || request.headers.get('x-user-email');
         if (!userEmail) {
             return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
         }
@@ -108,6 +114,7 @@ Return JSON format:
                 messages: [{ role: 'user', content: prompt }],
                 max_tokens: 300,
                 temperature: 0.75,
+                response_format: { type: 'json_object' },
             }),
         });
 
@@ -137,7 +144,9 @@ Return JSON format:
         text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
 
         try {
-            const parsed = JSON.parse(text);
+            const parseResult = safeParseAIJson<{ theme?: string; question?: string }>(text);
+            if (!parseResult.success) throw new Error(parseResult.error);
+            const parsed = parseResult.data;
 
             const bundle: GeneratedBundle = {
                 theme: parsed.theme || 'General Practice',

@@ -1,8 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logTokenUsage } from '@/lib/db/token-tracking';
+import { safeParseAIJson } from '@/lib/ai-utils';
 
 /**
- * Context-aware collocation suggestions using AI (DeepSeek)
+ * Layered vocabulary generation - generates immediate children only (1 layer)
+ * 
+ * TWO TYPES OF LAYER 1 CHILDREN:
+ * 1. COMMON USAGES - How native speakers use this word in phrases/collocations
+ *    Example: "happy" → "happy ending", "happy hour"
+ * 
+ * 2. DIFFERENT CONNOTATIONS - Same meaning but different sentiment/emotional tone
+ *    Example: "happy" → "joyful" (more intense), "content" (calmer)
+ * 
+ * After Layer 1 items appear in an exercise, they become independent phrases
+ * with their own tags (Register, Connotation, Topic, etc.) and SRS schedule.
  */
 
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
@@ -11,11 +22,16 @@ const DEEPSEEK_URL = 'https://api.deepseek.com/v1/chat/completions';
 interface SuggestCollocationsRequest {
     word: string;
     context: string;
+    layer?: number;  // 0 = generating Layer 1 (from root), 1+ = generating Layer 2+ (from child)
 }
 
 export async function POST(request: NextRequest) {
     try {
-        const userEmail = request.headers.get('x-user-email');
+        // Secure authentication
+        const { getAuthFromRequest } = await import('@/lib/firebase-admin');
+        const authUser = await getAuthFromRequest(request);
+
+        const userEmail = authUser?.userEmail || request.headers.get('x-user-email');
         if (!userEmail) {
             return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
         }
@@ -25,53 +41,67 @@ export async function POST(request: NextRequest) {
         }
 
         const body: SuggestCollocationsRequest = await request.json();
-        const { word, context } = body;
+        const { word, context, layer = 0 } = body;
 
-        if (!word || word.trim().length === 0) {
-            return NextResponse.json({ error: 'Word is required' }, { status: 400 });
+        if (!word?.trim() || !context?.trim()) {
+            return NextResponse.json({ error: 'Word and context required' }, { status: 400 });
         }
 
-        if (!context || context.trim().length === 0) {
-            return NextResponse.json({ error: 'Context is required' }, { status: 400 });
-        }
+        // Layer 0 → Layer 1: generate both usages AND connotations
+        // Layer 1+ → Layer 2+: generate ONLY usages (no connotations)
+        const includeConnotations = layer === 0;
 
-        const prompt = `You are a linguistics expert helping an English learner understand a word they highlighted.
+        const prompt = `You are a linguistics expert helping build a vocabulary learning system.
 
-WORD: "${word}"
+WORD/PHRASE: "${word}"
 CONTEXT: "${context}"
 
-TASKS:
-1. Find the ROOT/LEMMA (e.g., "leveraging" → "leverage")
-2. Get the MEANING in this specific context
-3. Create a NATURAL EXAMPLE SENTENCE
-4. Assign 1-3 TOPICS from: business, career, finance, academic, science, education, daily_life, relationships, family, travel, entertainment, sports, technology, media, health, environment, politics, culture
-5. Determine MODE: "spoken" (casual), "written" (formal), or "neutral"
+Generate the IMMEDIATE CHILDREN for this vocabulary item.
 
-6. Suggest 1-2 COMMON COLLOCATIONS or idiomatic expressions using this word
-   - Fixed combinations like: "make a decision", "heavy rain", "take notes"
-   - Should be expressions native speakers commonly use
-   
-7. Suggest 1-2 PHRASAL VERBS if the word is a verb
-   - Verb + particle combinations: "run out of", "look up", "give up"
-   - Should be commonly used in everyday English
+${includeConnotations ? `## TWO TYPES OF CHILDREN:
 
-For each suggestion provide: phrase, meaning, ex (example sentence), mode, topics
+### 1. COMMON USAGES (2-3 max)
+How native speakers actually USE this word in phrases/collocations.
+- Natural word combinations
+- Common expressions containing this word
+- Example: "deadline" → "meet a deadline", "tight deadline", "miss the deadline"
+
+### 2. DIFFERENT CONNOTATIONS (1-2 max)
+Words/phrases with the SAME MEANING but DIFFERENT sentiment/emotional tone.
+- Positive ↔ Negative ↔ Neutral shifts
+- Example: "happy" → "joyful" (more intense positive), "content" (calmer neutral)
+- Example: "cheap" → "affordable" (positive spin), "stingy" (negative)` : `## COMMON USAGES ONLY (2-3 max)
+How native speakers actually USE this word in phrases/collocations.
+- Natural word combinations
+- Common expressions containing this word
+- Example: "deadline" → "meet a deadline", "tight deadline", "miss the deadline"
+
+NOTE: Do NOT generate connotation variants for this item.`}
+
+CRITICAL RULES:
+- All suggestions must match the SAME core MEANING as in the given context
+- Quality over quantity - empty arrays are fine if nothing fits well
+- isSingleWord: true if the child is a single word (can spawn its own children later)
 
 Return JSON:
 {
-    "rootWord": "base form",
-    "meaning": "Clear definition",
-    "ex": "Example sentence",
-    "mode": "spoken/written/neutral",
-    "topics": ["topic1"],
-    "collocations": [{"phrase": "...", "meaning": "...", "ex": "...", "mode": "neutral", "topics": ["..."]}],
-    "phrasalVerbs": [{"phrase": "...", "meaning": "...", "ex": "...", "mode": "neutral", "topics": ["..."]}]
-}
-
-RULES:
-- Suggest common expressions that learners would benefit from knowing
-- If the word has no common collocations/phrasal verbs, return empty arrays
-- Focus on frequently-used expressions, not obscure ones`;
+    "rootWord": "base/dictionary form",
+    "meaning": "definition in this context",
+    "usages": [
+        {
+            "phrase": "meet a deadline",
+            "meaning": "to complete something before the required time",
+            "isSingleWord": false
+        }
+    ]${includeConnotations ? `,
+    "connotations": [
+        {
+            "phrase": "time limit",
+            "meaning": "the final moment allowed (more neutral/formal)",
+            "isSingleWord": false
+        }
+    ]` : ''}
+}`;
 
         const response = await fetch(DEEPSEEK_URL, {
             method: 'POST',
@@ -84,6 +114,7 @@ RULES:
                 messages: [{ role: 'user', content: prompt }],
                 max_tokens: 600,
                 temperature: 0.3,
+                response_format: { type: 'json_object' },
             }),
         });
 
@@ -113,49 +144,56 @@ RULES:
         text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
 
         let parsed;
-        try {
-            parsed = JSON.parse(text);
-        } catch {
+        const parseResult = safeParseAIJson<{ meaning?: string; rootWord?: string; usages?: Array<{ phrase: string; meaning: string; isSingleWord?: boolean }>; connotations?: Array<{ phrase: string; meaning: string; isSingleWord?: boolean }> }>(text);
+        if (!parseResult.success) {
             return NextResponse.json({
                 meaning: 'A common English expression',
-                mode: 'neutral',
-                topics: [],
-                collocations: [],
-                phrasalVerbs: [],
+                commonUsages: [],
                 rootWord: word,
             });
         }
+        parsed = parseResult.data;
 
-        // Process collocations (max 2)
-        const collocations = (parsed.collocations || [])
-            .slice(0, 2)
-            .map((c: { phrase: string; meaning: string; ex?: string; example?: string; mode?: string; topics?: string[] }) => ({
+        // Transform to potentialUsages format with proper typing
+        const potentialUsages: Array<{
+            phrase: string;
+            meaning: string;
+            type: 'usage' | 'connotation';
+            isSingleWord: boolean;
+        }> = [];
+
+        // Add usages (type: 'usage')
+        (parsed.usages || []).slice(0, 3).forEach((u: { phrase: string; meaning: string; isSingleWord?: boolean }) => {
+            potentialUsages.push({
+                phrase: u.phrase,
+                meaning: u.meaning,
+                type: 'usage',
+                isSingleWord: u.isSingleWord || false,
+            });
+        });
+
+        // Add connotations (type: 'connotation')
+        (parsed.connotations || []).slice(0, 2).forEach((c: { phrase: string; meaning: string; isSingleWord?: boolean }) => {
+            potentialUsages.push({
                 phrase: c.phrase,
                 meaning: c.meaning,
-                example: c.ex || c.example || '',
-                mode: c.mode || 'neutral',
-                topics: Array.isArray(c.topics) ? c.topics : [],
-            }));
+                type: 'connotation',
+                isSingleWord: c.isSingleWord || false,
+            });
+        });
 
-        // Process phrasal verbs (max 2)
-        const phrasalVerbs = (parsed.phrasalVerbs || [])
-            .slice(0, 2)
-            .map((p: { phrase: string; meaning: string; ex?: string; example?: string; mode?: string; topics?: string[] }) => ({
-                phrase: p.phrase,
-                meaning: p.meaning,
-                example: p.ex || p.example || '',
-                mode: p.mode || 'neutral',
-                topics: Array.isArray(p.topics) ? p.topics : [],
-            }));
+        // Also return in old commonUsages format for backward compatibility
+        const commonUsages = potentialUsages.map(p => ({
+            phrase: p.phrase,
+            meaning: p.meaning,
+            type: p.type === 'usage' ? 'collocation' : 'expression',
+        }));
 
         return NextResponse.json({
             meaning: parsed.meaning || 'A common English expression',
-            example: parsed.ex || parsed.example || '',
-            mode: parsed.mode || 'neutral',
-            topics: Array.isArray(parsed.topics) ? parsed.topics : [],
-            collocations,
-            phrasalVerbs,
             rootWord: parsed.rootWord || word,
+            commonUsages,
+            potentialUsages,  // New format with proper typing
         });
 
     } catch (error) {

@@ -84,6 +84,9 @@ export default function DashboardPage() {
     const [monthlyData, setMonthlyData] = useState<number[]>(Array(154).fill(0)); // 7×22 grid
     const [dailyQuote, setDailyQuote] = useState<{ text: string; postTitle: string; author: string; postId: string } | null>(null);
 
+    const [immersiveEligible, setImmersiveEligible] = useState(false);
+    const [hasDrills, setHasDrills] = useState(false);
+
     useEffect(() => {
         async function loadData() {
             if (!user?.uid) { setLoading(false); return; }
@@ -143,6 +146,27 @@ export default function DashboardPage() {
                         }
                     }
                 } catch { /* optional, don't block */ }
+                // Check real exercise data
+                try {
+                    const token = await user.getIdToken();
+
+                    fetch('/api/immersive-session/eligible', {
+                        headers: { 'x-user-id': user.uid }
+                    })
+                        .then(res => res.ok ? res.json() : null)
+                        .then(data => data && setImmersiveEligible(data.eligible))
+                        .catch(() => { });
+
+                    fetch('/api/daily-drill/weaknesses', {
+                        headers: { Authorization: `Bearer ${token}` }
+                    })
+                        .then(res => res.ok ? res.json() : null)
+                        .then(data => data && setHasDrills(data.hasDrills))
+                        .catch(() => { });
+                } catch (e) {
+                    console.error('Error fetching exercise stats', e);
+                }
+
             } catch (error) {
                 console.error('Error loading dashboard:', error);
             } finally {
@@ -328,19 +352,25 @@ export default function DashboardPage() {
                             <div className="flex-1 space-y-4">
                                 {/* Exercise types */}
                                 {[
-                                    { name: 'Quick Practice', desc: 'MCQ, fill-in, matching', icon: '⚡' },
-                                    { name: 'Story Mode', desc: 'Contextual scenarios', icon: '📖' },
+                                    { name: 'Daily Practice', desc: 'Guided review path', icon: '🎯', available: true },
+                                    { name: 'Daily Drill', desc: 'Targeted weaknesses', icon: '⚡', available: hasDrills },
+                                    { name: 'Immersive Mode', desc: 'Contextual scenarios', icon: '📖', available: immersiveEligible },
                                 ].map((ex, i) => (
-                                    <div key={ex.name}>
+                                    <div key={ex.name} className={ex.available ? 'opacity-100' : 'opacity-40 grayscale pointer-events-none'}>
                                         {i > 0 && <div className="border-t border-neutral-50 mb-4" />}
                                         <div className="flex items-start justify-between">
                                             <div className="flex items-start gap-2.5">
                                                 <span className="text-base mt-0.5">{ex.icon}</span>
                                                 <div>
-                                                    <h4 className="text-sm font-semibold text-neutral-900">{ex.name}</h4>
+                                                    <h4 className="text-sm font-semibold text-neutral-900 line-clamp-1">{ex.name}</h4>
                                                     <p className="text-[11px] text-neutral-400 mt-0.5">{ex.desc}</p>
                                                 </div>
                                             </div>
+                                            {!ex.available && (
+                                                <div className="text-[9px] uppercase tracking-wider text-neutral-400 font-bold bg-neutral-100 px-1.5 py-0.5 rounded-sm">
+                                                    Locked
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 ))}
@@ -354,8 +384,8 @@ export default function DashboardPage() {
 
                             {/* Start Session Button */}
                             <Link
-                                href="/practice?tab=due"
-                                className="mt-6 w-full py-3 bg-neutral-900 text-white text-sm font-bold uppercase tracking-[0.1em] text-center hover:bg-neutral-800 transition-colors flex items-center justify-center gap-2"
+                                href="/practice"
+                                className="mt-6 w-full py-3 bg-neutral-900 text-white text-sm font-bold uppercase tracking-[0.1em] text-center hover:bg-neutral-800 transition-colors flex items-center justify-center gap-2 rounded-sm"
                             >
                                 Start Session
                                 <ArrowRight className="w-4 h-4" />

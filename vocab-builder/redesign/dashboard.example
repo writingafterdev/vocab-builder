@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>VocabBuilder Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#135bec",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#101622",
+                        "surface-light": "#ffffff",
+                        "surface-dark": "#1a202c",
+                        "border-light": "#e2e8f0",
+                        "border-dark": "#2d3748",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.375rem", 
+                        "lg": "0.5rem", 
+                        "xl": "0.75rem", 
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            font-size: 20px; 
+        }::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        .dark ::-webkit-scrollbar-thumb {
+            background: #475569;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-800 dark:text-slate-100 flex h-screen overflow-hidden antialiased">
+<aside class="w-64 bg-surface-light dark:bg-[#151b28] border-r border-border-light dark:border-border-dark flex flex-col flex-shrink-0 z-20 transition-colors duration-200">
+<div class="p-4 flex items-center gap-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors m-2 rounded-lg">
+<div class="h-8 w-8 rounded bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-primary font-bold border border-blue-100 dark:border-blue-900">
+                A
+            </div>
+<div class="flex flex-col overflow-hidden">
+<span class="text-sm font-medium text-slate-900 dark:text-white truncate">Alex's Workspace</span>
+<span class="text-xs text-slate-500 dark:text-slate-400 truncate">Free Plan</span>
+</div>
+<span class="material-symbols-outlined ml-auto text-slate-400 text-[18px]">unfold_more</span>
+</div>
+<nav class="flex-1 px-3 py-2 space-y-0.5 overflow-y-auto">
+<div class="mb-4 px-2">
+<div class="relative group cursor-pointer border border-border-light dark:border-border-dark rounded-lg bg-slate-50 dark:bg-[#1e2532] hover:bg-white dark:hover:bg-[#252d3d] hover:shadow-sm transition-all p-2 flex items-center gap-2">
+<span class="material-symbols-outlined text-slate-400">search</span>
+<span class="text-sm text-slate-500 dark:text-slate-400">Search...</span>
+<kbd class="hidden group-hover:block ml-auto text-[10px] font-sans text-slate-400 border border-slate-200 dark:border-slate-700 rounded px-1">⌘K</kbd>
+</div>
+</div>
+<div class="space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg bg-primary/10 text-primary dark:text-blue-400 font-medium" href="#">
+<span class="material-symbols-outlined fill-current">dashboard</span>
+<span class="text-sm">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" href="#">
+<span class="material-symbols-outlined">menu_book</span>
+<span class="text-sm">Vocab Bank</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" href="#">
+<span class="material-symbols-outlined">auto_stories</span>
+<span class="text-sm">Reading List</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" href="#">
+<span class="material-symbols-outlined">layers</span>
+<span class="text-sm">Flashcards</span>
+</a>
+</div>
+<div class="pt-4 mt-4 border-t border-border-light dark:border-border-dark">
+<p class="px-3 mb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">Settings</p>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="text-sm">Preferences</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" href="#">
+<span class="material-symbols-outlined">help</span>
+<span class="text-sm">Help &amp; Support</span>
+</a>
+</div>
+</nav>
+<div class="p-4 border-t border-border-light dark:border-border-dark">
+<button class="w-full flex items-center justify-center gap-2 py-2 px-4 rounded-lg border border-border-light dark:border-border-dark hover:bg-slate-50 dark:hover:bg-slate-800 text-sm font-medium text-slate-600 dark:text-slate-300 transition-colors">
+<span class="material-symbols-outlined text-[18px]">download</span>
+                Download App
+             </button>
+</div>
+</aside>
+<main class="flex-1 flex flex-col h-full overflow-hidden relative">
+<div class="flex-1 overflow-y-auto p-8 lg:p-16 scroll-smooth">
+<div class="max-w-5xl mx-auto flex flex-col gap-10">
+<header class="flex flex-col gap-6">
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+<div class="flex flex-col gap-2">
+<div class="flex items-center gap-2 text-sm text-slate-400 mb-1">
+<span class="material-symbols-outlined text-[16px]">home</span>
+<span>/</span>
+<span>Overview</span>
+</div>
+<h1 class="text-4xl font-black text-slate-900 dark:text-white tracking-tight leading-tight">Dashboard</h1>
+<p class="text-slate-500 dark:text-slate-400 text-lg font-normal">A new language is a new life.</p>
+</div>
+<div class="flex items-center gap-3 md:w-auto w-full">
+<div class="relative group flex-1 md:w-64">
+<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+<span class="material-symbols-outlined text-slate-400">search</span>
+</div>
+<input class="block w-full pl-10 pr-3 py-2.5 border-none rounded-lg bg-white dark:bg-[#1e2532] text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/50 shadow-sm text-sm" placeholder="Search words or notes..." type="text"/>
+</div>
+<button class="flex-shrink-0 flex items-center justify-center h-[42px] px-5 bg-primary hover:bg-blue-600 text-white rounded-lg gap-2 text-sm font-bold shadow-sm shadow-blue-500/20 transition-all">
+<span class="material-symbols-outlined text-[20px]">add</span>
+<span class="hidden sm:inline">Quick Add</span>
+</button>
+</div>
+</div>
+</header>
+<section class="flex flex-col gap-6">
+<div class="relative overflow-hidden rounded-2xl bg-blue-600 p-10 text-white shadow-xl shadow-blue-900/10 transition-transform hover:-translate-y-1 group border-4 border-blue-700">
+<div class="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+<div class="flex flex-col justify-center h-full gap-4 w-full md:max-w-2xl">
+<div class="flex items-center gap-2 text-blue-200">
+<span class="material-symbols-outlined fill-current text-[24px]">notifications_active</span>
+<span class="text-sm font-bold uppercase tracking-wider">Priority Task</span>
+</div>
+<div>
+<h3 class="text-6xl font-black tracking-tight mb-4">12 Items Due</h3>
+<p class="text-xl text-blue-100 font-medium leading-relaxed max-w-xl">You have vocabulary items ready for review. Completing this session now will boost your long-term retention significantly.</p>
+</div>
+<div class="flex flex-wrap gap-4 mt-4">
+<button class="flex items-center justify-center gap-2 py-4 px-8 bg-white text-blue-600 text-base font-bold rounded-xl hover:bg-slate-100 transition-colors shadow-lg shadow-black/10">
+                                    Start Review Session
+                                    <span class="material-symbols-outlined text-[20px]">arrow_forward</span>
+</button>
+<button class="flex items-center justify-center gap-2 py-4 px-6 bg-blue-700 text-white text-base font-semibold rounded-xl hover:bg-blue-800 transition-colors">
+                                    Snooze
+                                </button>
+</div>
+</div>
+<div class="relative hidden md:flex items-center justify-center mr-8 flex-shrink-0 scale-125">
+<svg class="h-40 w-40 -rotate-90 transform" viewBox="0 0 36 36">
+<path class="text-blue-900/40" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-width="3"></path>
+<path class="text-white drop-shadow-md" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-dasharray="30, 100" stroke-linecap="round" stroke-width="3"></path>
+</svg>
+<div class="absolute inset-0 flex flex-col items-center justify-center">
+<span class="text-3xl font-bold">30%</span>
+<span class="text-[10px] uppercase text-blue-200 tracking-widest">Daily Goal</span>
+</div>
+</div>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<div class="relative overflow-hidden rounded-2xl bg-surface-light dark:bg-[#1e2532] border border-border-light dark:border-border-dark p-6 shadow-sm flex flex-col justify-between min-h-[220px] transition-transform hover:-translate-y-1">
+<div class="relative z-10 flex justify-between items-start">
+<div>
+<p class="text-slate-500 dark:text-slate-400 text-sm font-medium mb-0.5">Words Saved</p>
+<h3 class="text-4xl font-bold tracking-tight text-slate-900 dark:text-white">1,240</h3>
+<div class="mt-1 inline-flex items-center gap-1 rounded-full bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 text-xs font-medium text-blue-600 dark:text-blue-300">
+<span class="material-symbols-outlined text-[14px]">trending_up</span> +12 this week
+                            </div>
+</div>
+<div class="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+<span class="material-symbols-outlined">bookmark</span>
+</div>
+</div>
+<div class="relative z-10 mt-6 flex h-24 items-end w-full">
+<svg class="w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 200 80">
+<path d="M0,60 C20,55 40,40 60,45 C80,50 100,30 120,25 C140,20 160,15 180,10 L200,5 V80 H0 Z" fill="#ebf8ff" stroke="none"></path>
+<path d="M0,60 C20,55 40,40 60,45 C80,50 100,30 120,25 C140,20 160,15 180,10 L200,5" fill="none" stroke="#3b82f6" stroke-linecap="round" stroke-width="3"></path>
+<circle cx="60" cy="45" fill="#3b82f6" r="3"></circle>
+<circle cx="120" cy="25" fill="#3b82f6" r="3"></circle>
+<circle cx="200" cy="5" fill="#3b82f6" r="4"></circle>
+</svg>
+</div>
+</div>
+<div class="relative overflow-hidden rounded-2xl bg-surface-light dark:bg-[#1e2532] border border-border-light dark:border-border-dark p-6 shadow-sm flex flex-col justify-between min-h-[220px] transition-transform hover:-translate-y-1">
+<div class="relative z-10 flex justify-between items-start">
+<div>
+<p class="text-slate-500 dark:text-slate-400 text-sm font-medium mb-0.5">Current Streak</p>
+<h3 class="text-4xl font-bold tracking-tight text-slate-900 dark:text-white">5 <span class="text-xl font-medium text-slate-400">Days</span></h3>
+<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Best streak: <span class="text-green-600 dark:text-green-400 font-bold">14 days</span></p>
+</div>
+<div class="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-100 dark:bg-orange-900/30 text-orange-500">
+<span class="material-symbols-outlined">local_fire_department</span>
+</div>
+</div>
+<div class="relative z-10 mt-auto w-full pt-4">
+<div class="flex flex-col gap-1">
+<div class="flex justify-between text-[10px] text-slate-400 font-medium px-0.5">
+<span>Last 30 Days</span>
+<span class="text-green-600 dark:text-green-400">Active</span>
+</div>
+<div class="grid grid-cols-10 gap-1.5">
+<div class="aspect-square rounded-[2px] bg-slate-100 dark:bg-slate-700"></div>
+<div class="aspect-square rounded-[2px] bg-slate-100 dark:bg-slate-700"></div>
+<div class="aspect-square rounded-[2px] bg-green-500"></div>
+<div class="aspect-square rounded-[2px] bg-green-200"></div>
+<div class="aspect-square rounded-[2px] bg-green-400"></div>
+<div class="aspect-square rounded-[2px] bg-slate-100 dark:bg-slate-700"></div>
+<div class="aspect-square rounded-[2px] bg-green-500"></div>
+<div class="aspect-square rounded-[2px] bg-green-500"></div>
+<div class="aspect-square rounded-[2px] bg-green-200"></div>
+<div class="aspect-square rounded-[2px] bg-green-400"></div>
+<div class="aspect-square rounded-[2px] bg-green-300"></div>
+<div class="aspect-square rounded-[2px] bg-green-500"></div>
+<div class="aspect-square rounded-[2px] bg-slate-100 dark:bg-slate-700"></div>
+<div class="aspect-square rounded-[2px] bg-green-400"></div>
+<div class="aspect-square rounded-[2px] bg-slate-100 dark:bg-slate-700"></div>
+<div class="aspect-square rounded-[2px] bg-slate-100 dark:bg-slate-700"></div>
+<div class="aspect-square rounded-[2px] bg-green-500"></div>
+<div class="aspect-square rounded-[2px] bg-green-500"></div>
+<div class="aspect-square rounded-[2px] bg-green-500"></div>
+<div class="aspect-square rounded-[2px] bg-green-500"></div>
+<div class="aspect-square rounded-[2px] bg-slate-100 dark:bg-slate-700"></div>
+<div class="aspect-square rounded-[2px] bg-green-300"></div>
+<div class="aspect-square rounded-[2px] bg-slate-100 dark:bg-slate-700"></div>
+<div class="aspect-square rounded-[2px] bg-slate-100 dark:bg-slate-700"></div>
+<div class="aspect-square rounded-[2px] bg-green-400"></div>
+<div class="aspect-square rounded-[2px] bg-slate-100 dark:bg-slate-700"></div>
+<div class="aspect-square rounded-[2px] bg-green-300"></div>
+<div class="aspect-square rounded-[2px] bg-slate-100 dark:bg-slate-700"></div>
+<div class="aspect-square rounded-[2px] bg-slate-100 dark:bg-slate-700"></div>
+<div class="aspect-square rounded-[2px] bg-green-500"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+<div class="lg:col-span-2 flex flex-col gap-4">
+<div class="flex items-center justify-between">
+<h2 class="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+<span class="material-symbols-outlined text-slate-400">history</span>
+                                Recently Added
+                            </h2>
+<button class="text-sm text-primary hover:text-blue-700 font-medium hover:underline">View all</button>
+</div>
+<div class="bg-surface-light dark:bg-[#151b28] border border-border-light dark:border-border-dark rounded-xl overflow-hidden shadow-sm">
+<table class="w-full text-left text-sm">
+<thead class="bg-slate-50 dark:bg-[#1e2532] text-slate-500 dark:text-slate-400 font-medium border-b border-border-light dark:border-border-dark">
+<tr>
+<th class="px-5 py-3 w-1/3">Word</th>
+<th class="px-5 py-3 w-1/3">Meaning</th>
+<th class="px-5 py-3 w-1/3">Tag</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-border-light dark:divide-border-dark">
+<tr class="group hover:bg-slate-50 dark:hover:bg-[#1e2532] transition-colors">
+<td class="px-5 py-3">
+<div class="font-semibold text-slate-800 dark:text-white">Ephemeral</div>
+<div class="text-xs text-slate-400">adj. • /əˈfem(ə)rəl/</div>
+</td>
+<td class="px-5 py-3 text-slate-600 dark:text-slate-300">
+                                            Lasting for a very short time.
+                                        </td>
+<td class="px-5 py-3">
+<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-xs font-medium">
+<span class="w-1.5 h-1.5 rounded-full bg-purple-500"></span> Literature
+                                            </span>
+</td>
+</tr>
+<tr class="group hover:bg-slate-50 dark:hover:bg-[#1e2532] transition-colors">
+<td class="px-5 py-3">
+<div class="font-semibold text-slate-800 dark:text-white">Serendipity</div>
+<div class="text-xs text-slate-400">noun • /ˌserənˈdipədē/</div>
+</td>
+<td class="px-5 py-3 text-slate-600 dark:text-slate-300">
+                                            Occurrence of events by chance in a happy way.
+                                        </td>
+<td class="px-5 py-3">
+<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-medium">
+<span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span> Daily Life
+                                            </span>
+</td>
+</tr>
+<tr class="group hover:bg-slate-50 dark:hover:bg-[#1e2532] transition-colors">
+<td class="px-5 py-3">
+<div class="font-semibold text-slate-800 dark:text-white">Ubiquitous</div>
+<div class="text-xs text-slate-400">adj. • /yo͞oˈbikwədəs/</div>
+</td>
+<td class="px-5 py-3 text-slate-600 dark:text-slate-300">
+                                            Present, appearing, or found everywhere.
+                                        </td>
+<td class="px-5 py-3">
+<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-xs font-medium">
+<span class="w-1.5 h-1.5 rounded-full bg-green-500"></span> Technology
+                                            </span>
+</td>
+</tr>
+<tr class="group hover:bg-slate-50 dark:hover:bg-[#1e2532] transition-colors">
+<td class="px-5 py-3">
+<div class="font-semibold text-slate-800 dark:text-white">Mellifluous</div>
+<div class="text-xs text-slate-400">adj. • /məˈliflo͞oəs/</div>
+</td>
+<td class="px-5 py-3 text-slate-600 dark:text-slate-300">
+                                            (of a voice or words) sweet or musical; pleasant to hear.
+                                        </td>
+<td class="px-5 py-3">
+<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 text-xs font-medium">
+<span class="w-1.5 h-1.5 rounded-full bg-orange-500"></span> Music
+                                            </span>
+</td>
+</tr>
+</tbody>
+</table>
+<div class="px-5 py-3 bg-slate-50 dark:bg-[#1e2532]/50 border-t border-border-light dark:border-border-dark text-center">
+<button class="text-xs font-medium text-slate-500 hover:text-slate-800 dark:hover:text-slate-300 flex items-center justify-center gap-1 mx-auto">
+<span class="material-symbols-outlined text-[16px]">add_circle</span>
+                                    Add new word manually
+                                </button>
+</div>
+</div>
+</div>
+<div class="flex flex-col gap-4">
+<div class="flex items-center justify-between">
+<h2 class="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+<span class="material-symbols-outlined text-slate-400">auto_stories</span>
+                                Continue Reading
+                            </h2>
+<div class="flex gap-1">
+<button class="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400">
+<span class="material-symbols-outlined text-[18px]">chevron_left</span>
+</button>
+<button class="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400">
+<span class="material-symbols-outlined text-[18px]">chevron_right</span>
+</button>
+</div>
+</div>
+<div class="flex flex-col gap-3">
+<div class="group bg-surface-light dark:bg-[#151b28] border border-border-light dark:border-border-dark rounded-xl p-3 flex gap-3 cursor-pointer hover:border-primary/50 transition-colors">
+<div class="w-16 h-20 rounded bg-indigo-500 flex-shrink-0 flex items-center justify-center text-white/50" data-alt="Abstract book cover with purple solid color">
+<span class="material-symbols-outlined text-white">book_2</span>
+</div>
+<div class="flex flex-col justify-between py-1 flex-1 min-w-0">
+<div>
+<h3 class="text-sm font-bold text-slate-900 dark:text-white truncate">The Great Gatsby</h3>
+<p class="text-xs text-slate-500 truncate">Chapter 4: The Reunion</p>
+</div>
+<div class="w-full">
+<div class="flex justify-between text-[10px] text-slate-400 mb-1">
+<span>Progress</span>
+<span>45%</span>
+</div>
+<div class="w-full bg-slate-100 dark:bg-slate-700 h-1 rounded-full">
+<div class="bg-indigo-500 h-full rounded-full" style="width: 45%"></div>
+</div>
+</div>
+</div>
+</div>
+<div class="group bg-surface-light dark:bg-[#151b28] border border-border-light dark:border-border-dark rounded-xl p-3 flex gap-3 cursor-pointer hover:border-primary/50 transition-colors">
+<div class="w-16 h-20 rounded bg-emerald-500 flex-shrink-0 flex items-center justify-center text-white/50" data-alt="Abstract article cover with green solid color">
+<span class="material-symbols-outlined text-white">article</span>
+</div>
+<div class="flex flex-col justify-between py-1 flex-1 min-w-0">
+<div>
+<h3 class="text-sm font-bold text-slate-900 dark:text-white truncate">Future of AI</h3>
+<p class="text-xs text-slate-500 truncate">TechCrunch Article</p>
+</div>
+<div class="w-full">
+<div class="flex justify-between text-[10px] text-slate-400 mb-1">
+<span>Progress</span>
+<span>12%</span>
+</div>
+<div class="w-full bg-slate-100 dark:bg-slate-700 h-1 rounded-full">
+<div class="bg-emerald-500 h-full rounded-full" style="width: 12%"></div>
+</div>
+</div>
+</div>
+</div>
+<button class="w-full py-3 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 text-slate-400 hover:text-primary hover:border-primary/50 hover:bg-primary/5 transition-all flex items-center justify-center gap-2 text-sm font-medium">
+<span class="material-symbols-outlined">add</span>
+                                Add Reading Material
+                            </button>
+</div>
+</div>
+</div>
+<footer class="mt-8 border-t border-border-light dark:border-border-dark pt-8 pb-10">
+<div class="bg-blue-50 dark:bg-blue-900/10 rounded-lg p-4 flex items-start gap-3">
+<span class="material-symbols-outlined text-primary mt-0.5">lightbulb</span>
+<div>
+<h4 class="text-sm font-bold text-slate-800 dark:text-blue-100">Did you know?</h4>
+<p class="text-sm text-slate-600 dark:text-slate-400 mt-1">Reviewing vocabulary within 24 hours increases retention by 60%. Try the "Review Session" button above to catch up!</p>
+</div>
+</div>
+</footer>
+</div>
+</div>
+</main>
+
+</body></html>

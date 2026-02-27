@@ -11,23 +11,23 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { TOPIC_OPTIONS, TopicValue } from '@/lib/db/types';
 import { Loader2, BookOpen } from 'lucide-react';
 import { toast } from 'sonner';
+import { SpeakButton } from '@/hooks/use-text-to-speech';
 
 interface ExpressionSuggestion {
     phrase: string;
     meaning: string;
     example?: string;  // AI-generated example sentence
     mode: 'spoken' | 'written' | 'neutral';
-    topics?: TopicValue[];
+    topics?: string[];
 }
 
 interface ApiResponse {
     meaning: string;
     example?: string;  // Root word example sentence
     mode: 'spoken' | 'written' | 'neutral';
-    topics?: TopicValue[];
+    topics?: string[];
     collocations: ExpressionSuggestion[];
     phrasalVerbs: ExpressionSuggestion[];
     rootWord: string;
@@ -66,6 +66,7 @@ export default function CollocationSelectionModal({
     userEmail,
 }: CollocationSelectionModalProps) {
     const [loading, setLoading] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
     const [data, setData] = useState<ApiResponse | null>(null);
     const [selectedCollocations, setSelectedCollocations] = useState<Set<number>>(new Set());
     const [selectedPhrasalVerbs, setSelectedPhrasalVerbs] = useState<Set<number>>(new Set());
@@ -156,8 +157,9 @@ export default function CollocationSelectionModal({
         setSelectedPhrasalVerbs(newSelected);
     };
 
-    const handleSave = () => {
-        if (!data) return;
+    const handleSave = async () => {
+        if (!data || isSaving) return;
+        setIsSaving(true);
 
         // Build children array from selected collocations and phrasal verbs
         const children: Array<{
@@ -200,14 +202,18 @@ export default function CollocationSelectionModal({
         });
 
         // Save hierarchical structure
-        onSave({
-            rootWord: data.rootWord,
-            meaning: data.meaning,
-            mode: data.mode,
-            topics: data.topics || [],
-            children,
-        });
-        onClose();
+        try {
+            await Promise.resolve(onSave({
+                rootWord: data.rootWord,
+                meaning: data.meaning,
+                mode: data.mode,
+                topics: data.topics || [],
+                children,
+            }));
+            onClose();
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     const getModeColor = (mode: string) => {
@@ -289,7 +295,7 @@ export default function CollocationSelectionModal({
                                         <div className="flex items-center gap-1.5 flex-wrap mt-2">
                                             {data.topics.map(topic => (
                                                 <span key={topic} className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700">
-                                                    {TOPIC_OPTIONS.find(t => t.value === topic)?.label || topic}
+                                                    {topic}
                                                 </span>
                                             ))}
                                         </div>
@@ -328,6 +334,7 @@ export default function CollocationSelectionModal({
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center gap-2 flex-wrap">
                                                         <span className="font-medium">{collocation.phrase}</span>
+                                                        <SpeakButton text={collocation.phrase} />
                                                         <span className={`text-xs px-2 py-0.5 rounded-full ${getModeColor(collocation.mode)}`}>
                                                             {getModeLabel(collocation.mode)}
                                                         </span>
@@ -335,7 +342,7 @@ export default function CollocationSelectionModal({
                                                             <>
                                                                 {collocation.topics.map(topic => (
                                                                     <span key={topic} className="text-[10px] px-1.5 py-0.5 rounded bg-neutral-100 text-neutral-600">
-                                                                        {TOPIC_OPTIONS.find(t => t.value === topic)?.label || topic}
+                                                                        {topic}
                                                                     </span>
                                                                 ))}
                                                             </>
@@ -389,7 +396,7 @@ export default function CollocationSelectionModal({
                                                             <>
                                                                 {pv.topics.map(topic => (
                                                                     <span key={topic} className="text-[10px] px-1.5 py-0.5 rounded bg-neutral-100 text-neutral-600">
-                                                                        {TOPIC_OPTIONS.find(t => t.value === topic)?.label || topic}
+                                                                        {topic}
                                                                     </span>
                                                                 ))}
                                                             </>
@@ -421,11 +428,13 @@ export default function CollocationSelectionModal({
                 ) : null}
 
                 <DialogFooter className="gap-2">
-                    <Button variant="outline" onClick={onClose}>
+                    <Button variant="outline" onClick={onClose} disabled={isSaving}>
                         Cancel
                     </Button>
-                    <Button onClick={handleSave} disabled={loading || savesRemaining === 0}>
-                        {savesRemaining === 0
+                    <Button onClick={handleSave} disabled={loading || isSaving || savesRemaining === 0}>
+                        {isSaving ? (
+                            <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving...</>
+                        ) : savesRemaining === 0
                             ? 'Daily limit reached'
                             : (selectedCollocations.size + selectedPhrasalVerbs.size) > 0
                                 ? `Save ${selectedCollocations.size + selectedPhrasalVerbs.size} expression(s)`

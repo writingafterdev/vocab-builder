@@ -74,6 +74,31 @@ export async function deletePost(postId: string): Promise<void> {
     }
 }
 
+/**
+ * Bulk delete all posts from the database
+ * Returns the count of deleted posts
+ */
+export async function bulkDeleteAllPosts(): Promise<{ deleted: number; errors: string[] }> {
+    const firestore = await getDbAsync();
+    const postsRef = collection(firestore, 'posts');
+    const snapshot = await getDocs(postsRef);
+
+    let deleted = 0;
+    const errors: string[] = [];
+
+    for (const postDoc of snapshot.docs) {
+        try {
+            await deleteDoc(postDoc.ref);
+            deleted++;
+        } catch (error) {
+            console.error(`Failed to delete post ${postDoc.id}:`, error);
+            errors.push(postDoc.id);
+        }
+    }
+
+    return { deleted, errors };
+}
+
 export async function updatePost(postId: string, data: Partial<Omit<Post, 'id' | 'createdAt'>>): Promise<void> {
     const firestore = await getDbAsync();
     const postRef = doc(firestore, 'posts', postId);
@@ -84,7 +109,7 @@ export async function getAdminStats(): Promise<{
     totalUsers: number;
     totalPosts: number;
     totalArticles: number;
-    totalDebates: number;
+    totalScenarios: number;
     totalPhrases: number;
     totalTokens: number;
 }> {
@@ -92,7 +117,7 @@ export async function getAdminStats(): Promise<{
 
     const usersSnapshot = await getDocs(collection(firestore, 'users'));
     const postsSnapshot = await getDocs(collection(firestore, 'posts'));
-    const debatesSnapshot = await getDocs(collection(firestore, 'debates'));
+    const scenariosSnapshot = await getDocs(collection(firestore, 'scenarios'));
     const tokenUsageSnapshot = await getDocs(collection(firestore, 'tokenUsage'));
 
     // Count phrases across all users
@@ -116,7 +141,7 @@ export async function getAdminStats(): Promise<{
         totalUsers: usersSnapshot.size,
         totalPosts: regularPosts.length,
         totalArticles: articles.length,
-        totalDebates: debatesSnapshot.size,
+        totalScenarios: scenariosSnapshot.size,
         totalPhrases,
         totalTokens,
     };
@@ -185,10 +210,10 @@ export async function createPostWithComments(input: PostWithCommentsInput): Prom
 
 // ============ ADMIN USER DETAIL ============
 
-export interface UserDebate {
+export interface UserScenario {
     id: string;
-    topic: string;
-    topicAngle: string;
+    scenario: string;
+    userRole: string;
     createdAt: Date;
     status: string;
     phrasesTotal: number;
@@ -197,11 +222,11 @@ export interface UserDebate {
     turnsCount: number;
 }
 
-export async function getUserDebates(userId: string): Promise<UserDebate[]> {
+export async function getUserScenarios(userId: string): Promise<UserScenario[]> {
     const firestore = await getDbAsync();
-    const debatesRef = collection(firestore, 'debates');
+    const scenariosRef = collection(firestore, 'scenarios');
     const q = query(
-        debatesRef,
+        scenariosRef,
         where('userId', '==', userId),
         orderBy('createdAt', 'desc'),
         limit(50)
@@ -212,8 +237,8 @@ export async function getUserDebates(userId: string): Promise<UserDebate[]> {
         const phrases = data.phrases || [];
         return {
             id: doc.id,
-            topic: data.topic || 'Untitled',
-            topicAngle: data.topicAngle || '',
+            scenario: data.scenario || 'Untitled',
+            userRole: data.userRole || '',
             createdAt: data.createdAt?.toDate() || new Date(),
             status: data.status || 'unknown',
             phrasesTotal: phrases.length,

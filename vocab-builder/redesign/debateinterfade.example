@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Learning Session - AI Debate</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#135bec",
+                        "primary-dark": "#0e4ac5",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#101622",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "2xl": "1rem", "full": "9999px"},
+                    boxShadow: {
+                        "card": "0 2px 8px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02)",
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #e5e7eb;
+            border-radius: 3px;
+        }
+        .dark ::-webkit-scrollbar-thumb {
+            background: #374151;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            font-size: 20px;
+        }
+        .icon-filled {
+            font-variation-settings: 'FILL' 1;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-[#111318] dark:text-gray-100 font-display h-screen w-full overflow-hidden flex selection:bg-primary/20 selection:text-primary">
+<aside class="w-64 border-r border-[#e5e7eb] dark:border-gray-800 bg-white dark:bg-[#151b2b] hidden md:flex flex-col z-20">
+<div class="h-16 flex items-center px-6 border-b border-[#f0f2f4] dark:border-gray-800">
+<div class="flex items-center gap-2 text-primary">
+<span class="material-symbols-outlined icon-filled">school</span>
+<span class="font-bold text-lg tracking-tight text-[#111318] dark:text-white">VocabBank</span>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto p-4 flex flex-col gap-6">
+<div class="flex flex-col gap-4">
+<p class="text-xs font-semibold uppercase tracking-wider text-[#616f89] dark:text-gray-400 px-2">Session Stats</p>
+<div class="flex flex-col gap-3">
+<div class="flex items-center justify-between p-3 rounded-lg bg-[#f9fafb] dark:bg-gray-800/50 border border-[#f0f2f4] dark:border-gray-700">
+<div class="flex items-center gap-3">
+<div class="bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 p-1.5 rounded-md flex items-center justify-center">
+<span class="material-symbols-outlined" style="font-size: 18px;">psychology</span>
+</div>
+<div class="flex flex-col">
+<span class="text-xs text-[#616f89] dark:text-gray-400 font-medium">Debate Score</span>
+<span class="text-sm font-bold">85/100</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="flex flex-col gap-4">
+<div class="flex items-center justify-between px-2">
+<p class="text-xs font-semibold uppercase tracking-wider text-[#616f89] dark:text-gray-400">Target Vocabulary</p>
+<span class="text-[10px] bg-primary/10 text-primary px-1.5 rounded font-medium">2/5 Used</span>
+</div>
+<div class="flex flex-col gap-2">
+<div class="px-3 py-2.5 text-sm bg-green-50 dark:bg-green-900/10 border border-green-100 dark:border-green-900/20 rounded-lg flex justify-between items-center group">
+<div class="flex flex-col">
+<span class="font-medium text-green-700 dark:text-green-400 line-through decoration-green-300 dark:decoration-green-700">Mitigate</span>
+<span class="text-[10px] text-green-600/70 dark:text-green-500/70">Verb • To lessen</span>
+</div>
+<span class="material-symbols-outlined text-green-500 text-[16px]">check_circle</span>
+</div>
+<div class="px-3 py-2.5 text-sm bg-green-50 dark:bg-green-900/10 border border-green-100 dark:border-green-900/20 rounded-lg flex justify-between items-center group">
+<div class="flex flex-col">
+<span class="font-medium text-green-700 dark:text-green-400 line-through decoration-green-300 dark:decoration-green-700">Nuance</span>
+<span class="text-[10px] text-green-600/70 dark:text-green-500/70">Noun • Subtle difference</span>
+</div>
+<span class="material-symbols-outlined text-green-500 text-[16px]">check_circle</span>
+</div>
+<div class="px-3 py-2.5 text-sm bg-white dark:bg-gray-800 border-l-2 border-primary border-y border-r border-[#e5e7eb] dark:border-gray-700 rounded-lg flex justify-between items-center shadow-sm">
+<div class="flex flex-col">
+<span class="font-medium text-[#111318] dark:text-gray-200">Paradigm shift</span>
+<span class="text-[10px] text-gray-500">Noun • Fundamental change</span>
+</div>
+<span class="material-symbols-outlined text-gray-300 dark:text-gray-600 text-[16px]">circle</span>
+</div>
+<div class="px-3 py-2.5 text-sm bg-transparent border border-dashed border-gray-300 dark:border-gray-700 rounded-lg flex justify-between items-center opacity-70">
+<div class="flex flex-col">
+<span class="font-medium text-gray-600 dark:text-gray-400">Ubiquitous</span>
+<span class="text-[10px] text-gray-400">Adj • Found everywhere</span>
+</div>
+<span class="material-symbols-outlined text-gray-300 dark:text-gray-600 text-[16px]">circle</span>
+</div>
+<div class="px-3 py-2.5 text-sm bg-transparent border border-dashed border-gray-300 dark:border-gray-700 rounded-lg flex justify-between items-center opacity-70">
+<div class="flex flex-col">
+<span class="font-medium text-gray-600 dark:text-gray-400">Detrimental</span>
+<span class="text-[10px] text-gray-400">Adj • Harmful</span>
+</div>
+<span class="material-symbols-outlined text-gray-300 dark:text-gray-600 text-[16px]">circle</span>
+</div>
+</div>
+</div>
+</div>
+<div class="p-4 border-t border-[#f0f2f4] dark:border-gray-800">
+<button class="flex items-center gap-2 text-sm font-medium text-[#616f89] hover:text-[#111318] dark:text-gray-400 dark:hover:text-white transition-colors w-full p-2 rounded hover:bg-[#f0f2f4] dark:hover:bg-gray-800">
+<span class="material-symbols-outlined">settings</span>
+<span>Debate Settings</span>
+</button>
+</div>
+</aside>
+<div class="flex-1 flex flex-col relative h-full">
+<header class="h-16 bg-white dark:bg-[#151b2b] border-b border-[#f0f2f4] dark:border-gray-800 px-6 flex items-center justify-between shrink-0 z-10">
+<div class="flex items-center gap-2">
+<div class="md:hidden mr-2 text-[#616f89]">
+<span class="material-symbols-outlined">menu</span>
+</div>
+<nav class="flex items-center text-sm">
+<div class="size-8 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mr-3">
+<span class="material-symbols-outlined text-[18px]">record_voice_over</span>
+</div>
+<div class="flex flex-col">
+<span class="font-bold text-[#111318] dark:text-white leading-tight">Debate Partner</span>
+<span class="text-xs text-[#616f89] dark:text-gray-400">Topic: AI in Education</span>
+</div>
+</nav>
+</div>
+<div class="hidden md:flex flex-col w-1/3 max-w-[320px] gap-1.5">
+<div class="flex justify-between items-end px-1">
+<span class="text-xs font-medium text-[#616f89] dark:text-gray-400">Vocabulary Usage</span>
+<span class="text-xs font-bold text-primary dark:text-blue-400">2 / 5 Words</span>
+</div>
+<div class="h-1.5 w-full bg-[#f0f2f4] dark:bg-gray-700 rounded-full overflow-hidden">
+<div class="h-full bg-primary rounded-full transition-all duration-500 ease-out" style="width: 40%;"></div>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<button class="hidden sm:flex h-8 px-3 items-center gap-2 text-xs font-bold text-[#616f89] bg-white border border-[#dbdfe6] rounded hover:bg-[#f9fafb] hover:text-[#111318] transition-colors dark:bg-transparent dark:border-gray-700 dark:text-gray-400 dark:hover:text-white">
+<span class="material-symbols-outlined text-[16px]">info</span>
+                Topic Info
+            </button>
+<button class="size-8 flex items-center justify-center text-[#616f89] hover:text-red-500 hover:bg-red-50 rounded-full transition-colors dark:text-gray-400 dark:hover:text-red-400 dark:hover:bg-red-900/20" title="End Debate">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+</header>
+<main class="flex-1 overflow-y-auto p-4 md:p-8 bg-background-light dark:bg-background-dark scroll-smooth" id="chat-container">
+<div class="max-w-3xl mx-auto flex flex-col gap-6 pb-4">
+<div class="bg-white dark:bg-[#1e2532] border border-[#e5e7eb] dark:border-gray-700 rounded-xl p-5 shadow-sm mb-4 relative overflow-hidden">
+<div class="absolute top-0 left-0 w-1 h-full bg-indigo-500"></div>
+<div class="flex gap-4 items-start">
+<div class="p-2 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg text-indigo-600 dark:text-indigo-400 shrink-0">
+<span class="material-symbols-outlined">lightbulb</span>
+</div>
+<div>
+<h2 class="text-lg font-bold text-[#111318] dark:text-white mb-1">Topic: Artificial Intelligence in Education</h2>
+<p class="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
+                            Should AI tools replace traditional teaching methods, or should they merely assist? 
+                            <br/><span class="opacity-70">Goal: Argue for a balanced integration while addressing potential risks.</span>
+</p>
+</div>
+</div>
+</div>
+<div class="flex gap-4">
+<div class="size-8 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex shrink-0 items-center justify-center mt-1">
+<span class="material-symbols-outlined text-[18px]">smart_toy</span>
+</div>
+<div class="flex flex-col gap-2 max-w-[85%]">
+<div class="flex items-baseline gap-2">
+<span class="text-sm font-semibold text-[#111318] dark:text-white">Debate AI</span>
+<span class="text-xs text-gray-400">Opponent</span>
+</div>
+<div class="bg-white dark:bg-[#1e2532] p-4 rounded-2xl rounded-tl-none shadow-sm border border-[#e5e7eb] dark:border-gray-700 text-[#111318] dark:text-gray-200 leading-relaxed">
+<p>While efficiency is a strong argument for AI, relying solely on algorithms for grading and personalized learning might <strong>mitigate</strong> the development of critical social skills in students. How do you propose we handle this potential loss of human connection?</p>
+</div>
+</div>
+</div>
+<div class="flex gap-4 flex-row-reverse">
+<div class="size-8 rounded-full bg-gray-200 dark:bg-gray-700 flex shrink-0 items-center justify-center mt-1 overflow-hidden">
+<span class="material-symbols-outlined text-gray-500 dark:text-gray-400 text-[20px]">person</span>
+</div>
+<div class="flex flex-col gap-2 max-w-[85%] items-end">
+<div class="bg-primary text-white p-4 rounded-2xl rounded-tr-none shadow-sm leading-relaxed text-right">
+<p>That's a valid concern, but I believe we need a <span class="bg-white/20 px-1 py-0.5 rounded font-medium border border-white/30" title="Vocabulary Used: Nuance">nuanced</span> approach. We shouldn't remove teachers, but rather use AI to handle administrative tasks so teachers can focus *more* on mentorship.</p>
+</div>
+<div class="flex gap-1">
+<span class="text-[10px] text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded-full border border-green-100 dark:border-green-800 flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]">check</span> Used: Nuance
+                        </span>
+</div>
+</div>
+</div>
+<div class="flex gap-4">
+<div class="size-8 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex shrink-0 items-center justify-center mt-1">
+<span class="material-symbols-outlined text-[18px]">smart_toy</span>
+</div>
+<div class="flex flex-col gap-2 max-w-[85%]">
+<div class="flex items-baseline gap-2">
+<span class="text-sm font-semibold text-[#111318] dark:text-white">Debate AI</span>
+</div>
+<div class="bg-white dark:bg-[#1e2532] p-4 rounded-2xl rounded-tl-none shadow-sm border border-[#e5e7eb] dark:border-gray-700 text-[#111318] dark:text-gray-200 leading-relaxed">
+<p>An interesting perspective. However, if AI becomes <span class="text-indigo-600 dark:text-indigo-400 font-semibold cursor-help border-b border-dashed border-indigo-300">ubiquitous</span> in the classroom, won't students become overly dependent on it for basic problem-solving? This could represent a dangerous <strong>paradigm shift</strong> in how we define intelligence itself.</p>
+</div>
+<div class="flex gap-2 mt-1">
+<button class="text-xs text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">help</span> What does 'Paradigm shift' mean?
+                        </button>
+</div>
+</div>
+</div>
+<div class="flex gap-4 flex-row-reverse animate-pulse opacity-0"> 
+<div class="size-8 rounded-full bg-gray-200 dark:bg-gray-700 flex shrink-0 items-center justify-center mt-1 overflow-hidden">
+<span class="material-symbols-outlined text-gray-500 dark:text-gray-400 text-[20px]">person</span>
+</div>
+</div>
+<div class="h-24"></div>
+</div>
+</main>
+<footer class="bg-white dark:bg-[#151b2b] border-t border-[#f0f2f4] dark:border-gray-800 p-4 md:px-8 md:py-6 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.02)] z-10">
+<div class="max-w-3xl mx-auto flex flex-col gap-4">
+<div class="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+<span class="text-xs font-semibold text-gray-400 dark:text-gray-500 py-2 flex items-center uppercase tracking-wide mr-2">
+                    Try using:
+                </span>
+<button class="whitespace-nowrap px-3 py-1.5 bg-indigo-50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-900/30 rounded-md text-xs font-medium text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-colors">
+                    Paradigm shift
+                </button>
+<button class="whitespace-nowrap px-3 py-1.5 bg-indigo-50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-900/30 rounded-md text-xs font-medium text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-colors">
+                    Ubiquitous
+                </button>
+<button class="whitespace-nowrap px-3 py-1.5 bg-indigo-50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-900/30 rounded-md text-xs font-medium text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-colors">
+                    Detrimental
+                </button>
+</div>
+<div class="relative flex items-end gap-2 bg-[#f6f6f8] dark:bg-[#0d1117] p-2 rounded-xl border border-transparent focus-within:border-primary/50 focus-within:bg-white dark:focus-within:bg-[#151b2b] focus-within:shadow-md transition-all">
+<button class="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" title="Get a hint">
+<span class="material-symbols-outlined">lightbulb</span>
+</button>
+<textarea class="w-full bg-transparent border-0 focus:ring-0 text-[#111318] dark:text-white placeholder-gray-400 dark:placeholder-gray-500 resize-none py-2.5 max-h-32 text-sm md:text-base leading-relaxed" placeholder="Type your argument..." rows="2"></textarea>
+<div class="flex items-center gap-1 pb-1">
+<button class="p-2 bg-primary hover:bg-primary-dark text-white rounded-lg shadow-sm transition-colors flex items-center justify-center">
+<span class="material-symbols-outlined icon-filled">send</span>
+</button>
+</div>
+</div>
+<div class="text-center flex justify-between items-center px-1">
+<p class="text-[10px] text-gray-400 dark:text-gray-600">
+                    Use target vocabulary to score higher points.
+                </p>
+<p class="text-[10px] text-gray-400 dark:text-gray-600">
+                    Press <span class="font-mono bg-gray-100 dark:bg-gray-800 px-1 rounded border border-gray-200 dark:border-gray-700">Enter</span> to send
+                </p>
+</div>
+</div>
+</footer>
+</div>
+
+</body></html>

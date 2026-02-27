@@ -23,10 +23,10 @@ import type { UserProfile } from '@/types';
 
 const ADMIN_EMAIL = 'ducanhcontactonfb@gmail.com';
 
-interface UserDebate {
+interface UserScenario {
     id: string;
-    topic: string;
-    topicAngle: string;
+    scenario: string;
+    userRole: string;
     createdAt: Date;
     status: string;
     phrasesTotal: number;
@@ -68,11 +68,11 @@ export default function AdminUserPage() {
 
     const [loading, setLoading] = useState(true);
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-    const [activeTab, setActiveTab] = useState<'phrases' | 'debates' | 'posts' | 'tokens'>('phrases');
+    const [activeTab, setActiveTab] = useState<'phrases' | 'scenarios' | 'posts' | 'tokens'>('phrases');
 
     // User data
     const [phrases, setPhrases] = useState<UserPhrase[]>([]);
-    const [debates, setDebates] = useState<UserDebate[]>([]);
+    const [scenarios, setScenarios] = useState<UserScenario[]>([]);
     const [posts, setPosts] = useState<UserPost[]>([]);
     const [tokens, setTokens] = useState<{ total: number; calls: number; byEndpoint: UserTokenUsage[] } | null>(null);
 
@@ -133,22 +133,22 @@ export default function AdminUserPage() {
                     console.error('Error loading phrases:', err);
                 }
 
-                // Load debates (simple query without orderBy)
+                // Load scenarios (simple query without orderBy)
                 try {
-                    const debatesRef = collection(db, 'debates');
-                    const debatesQuery = query(
-                        debatesRef,
+                    const scenariosRef = collection(db, 'scenarios');
+                    const scenariosQuery = query(
+                        scenariosRef,
                         where('userId', '==', userId),
                         limit(50)
                     );
-                    const debatesSnapshot = await getDocs(debatesQuery);
-                    const debatesData = debatesSnapshot.docs.map(docSnap => {
+                    const scenariosSnapshot = await getDocs(scenariosQuery);
+                    const scenariosData = scenariosSnapshot.docs.map(docSnap => {
                         const data = docSnap.data();
                         const phrasesList = data.phrases || [];
                         return {
                             id: docSnap.id,
-                            topic: data.topic || 'Untitled',
-                            topicAngle: data.topicAngle || '',
+                            scenario: data.scenario || 'Untitled',
+                            userRole: data.userRole || '',
                             createdAt: data.createdAt?.toDate?.() || new Date(),
                             status: data.status || 'unknown',
                             phrasesTotal: phrasesList.length,
@@ -158,10 +158,10 @@ export default function AdminUserPage() {
                         };
                     });
                     // Sort on client side
-                    debatesData.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-                    setDebates(debatesData);
+                    scenariosData.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+                    setScenarios(scenariosData);
                 } catch (err) {
-                    console.error('Error loading debates:', err);
+                    console.error('Error loading scenarios:', err);
                 }
 
                 // Load posts (simple query without orderBy)
@@ -299,8 +299,8 @@ export default function AdminUserPage() {
                 <Card>
                     <CardContent className="pt-4 pb-4 text-center">
                         <MessageSquare className="h-5 w-5 mx-auto mb-2 text-neutral-400" />
-                        <div className="text-2xl font-bold">{debates.length}</div>
-                        <div className="text-xs text-neutral-500">Debates</div>
+                        <div className="text-2xl font-bold">{scenarios.length}</div>
+                        <div className="text-xs text-neutral-500">Scenarios</div>
                     </CardContent>
                 </Card>
                 <Card>
@@ -323,7 +323,7 @@ export default function AdminUserPage() {
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)}>
                 <TabsList className="grid w-full grid-cols-4 mb-6">
                     <TabsTrigger value="phrases">Phrases</TabsTrigger>
-                    <TabsTrigger value="debates">Debates</TabsTrigger>
+                    <TabsTrigger value="scenarios">Scenarios</TabsTrigger>
                     <TabsTrigger value="posts">Posts</TabsTrigger>
                     <TabsTrigger value="tokens">Token Usage</TabsTrigger>
                 </TabsList>
@@ -356,43 +356,44 @@ export default function AdminUserPage() {
                     </Card>
                 </TabsContent>
 
-                {/* Debates Tab */}
-                <TabsContent value="debates">
+                {/* Scenarios Tab */}
+                <TabsContent value="scenarios">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Debate History ({debates.length})</CardTitle>
+                            <CardTitle>Scenario History ({scenarios.length})</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            {debates.length === 0 ? (
-                                <p className="text-neutral-500 text-center py-8">No debates yet.</p>
+                            {scenarios.length === 0 ? (
+                                <p className="text-neutral-500 text-center py-8">No scenarios yet.</p>
                             ) : (
                                 <div className="space-y-3">
-                                    {debates.map((d) => (
-                                        <div key={d.id} className="p-4 bg-neutral-50 rounded-lg border border-neutral-100">
+                                    {scenarios.map((s) => (
+                                        <div key={s.id} className="p-4 bg-neutral-50 rounded-lg border border-neutral-100">
                                             <div className="flex items-start justify-between">
                                                 <div>
-                                                    <p className="font-medium text-neutral-900">{d.topic}</p>
+                                                    <p className="font-medium text-neutral-900">{s.scenario}</p>
+                                                    <p className="text-xs text-neutral-500 mt-0.5 mb-1">{s.userRole}</p>
                                                     <div className="flex gap-3 text-xs text-neutral-500 mt-1">
                                                         <span className="flex items-center gap-1">
                                                             <MessageSquare className="h-3 w-3" />
-                                                            {d.turnsCount} turns
+                                                            {s.turnsCount} turns
                                                         </span>
                                                         <span>·</span>
                                                         <span className="flex items-center gap-1">
                                                             <Calendar className="h-3 w-3" />
-                                                            {d.createdAt.toLocaleDateString()}
+                                                            {s.createdAt.toLocaleDateString()}
                                                         </span>
                                                     </div>
                                                 </div>
                                                 <div className="flex gap-2">
-                                                    {d.phrasesNatural > 0 && (
+                                                    {s.phrasesNatural > 0 && (
                                                         <Badge variant="secondary" className="bg-emerald-50 text-emerald-700">
                                                             <CheckCircle className="h-3 w-3 mr-1" />
-                                                            {d.phrasesNatural} natural
+                                                            {s.phrasesNatural} natural
                                                         </Badge>
                                                     )}
                                                     <Badge variant="secondary">
-                                                        {d.phrasesTotal} phrases
+                                                        {s.phrasesTotal} phrases
                                                     </Badge>
                                                 </div>
                                             </div>

@@ -6,6 +6,7 @@ import {
     setDocument,
     deleteDocument,
     queryCollection,
+    runQuery,
     serverTimestamp,
 } from '../firestore-rest';
 
@@ -57,10 +58,9 @@ export async function toggleFavoriteQuote(
 
 export async function getUserFavoriteQuotes(userId: string): Promise<FavoriteQuote[]> {
     const quotesRef = 'favorite_quotes';
-    const qs = await queryCollection(quotesRef, {
-        where: [{ field: 'userId', op: '==', value: userId }],
-        orderBy: [{ field: 'createdAt', direction: 'desc' }]
-    });
+    const qs = await runQuery(quotesRef, [
+        { field: 'userId', op: 'EQUAL', value: userId }
+    ]);
 
     // Sort manually as REST API simple query sometimes doesn't sort complex fields easily out of the box
     const sorted = qs.sort((a, b) => {
@@ -74,8 +74,8 @@ export async function getUserFavoriteQuotes(userId: string): Promise<FavoriteQuo
 
 export async function getUserSavedQuoteIds(userId: string): Promise<string[]> {
     const quotesRef = 'favorite_quotes';
-    const qs = await queryCollection(quotesRef, {
-        where: [{ field: 'userId', op: '==', value: userId }]
-    });
+    const qs = await runQuery(quotesRef, [
+        { field: 'userId', op: 'EQUAL', value: userId }
+    ]);
     return qs.map(doc => doc.quoteId as string);
 }

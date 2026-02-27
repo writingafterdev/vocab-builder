@@ -1,0 +1,16 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Audio files for articles - readable by anyone, writable by authenticated users
+    match /audio/articles/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    
+    // Default: deny all other access
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
