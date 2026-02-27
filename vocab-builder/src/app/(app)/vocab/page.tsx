@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { motion, AnimatePresence } from 'framer-motion';
+import dynamic from 'next/dynamic';
 import {
     Search,
     Loader2,
@@ -18,6 +19,15 @@ import { getUserPhrases, updateSavedPhrase } from '@/lib/db/srs';
 import { useConfirm } from '@/components/confirm-dialog';
 import { SpeakButton } from '@/hooks/use-text-to-speech';
 import { EditorialLoader } from '@/components/ui/editorial-loader';
+
+const VocabGraph = dynamic(() => import('@/components/vocab/vocab-graph'), {
+    ssr: false,
+    loading: () => (
+        <div className="flex items-center justify-center h-[500px] border border-neutral-100 bg-neutral-50/30">
+            <EditorialLoader size="sm" />
+        </div>
+    )
+});
 
 // ─── Types ────────────────────────────────────────────
 type TopicValue = string;
@@ -523,6 +533,7 @@ export default function VocabBankPage() {
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [activeView, setActiveView] = useState('all');
+    const [isGraphView, setIsGraphView] = useState(false);
     const [selectedPhrase, setSelectedPhrase] = useState<Phrase | null>(null);
 
     const { confirm, DialogComponent } = useConfirm();
@@ -671,7 +682,7 @@ export default function VocabBankPage() {
             <div className="max-w-6xl mx-auto px-6 pb-8">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-neutral-100 pb-4">
                     {/* Topic tabs */}
-                    <div className="flex gap-1 overflow-x-auto -mb-px">
+                    <div className="flex gap-1 overflow-x-auto -mb-px flex-1">
                         {[
                             { value: 'all', label: 'All' },
                             ...uniqueTopics.map(t => ({ value: t, label: formatTopicLabel(t) })),
@@ -689,26 +700,49 @@ export default function VocabBankPage() {
                         ))}
                     </div>
 
-                    {/* Search */}
-                    <div className="relative flex-shrink-0">
-                        <Search className="absolute left-3 top-2.5 h-4 w-4 text-neutral-300" />
-                        <input
-                            placeholder="Search phrases..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-9 pr-4 py-2 text-sm bg-neutral-50 border border-neutral-100 w-64 focus:outline-none focus:ring-1 focus:ring-neutral-300 focus:border-neutral-300 transition-all placeholder:text-neutral-300"
-                        />
+                    {/* Search & View Toggle */}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                        <div className="relative">
+                            <Search className="absolute left-3 top-2.5 h-4 w-4 text-neutral-300" />
+                            <input
+                                placeholder="Search phrases..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="pl-9 pr-4 py-2 text-sm bg-neutral-50 border border-neutral-100 w-48 lg:w-64 focus:outline-none focus:ring-1 focus:ring-neutral-300 focus:border-neutral-300 transition-all placeholder:text-neutral-300"
+                            />
+                        </div>
+                        <button
+                            onClick={() => setIsGraphView(!isGraphView)}
+                            className="px-4 py-2 text-sm bg-neutral-900 text-white font-medium hover:bg-neutral-800 transition-colors"
+                        >
+                            {isGraphView ? 'List View' : 'Graph View'}
+                        </button>
                     </div>
                 </div>
             </div>
 
-            {/* ─── Card Grid ─── */}
+            {/* ─── Content Area ─── */}
             <div className="max-w-6xl mx-auto px-6 pb-24">
                 {filteredPhrases.length === 0 ? (
                     <div className="text-center py-24">
                         <p className="text-lg text-neutral-300 italic" style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}>
                             {searchQuery ? 'No phrases match your search.' : 'No words yet. Start highlighting while reading.'}
                         </p>
+                    </div>
+                ) : isGraphView ? (
+                    <div className="w-full h-[600px] rounded-lg shadow-sm border border-neutral-100 overflow-hidden">
+                        <VocabGraph
+                            phrases={filteredPhrases}
+                            onNodeClick={(node) => {
+                                if (node.originalPhrase) {
+                                    setSelectedPhrase(node.originalPhrase);
+                                } else if (node.group === 'child') {
+                                    // If child is clicked, find parent and open it
+                                    const parent = filteredPhrases.find(p => p.children?.some(c => c.id === node.id));
+                                    if (parent) setSelectedPhrase(parent);
+                                }
+                            }}
+                        />
                     </div>
                 ) : (
                     <div className="border-l border-t border-neutral-100">
