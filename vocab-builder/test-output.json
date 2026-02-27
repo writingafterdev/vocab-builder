@@ -1,0 +1,1 @@
+{"error":"Firestore not initialized - this should only be called from client side"}

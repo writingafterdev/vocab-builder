@@ -97,7 +97,6 @@ export async function POST(request: NextRequest) {
                 usedContexts: [...existingHistory.usedContexts, newContext]
             };
         }
-
         await updateDocument(collectionPath, phraseId, updates);
 
         // Record history
@@ -124,6 +123,38 @@ export async function POST(request: NextRequest) {
                 register: phrase.register,
                 nuance: phrase.nuance
             });
+        }
+
+        // --- CASCADING TRIGGER ---
+        // Unlock 2 children when the parent is correctly answered
+        if (result === 'correct' && phrase.children && phrase.children.length > 0) {
+            try {
+                const lockedChildren = phrase.children.filter((c: any) => c.nextReviewDate === null);
+
+                if (lockedChildren.length > 0) {
+                    const toUnlock = lockedChildren.slice(0, 2);
+                    const tomorrow = new Date();
+                    tomorrow.setDate(tomorrow.getDate() + 1);
+                    tomorrow.setHours(0, 0, 0, 0);
+
+                    const updatedChildren = phrase.children.map((c: any) => {
+                        if (toUnlock.find((u: any) => u.id === c.id)) {
+                            return {
+                                ...c,
+                                nextReviewDate: tomorrow.toISOString(), // Unlock: Schedule for tomorrow
+                                learningStep: 0
+                            };
+                        }
+                        return c;
+                    });
+
+                    await updateDocument(collectionPath, phraseId, { children: updatedChildren });
+                    console.log(`Unlocked ${toUnlock.length} children for phrase ${phraseId}`);
+                }
+            } catch (err) {
+                console.error('Failed to execute cascading algorithm for children:', err);
+                // Don't fail the main request if this side-effect fails
+            }
         }
 
         // ---------------------------------------------------
