@@ -11,6 +11,7 @@ export interface DockItem {
     label: string;
     isActive?: boolean;
     showBadge?: boolean;
+    onClick?: () => void;
 }
 
 interface FloatingDockProps {
@@ -40,35 +41,39 @@ function DockIcon({
         damping: 12,
     });
 
-    return (
-        <Link href={item.href}>
-            <motion.div
-                ref={ref}
-                style={{ width, height: width }}
-                className={cn(
-                    "relative flex items-center justify-center rounded-none transition-colors duration-200 group border border-transparent",
-                    item.isActive
-                        ? "bg-neutral-900 text-white shadow-sm"
-                        : "bg-white/80 text-neutral-600 hover:bg-neutral-900 hover:text-white hover:border-neutral-900"
-                )}
-            >
-                <div className="flex items-center justify-center w-6 h-6">
-                    {item.icon}
-                </div>
+    const content = (
+        <motion.div
+            ref={ref}
+            style={{ width, height: width }}
+            className={cn(
+                "relative flex items-center justify-center rounded-none transition-colors duration-200 group border border-transparent cursor-pointer",
+                item.isActive
+                    ? "bg-neutral-900 text-white shadow-sm"
+                    : "bg-white/80 text-neutral-600 hover:bg-neutral-900 hover:text-white hover:border-neutral-900"
+            )}
+        >
+            <div className="flex items-center justify-center w-6 h-6">
+                {item.icon}
+            </div>
 
-                {/* Notification badge dot */}
-                {item.showBadge && (
-                    <span className="absolute top-1 right-1 w-2 h-2 bg-amber-500 rounded-full ring-2 ring-white" />
-                )}
+            {/* Notification badge dot */}
+            {item.showBadge && (
+                <span className="absolute top-1 right-1 w-2 h-2 bg-amber-500 rounded-full ring-2 ring-white" />
+            )}
 
-                {/* Tooltip */}
-                <div className="absolute -top-12 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-neutral-900 text-white text-xs font-medium rounded-none opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none">
-                    {item.label}
-                    <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-neutral-900 rotate-45" />
-                </div>
-            </motion.div>
-        </Link>
+            {/* Tooltip */}
+            <div className="absolute -top-12 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-neutral-900 text-white text-xs font-medium rounded-none opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none">
+                {item.label}
+                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-neutral-900 rotate-45" />
+            </div>
+        </motion.div>
     );
+
+    if (item.onClick) {
+        return <div onClick={item.onClick}>{content}</div>;
+    }
+
+    return <Link href={item.href}>{content}</Link>;
 }
 
 export function FloatingDock({ items, className }: FloatingDockProps) {

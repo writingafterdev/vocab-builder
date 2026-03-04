@@ -120,8 +120,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         {
             href: `/profile/${profile?.username || 'me'}`,
             icon: <User className="w-5 h-5" weight={isActive('/profile') ? 'fill' : 'regular'} />,
-            label: 'Profile',
-            isActive: isActive('/profile')
+            label: 'Menu',
+            isActive: sidebarOpen,
+            onClick: () => setSidebarOpen(true),
         },
         {
             href: '/settings',
@@ -214,6 +215,16 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                                 <div className="mb-4">
                                     <XpDisplay />
                                 </div>
+
+                                {/* View Profile */}
+                                <Link
+                                    href={`/profile/${profile?.username || 'me'}`}
+                                    onClick={() => setSidebarOpen(false)}
+                                    className="flex items-center gap-2 px-3 py-2 mb-2 text-sm text-neutral-600 hover:bg-neutral-50 rounded-lg transition-colors"
+                                >
+                                    <User className="h-4 w-4" weight="regular" />
+                                    View Profile
+                                </Link>
 
                                 {/* Upgrade CTA */}
                                 {profile.subscription.status === 'trial' && (
