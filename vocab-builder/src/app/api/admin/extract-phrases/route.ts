@@ -51,13 +51,22 @@ SELECTION CRITERIA (in priority order):
 
 1. **Topic-related expressions** - Phrases directly related to the article's theme/topic
 2. **High-frequency phrases** - Common expressions used in everyday English (top 5000 corpus)
-3. **Natural expressions** - How native speakers actually talk:
+3. **Confusable variants** - Words/phrases that have SIMILAR VARIANTS learners commonly MIX UP across contexts. These are gold for learners because they create persistent errors. Examples:
+   - affect vs effect, lay vs lie, borrow vs lend
+   - say vs tell, speak vs talk, make vs do
+   - "used to" vs "be used to" vs "get used to"
+   - rise vs raise, sit vs set
+   - "in the end" vs "at the end"
+   - historic vs historical, economic vs economical
+   - "look forward to" (+ gerund) vs "look forward" (misused with infinitive)
+   PRIORITIZE phrases from the text that have a commonly confused twin/variant.
+4. **Natural expressions** - How native speakers actually talk:
    - Conversational phrases (greetings, reactions, transitions)
    - Common idioms and expressions
    - Phrasal verbs used in daily life
    - Colloquialisms
-4. **Collocations** - Natural word pairings (make a decision, heavy rain, etc.)
-5. **Learner-value** - Phrases B1-C1 learners should know but often miss
+5. **Collocations** - Natural word pairings (make a decision, heavy rain, etc.)
+6. **Learner-value** - Phrases B1-C1 learners should know but often miss
 
 EXCLUDE:
 - Technical jargon specific to one field

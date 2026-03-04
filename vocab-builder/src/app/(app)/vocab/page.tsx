@@ -261,7 +261,7 @@ function DetailModal({
     const [editNuance, setEditNuance] = useState<string>(
         Array.isArray(phrase.nuance) ? phrase.nuance[0] || 'neutral' : phrase.nuance || 'neutral'
     );
-    const [editTopics, setEditTopics] = useState<TopicValue[]>(phrase.topics || []);
+    const [editTopics, setEditTopics] = useState<TopicValue[]>(phrase.topics?.length ? phrase.topics : (phrase.topic ? [phrase.topic] : []));
 
     const handleSave = async () => {
         setSaving(true);
@@ -291,7 +291,7 @@ function DetailModal({
         setEditMeaning(phrase.meaning);
         setEditRegister(Array.isArray(phrase.register) ? phrase.register[0] || 'consultative' : phrase.register || 'consultative');
         setEditNuance(Array.isArray(phrase.nuance) ? phrase.nuance[0] || 'neutral' : phrase.nuance || 'neutral');
-        setEditTopics(phrase.topics || []);
+        setEditTopics(phrase.topics?.length ? phrase.topics : (phrase.topic ? [phrase.topic] : []));
         setIsEditing(false);
     };
 
@@ -330,7 +330,7 @@ function DetailModal({
                                 </div>
                                 {/* Badges */}
                                 <div className="flex items-center gap-2 mt-2">
-                                    {phrase.topics?.map(t => (
+                                    {(phrase.topics?.length ? phrase.topics : (phrase.topic ? [phrase.topic] : [])).map(t => (
                                         <span key={t} className={`px-2 py-0.5 text-[9px] uppercase tracking-[0.1em] font-bold text-white ${getTopicColor(t)}`}>
                                             {formatTopicLabel(t)}
                                         </span>
@@ -471,7 +471,7 @@ function DetailModal({
                                     </div>
                                 ) : (
                                     <div className="flex flex-wrap gap-1.5">
-                                        {phrase.topics?.length ? phrase.topics.map(t => (
+                                        {(phrase.topics?.length ? phrase.topics : (phrase.topic ? [phrase.topic] : [])).length > 0 ? (phrase.topics?.length ? phrase.topics : [phrase.topic!]).map(t => (
                                             <span key={t} className={`px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] font-bold text-white ${getTopicColor(t)}`}>
                                                 {formatTopicLabel(t)}
                                             </span>
@@ -579,7 +579,8 @@ export default function VocabBankPage() {
                     practiceCount: sp.practiceCount || 0,
                     nextShowAt: null,
                     retired: (sp.usageCount || 0) >= 6,
-                    topics: sp.topics as TopicValue[] | undefined,
+                    topics: (sp.topics as TopicValue[] | undefined)?.length ? sp.topics as TopicValue[] : ((sp as any).topic ? [(sp as any).topic] : undefined),
+                    topic: (sp as any).topic,
                     children: (sp as { children?: ChildExpression[] }).children,
                     register: (sp as any).register ||
                         ((sp as any).usage === 'spoken' ? 'casual' :
