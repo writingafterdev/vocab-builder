@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logTokenUsage } from '@/lib/db/token-tracking';
-import { fetchWithKeyRotation } from '@/lib/api-key-rotation';
+
 import {
     ExerciseSessionType,
     ExerciseQuestionType,
@@ -16,8 +16,8 @@ import {
  * Supports quick_practice, story, and listening session types
  */
 
-const DEEPSEEK_URL = 'https://api.deepseek.com/chat/completions';
-const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
+const XAI_URL = 'https://api.x.ai/v1/chat/completions';
+const XAI_API_KEY = process.env.XAI_API_KEY;
 
 interface PhraseInput {
     id: string;
@@ -254,7 +254,7 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
         }
 
-        if (!DEEPSEEK_API_KEY) {
+        if (!XAI_API_KEY) {
             return NextResponse.json({ error: 'API key not configured' }, { status: 500 });
         }
 
@@ -560,14 +560,14 @@ OUTPUT FORMAT:
         // ─── API CALL (system + user, per-type temperature) ────────────────
         const temperature = isQuickPractice ? 0.7 : 0.6;
 
-        const response = await fetch(DEEPSEEK_URL, {
+        const response = await fetch(XAI_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+                'Authorization': `Bearer ${XAI_API_KEY}`,
             },
             body: JSON.stringify({
-                model: 'deepseek-chat',
+                model: 'grok-4-1-fast-reasoning',
                 messages: [
                     { role: 'system', content: systemPrompt },
                     { role: 'user', content: userPrompt },
@@ -579,7 +579,7 @@ OUTPUT FORMAT:
         });
 
         if (!response.ok) {
-            console.error('DeepSeek API error:', await response.text());
+            console.error('Grok API error:', await response.text());
             return NextResponse.json({ error: 'Failed to generate session' }, { status: 500 });
         }
 
@@ -592,7 +592,7 @@ OUTPUT FORMAT:
                 userId,
                 userEmail,
                 endpoint: 'generate-session',
-                model: 'grok-3-mini-fast',
+                model: 'grok-4-1-fast-reasoning',
                 promptTokens: data.usage.prompt_tokens || 0,
                 completionTokens: data.usage.completion_tokens || 0,
                 totalTokens: data.usage.total_tokens || 0,

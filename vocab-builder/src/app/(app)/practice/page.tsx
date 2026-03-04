@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useRef, Suspense, useCallback } from 'react';
+import { useState, useEffect, useRef, Suspense, useCallback, useMemo } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { Button } from '@/components/ui/button';
@@ -16,6 +17,7 @@ import JourneyPath from '@/components/practice/journey-path';
 import ExerciseShell from '@/components/practice/exercise-shell';
 import RightSidebar from '@/components/practice/right-sidebar';
 import { DailyDrillBanner } from '@/components/practice/DailyDrillBanner';
+import VocabArcade, { ArcadeResult } from '@/components/practice/vocab-arcade';
 
 // Cluster interface for practice
 interface PracticeCluster {
@@ -116,7 +118,7 @@ interface JourneyNode {
 // Main Content Component
 function PracticePageContent() {
     const router = useRouter();
-    const { user } = useAuth();
+    const { user, loading: authLoading } = useAuth();
 
     const [loading, setLoading] = useState(true);
     const [clustering, setClustering] = useState(false);
@@ -131,9 +133,11 @@ function PracticePageContent() {
     const [activeSession, setActiveSession] = useState<ExerciseSession | null>(null);
     const [isGenerating, setIsGenerating] = useState(false);
 
-
     // Cached completed sessions from Firestore
     const [completedSessions, setCompletedSessions] = useState<Record<string, ExerciseSession>>({});
+
+    // Pre-generated exercises from batch
+    const [preGenData, setPreGenData] = useState<any>(null);
 
     // Session eligibility
     const [immersiveEligible, setImmersiveEligible] = useState(false);
@@ -141,16 +145,70 @@ function PracticePageContent() {
     // Daily Drill state
     const [showDrillPage, setShowDrillPage] = useState(false);
 
+    // Arcade state
+    const [isArcadeActive, setIsArcadeActive] = useState(false);
+
+    // IMPORTANT: These hooks MUST be before any early returns to satisfy Rules of Hooks!
+    const handleCloseArcade = useCallback(() => setIsArcadeActive(false), []);
+    const allDuePhrases = useMemo(() => {
+        return clusters.flatMap(c => c.phrases as SavedPhrase[]);
+    }, [clusters]);
+
     // Guard against double-invocation (React Strict Mode / fast re-renders)
     const clusteringInProgress = useRef(false);
 
+    // Arcade launch listener
+    useEffect(() => {
+        const handleLaunch = () => setIsArcadeActive(true);
+        window.addEventListener('launch-arcade', handleLaunch);
+        return () => window.removeEventListener('launch-arcade', handleLaunch);
+    }, []);
+
+    // Auth bounce
+    useEffect(() => {
+        if (!authLoading && !user) {
+            toast('Please log in to join the Practice Room', {
+                icon: '🔒',
+                description: 'We need to track your progress and vocabulary.',
+            });
+            router.push('/auth/login');
+        }
+    }, [user, authLoading, router]);
+
     // Load clusters on mount
     useEffect(() => {
-        if (!user) return;
+        if (!user) {
+            if (!authLoading) setLoading(false);
+            return;
+        }
         loadJourneyPath();
         loadCompletedSessions();
         checkImmersiveEligibility();
+        loadPreGeneratedExercises();
     }, [user]);
+
+    // Load pre-generated exercises from batch
+    async function loadPreGeneratedExercises() {
+        if (!user) return;
+        try {
+            const token = await user.getIdToken();
+            const res = await fetch('/api/user/pre-generated-exercises', {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'x-user-id': user.uid
+                }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                if (data.available && data.data) {
+                    setPreGenData(data.data);
+                    console.log(`[Practice] Pre-generated exercises loaded: ${data.data.questions?.length || 0} questions`);
+                }
+            }
+        } catch (error) {
+            console.error('[Practice] Failed to load pre-generated:', error);
+        }
+    }
 
     // Check immersive session eligibility (Step 3+ DUE phrases)
     async function checkImmersiveEligibility() {
@@ -346,8 +404,36 @@ function PracticePageContent() {
 
         try {
             const token = await user.getIdToken();
+            const clusterPhraseIds = new Set(cluster.phrases.map(p => p.id));
 
-            // Call generate-session API
+            // Try pre-generated exercises first
+            if (preGenData?.questions?.length > 0) {
+                const matchingQuestions = preGenData.questions.filter((q: any) =>
+                    q.targetPhraseIds?.some((id: string) => clusterPhraseIds.has(id))
+                );
+
+                if (matchingQuestions.length >= 2) {
+                    console.log(`[Practice] Using ${matchingQuestions.length} pre-generated questions`);
+                    const session: ExerciseSession = {
+                        id: `session_${Date.now()}`,
+                        userId: user.uid,
+                        type: sessionType,
+                        clusterId,
+                        storyContext: { title: cluster.theme, setting: cluster.context || '', characters: [], narrative: '', paragraphs: [], segments: [] },
+                        questions: matchingQuestions,
+                        testedPhraseIds: cluster.phrases.map(p => p.id),
+                        contextPhraseIds: [],
+                        usagesIncluded: [],
+                        status: 'in_progress',
+                        createdAt: { seconds: Date.now() / 1000, nanoseconds: 0 } as any,
+                    };
+                    setActiveSession(session);
+                    setIsGenerating(false);
+                    return;
+                }
+            }
+
+            // Fallback: real-time generation
             const res = await fetch('/api/user/generate-session', {
                 method: 'POST',
                 headers: {
@@ -358,7 +444,7 @@ function PracticePageContent() {
                 body: JSON.stringify({
                     sessionType,
                     testedPhrases: cluster.phrases,
-                    contextPhrases: [], // Could be more phrases for context
+                    contextPhrases: [],
                     clusterContext: {
                         theme: cluster.theme,
                         setting: cluster.context,
@@ -373,7 +459,6 @@ function PracticePageContent() {
 
             const data = await res.json();
 
-            // Build full session object
             const session: ExerciseSession = {
                 id: `session_${Date.now()}`,
                 userId: user.uid,
@@ -396,7 +481,7 @@ function PracticePageContent() {
         } finally {
             setIsGenerating(false);
         }
-    }, [user, clusters, isGenerating]);
+    }, [user, clusters, isGenerating, preGenData]);
 
     const handleSessionComplete = useCallback(async (result: SessionResult) => {
         // Update daily progress
@@ -479,6 +564,42 @@ function PracticePageContent() {
     const handleClose = useCallback(() => {
         setActiveSession(null);
     }, []);
+
+    const handleArcadeComplete = useCallback(async (result: ArcadeResult) => {
+        setIsArcadeActive(false);
+
+        // Optimistic UI Toast
+        toast.success(`Arcade Complete! Score: ${result.score}`, {
+            icon: '🏆',
+            description: `Cleared ${result.correctIds.length} phrases.`
+        });
+
+        if (!user || (result.correctIds.length === 0 && result.incorrectIds.length === 0)) return;
+
+        try {
+            const token = await user.getIdToken();
+            await fetch('/api/user/update-arcade-result', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                    'x-user-id': user.uid
+                },
+                body: JSON.stringify({
+                    correctIds: result.correctIds,
+                    incorrectIds: result.incorrectIds,
+                    score: result.score,
+                    date: getTodayKey()
+                })
+            });
+            // We don't strictly need to await this or block the UI. 
+            // The user assumes their progress is saved.
+        } catch (error) {
+            console.error('Failed to save arcade results:', error);
+            toast.error('Failed to sync arcade results.');
+        }
+
+    }, [user]);
 
     const handleReviewSession = useCallback((clusterId: string) => {
         // Load the saved session from cache
@@ -591,19 +712,80 @@ function PracticePageContent() {
         );
     }
 
-    // Empty state
-    if (clusters.length === 0) {
+    // Active Arcade view
+
+    if (isArcadeActive) {
         return (
-            <div className="max-w-md mx-auto py-16 px-4 text-center">
-                <div className="w-16 h-16 bg-neutral-100 flex items-center justify-center mx-auto mb-4">
+            <AnimatePresence>
+                <VocabArcade
+                    phrases={allDuePhrases}
+                    onClose={handleCloseArcade}
+                    onComplete={handleArcadeComplete}
+                />
+            </AnimatePresence>
+        );
+    }
+
+    // Empty state
+    if (clusters.length === 0 && allNodes.length === 0) {
+        return (
+            <div className="max-w-md mx-auto py-24 px-6 text-center flex flex-col items-center">
+                <div className="w-20 h-20 bg-neutral-100 rounded-full flex items-center justify-center mb-6">
+                    <span className="text-4xl">🌱</span>
+                </div>
+                <h2
+                    className="text-2xl font-normal text-neutral-900 mb-3"
+                    style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
+                >
+                    Your journey begins here
+                </h2>
+                <p className="text-neutral-500 text-sm mb-8 leading-relaxed">
+                    You haven't saved any vocabulary yet. Discover interesting articles, highlight words you want to learn, and they'll appear here for practice.
+                </p>
+                <div className="flex flex-col w-full gap-3">
+                    <button
+                        onClick={() => router.push('/')}
+                        className="w-full bg-neutral-900 text-white px-6 py-3.5 text-sm font-bold uppercase tracking-[0.08em] hover:bg-neutral-800 transition-colors flex items-center justify-center gap-2"
+                    >
+                        Find Articles to Read
+                        <ArrowRight className="w-4 h-4" />
+                    </button>
+                    <button
+                        onClick={() => router.push('/vocab')}
+                        className="w-full text-neutral-400 px-6 py-3 text-xs font-medium uppercase tracking-[0.08em] hover:text-neutral-600 transition-colors"
+                    >
+                        Browse Dictionary
+                    </button>
+                </div>
+            </div>
+        );
+    } else if (clusters.length === 0) {
+        return (
+            <div className="max-w-md mx-auto py-16 px-4 text-center flex flex-col items-center">
+                <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mb-4">
                     <span className="text-3xl">✅</span>
                 </div>
                 <h2
                     className="text-xl font-normal text-neutral-900 mb-2"
                     style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
-                >All caught up!</h2>
-                <p className="text-neutral-400 text-sm mb-4">No phrases due for review right now.</p>
-                <Button variant="outline" onClick={() => router.push('/vocab')}>Browse Vocabulary</Button>
+                >
+                    All caught up!
+                </h2>
+                <p className="text-neutral-400 text-sm mb-6">No phrases due for review right now.</p>
+                <div className="flex gap-3">
+                    <button
+                        onClick={() => router.push('/')}
+                        className="bg-neutral-900 text-white px-5 py-2.5 text-xs font-bold uppercase tracking-[0.08em] hover:bg-neutral-800 transition-colors rounded-md"
+                    >
+                        Read More
+                    </button>
+                    <button
+                        onClick={() => router.push('/vocab')}
+                        className="bg-neutral-100 text-neutral-600 px-5 py-2.5 text-xs font-bold uppercase tracking-[0.08em] hover:bg-neutral-200 transition-colors rounded-md"
+                    >
+                        View Bank
+                    </button>
+                </div>
             </div>
         );
     }

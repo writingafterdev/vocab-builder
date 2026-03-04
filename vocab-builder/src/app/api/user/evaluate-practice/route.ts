@@ -7,8 +7,8 @@ import {
     DEFAULT_PRACTICE_CONFIG
 } from '@/lib/db/practice-types';
 
-const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
-const DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions';
+const XAI_API_KEY = process.env.XAI_API_KEY;
+const DEEPSEEK_API_URL = 'https://api.x.ai/v1/chat/completions';
 
 interface EvaluateRequest {
     questionId: string;
@@ -120,7 +120,7 @@ async function evaluateOpenResponse(
     scenarioText: string,
     userResponse: string
 ): Promise<{ result: QuestionResult; feedback: string }> {
-    if (!DEEPSEEK_API_KEY) {
+    if (!XAI_API_KEY) {
         // Fallback: simple string matching
         const hasPhrase = userResponse.toLowerCase().includes(targetPhrase.toLowerCase());
         return {
@@ -162,10 +162,10 @@ Guidelines:
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+                'Authorization': `Bearer ${XAI_API_KEY}`,
             },
             body: JSON.stringify({
-                model: 'deepseek-chat',
+                model: 'grok-4-1-fast-reasoning',
                 messages: [
                     {
                         role: 'system',
@@ -180,7 +180,7 @@ Guidelines:
         });
 
         if (!response.ok) {
-            console.error('DeepSeek API error:', await response.text());
+            console.error('Grok API error:', await response.text());
             throw new Error('API error');
         }
 

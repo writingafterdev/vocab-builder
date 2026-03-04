@@ -866,6 +866,16 @@ export default function AdminPage() {
                 </Button>
             </div>
 
+            {/* Quick Links */}
+            <div className="flex gap-2">
+                <Link href="/admin/batch-status">
+                    <Button variant="outline" size="sm" className="gap-2 text-xs">
+                        <Sparkles className="h-3.5 w-3.5" />
+                        Batch Pipeline
+                    </Button>
+                </Link>
+            </div>
+
             {/* Tabs */}
             <div className="flex flex-wrap gap-2 border-b border-neutral-200 pb-2">
                 {[

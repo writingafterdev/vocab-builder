@@ -6,10 +6,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyIdToken } from '@/lib/firebase-admin';
 import { pickDrillWeaknesses, WeaknessEntry } from '@/lib/db/user-weaknesses';
-import { GoogleGenAI } from '@google/genai';
-import { getNextApiKey } from '@/lib/api-key-rotation';
 import { setDocument } from '@/lib/firestore-rest';
 import { Timestamp } from 'firebase/firestore';
+
+const XAI_API_KEY = process.env.XAI_API_KEY;
 
 export interface DrillExercise {
     id: string;
@@ -164,15 +164,11 @@ async function generateAIDrill(
     weakness: WeaknessEntry,
     type: DrillExercise['type']
 ): Promise<DrillExercise> {
-    const apiKey = getNextApiKey();
-    if (!apiKey) {
-        // Fallback if no API key
+    if (!XAI_API_KEY) {
         return createFallbackDrill(weakness, type);
     }
 
     try {
-        const ai = new GoogleGenAI({ apiKey });
-
         const prompt = `Generate a quick English practice exercise for this weakness:
 
 Category: ${weakness.category}
@@ -197,29 +193,41 @@ Respond in JSON:
   "explanation": "why this is correct"
 }`;
 
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash-lite-preview-06-17',
-            contents: [{ role: 'user', parts: [{ text: prompt }] }],
-            config: { temperature: 0.7, maxOutputTokens: 500 }
+        const response = await fetch('https://api.x.ai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${XAI_API_KEY}`,
+            },
+            body: JSON.stringify({
+                model: 'grok-4-1-fast-reasoning',
+                messages: [
+                    { role: 'system', content: 'You are an expert English teacher. Return valid JSON only.' },
+                    { role: 'user', content: prompt }
+                ],
+                response_format: { type: 'json_object' },
+                max_tokens: 500,
+                temperature: 0.7,
+            }),
         });
 
-        const text = response.text || '';
-        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (!response.ok) throw new Error(`Grok API error: ${response.status}`);
 
-        if (jsonMatch) {
-            const parsed = JSON.parse(jsonMatch[0]);
-            return {
-                id: `drill_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-                type,
-                weaknessId: weakness.id,
-                weaknessCategory: weakness.category,
-                instruction: parsed.instruction,
-                prompt: parsed.prompt,
-                options: parsed.options,
-                correctAnswer: parsed.correctAnswer,
-                explanation: parsed.explanation
-            };
-        }
+        const data = await response.json();
+        const text = data.choices?.[0]?.message?.content || '';
+        const parsed = JSON.parse(text);
+
+        return {
+            id: `drill_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+            type,
+            weaknessId: weakness.id,
+            weaknessCategory: weakness.category,
+            instruction: parsed.instruction,
+            prompt: parsed.prompt,
+            options: parsed.options,
+            correctAnswer: parsed.correctAnswer,
+            explanation: parsed.explanation
+        };
     } catch (error) {
         console.error('[Daily Drill] AI generation failed:', error);
     }

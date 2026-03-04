@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
+import { motion } from 'framer-motion';
 import {
     BookOpen,
     Clock,
@@ -383,13 +384,37 @@ export default function DashboardPage() {
                             </div>
 
                             {/* Start Session Button */}
-                            <Link
-                                href="/practice"
-                                className="mt-6 w-full py-3 bg-neutral-900 text-white text-sm font-bold uppercase tracking-[0.1em] text-center hover:bg-neutral-800 transition-colors flex items-center justify-center gap-2 rounded-sm"
+                            <motion.div
+                                animate={dueCount > 0 ? {
+                                    scale: [1, 1.02, 1],
+                                    boxShadow: [
+                                        "0px 0px 0px 0px rgba(0,0,0,0)",
+                                        "0px 4px 14px 0px rgba(0,0,0,0.15)",
+                                        "0px 0px 0px 0px rgba(0,0,0,0)"
+                                    ]
+                                } : {}}
+                                transition={{
+                                    duration: 2,
+                                    repeat: Infinity,
+                                    ease: "easeInOut"
+                                }}
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
+                                className="mt-8"
                             >
-                                Start Session
-                                <ArrowRight className="w-4 h-4" />
-                            </Link>
+                                <Link
+                                    href="/practice"
+                                    className="group relative w-full py-3.5 bg-neutral-900 text-white text-sm font-bold uppercase tracking-[0.1em] text-center hover:bg-neutral-800 transition-colors flex items-center justify-center gap-2 rounded-lg overflow-hidden"
+                                >
+                                    {/* Shimmer effect inside button on hover */}
+                                    <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent group-hover:translate-x-full transition-transform duration-1000 ease-in-out" />
+
+                                    <span className="relative z-10 flex items-center justify-center gap-2">
+                                        Start Session
+                                        <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
+                                    </span>
+                                </Link>
+                            </motion.div>
                         </div>
                     </div>
 

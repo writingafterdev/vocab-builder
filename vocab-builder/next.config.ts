@@ -31,13 +31,13 @@ const nextConfig: NextConfig = {
   },
 
   // Bundle size optimizations for Cloudflare Workers
+  transpilePackages: ['framer-motion', 'motion-dom', 'motion-utils'],
   experimental: {
     // Tree-shake heavy packages — only import what's actually used
     optimizePackageImports: [
       'lucide-react',
       '@phosphor-icons/react',
       'recharts',
-      'framer-motion',
       '@radix-ui/react-dialog',
       '@radix-ui/react-dropdown-menu',
       '@radix-ui/react-tabs',

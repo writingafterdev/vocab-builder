@@ -11,7 +11,7 @@ import { ArticleReadingMode } from '@/components/article/ArticleReadingMode';
 import {
     ArrowLeft, MessageCircle, Heart, Repeat2, Loader2,
     Type, Pencil, Plus, Sparkles, Volume2, BookText,
-    ChevronLeft, ChevronRight, Bookmark, Filter, BookmarkPlus
+    ChevronLeft, ChevronRight, Bookmark, Filter, BookmarkPlus, ArrowRight
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { sanitizeRichHtml } from '@/lib/sanitize';
@@ -1101,11 +1101,33 @@ export default function PostPage() {
 
     if (!post) {
         return (
-            <div className="max-w-2xl mx-auto py-12 px-4 text-center">
-                <div className="bg-white rounded-xl p-8 border border-slate-200">
-                    <h1 className="text-xl font-bold mb-2">Post Unavailable</h1>
-                    <p className="text-slate-500 mb-6">This post has been deleted or does not exist.</p>
-                    <Link href="/feed"><Button variant="outline"><ArrowLeft className="h-4 w-4 mr-2" />Back to Library</Button></Link>
+            <div className="max-w-2xl mx-auto py-24 px-6 text-center flex flex-col items-center">
+                <div className="w-20 h-20 bg-neutral-100 rounded-full flex items-center justify-center mb-6">
+                    <span className="text-4xl">👻</span>
+                </div>
+                <h2
+                    className="text-2xl font-normal text-neutral-900 mb-3"
+                    style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
+                >
+                    This article seems to have vanished
+                </h2>
+                <p className="text-neutral-500 text-sm mb-8 leading-relaxed">
+                    The post you are looking for has been deleted or is no longer available. Don't worry, there's plenty more to read.
+                </p>
+                <div className="flex flex-col w-full max-w-sm gap-3 mx-auto">
+                    <button
+                        onClick={() => window.location.href = '/'}
+                        className="w-full bg-neutral-900 text-white px-6 py-3.5 text-sm font-bold uppercase tracking-[0.08em] hover:bg-neutral-800 transition-colors flex items-center justify-center gap-2"
+                    >
+                        Read Fresh Articles
+                        <ArrowRight className="w-4 h-4" />
+                    </button>
+                    <button
+                        onClick={() => window.location.href = '/practice'}
+                        className="w-full text-neutral-400 px-6 py-3 text-xs font-medium uppercase tracking-[0.08em] hover:text-neutral-600 transition-colors"
+                    >
+                        Go to Practice Room
+                    </button>
                 </div>
             </div>
         );

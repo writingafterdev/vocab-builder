@@ -11,8 +11,8 @@ import {
 } from '@/lib/db/practice-types';
 import { GlobalPhraseData, PhraseVariant } from '@/lib/db/types';
 
-const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
-const DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions';
+const XAI_API_KEY = process.env.XAI_API_KEY;
+const DEEPSEEK_API_URL = 'https://api.x.ai/v1/chat/completions';
 
 // Helper: Shuffle array
 function shuffleArray<T>(array: T[]): T[] {
@@ -151,7 +151,7 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        if (!DEEPSEEK_API_KEY) {
+        if (!XAI_API_KEY) {
             return NextResponse.json({ error: 'API key not configured' }, { status: 500 });
         }
 
@@ -407,10 +407,10 @@ Return JSON array EXACTLY matching this schema:
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+                'Authorization': `Bearer ${XAI_API_KEY}`,
             },
             body: JSON.stringify({
-                model: 'deepseek-chat',
+                model: 'grok-4-1-fast-reasoning',
                 messages: [
                     {
                         role: 'system',
@@ -425,7 +425,7 @@ Return JSON array EXACTLY matching this schema:
         });
 
         if (!response.ok) {
-            console.error('DeepSeek API error:', await response.text());
+            console.error('Grok API error:', await response.text());
             return [];
         }
 

@@ -9,8 +9,8 @@ import { runQuery } from '@/lib/firestore-rest';
  * 3. AI Labeling (Context Generation)
  */
 
-const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
-const DEEPSEEK_URL = 'https://api.deepseek.com/v1/chat/completions';
+const XAI_API_KEY = process.env.XAI_API_KEY;
+const XAI_URL = 'https://api.x.ai/v1/chat/completions';
 
 interface ClusteringInput {
     phrases: Array<{
@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
 
         // 3. AI LABELING (Context Generation)
         // If API key missing, return raw groups
-        if (!DEEPSEEK_API_KEY) {
+        if (!XAI_API_KEY) {
             return NextResponse.json({
                 clusters: groups.map(g => ({
                     theme: `${g.topic} (${g.register})`,
@@ -344,14 +344,14 @@ Output: { "theme": "Saturday Plans, Sunday Regrets", "context": "A group chat sp
 }
 `;
 
-    const response = await fetch(DEEPSEEK_URL, {
+    const response = await fetch(XAI_URL, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${DEEPSEEK_API_KEY}`
+            'Authorization': `Bearer ${XAI_API_KEY}`
         },
         body: JSON.stringify({
-            model: 'deepseek-chat',
+            model: 'grok-4-1-fast-reasoning',
             messages: [
                 { role: 'system', content: 'You are a creative writing instructor who names scenarios like short story chapters. Respond ONLY in valid JSON.' },
                 { role: 'user', content: prompt }

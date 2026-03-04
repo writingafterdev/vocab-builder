@@ -5,7 +5,10 @@ import { motion, useMotionValue, useTransform, animate, PanInfo } from 'framer-m
 import { ArticleSection } from '@/lib/db/types';
 import { sanitizeRichHtml } from '@/lib/sanitize';
 import { useVocabHighlighter } from './useVocabHighlighter';
-import { ArrowLeft, ArrowRight } from 'lucide-react';
+import { EmbeddedQuestionCard } from '@/components/embedded-question-card';
+import { cn } from '@/lib/utils';
+import { ArrowLeft, ArrowRight, MessageSquare, ChevronDown, ChevronUp } from 'lucide-react';
+import type { EmbeddedQuestion, Comment as FirestoreComment, RedditComment } from '@/lib/db/types';
 
 const SWIPE_THRESHOLD = 60;
 const VISIBLE_CARDS = 3;
@@ -20,6 +23,12 @@ const POSITIONS = {
 
 const SPRING = { type: 'spring' as const, stiffness: 100, damping: 18, mass: 1.2 };
 
+// Unified item in the swipe stack
+type SwipeItem =
+    | { type: 'content'; section: ArticleSection; }
+    | { type: 'question'; question: EmbeddedQuestion; }
+    | { type: 'comments'; comments: (FirestoreComment & { replies?: FirestoreComment[] })[]; redditComments: RedditComment[]; };
+
 interface SwipeReaderProps {
     sections: ArticleSection[];
     highlightedPhrases?: string[];
@@ -27,6 +36,14 @@ interface SwipeReaderProps {
     onSectionChange?: (index: number) => void;
     currentSection?: number;
     autoAdvance?: boolean;
+    savedPhrasesCount?: number;
+    // MCQ props
+    embeddedQuestions?: EmbeddedQuestion[];
+    answeredQuestions?: Set<string>;
+    onQuestionAnswer?: (id: string, correct: boolean) => void;
+    // Comment props
+    comments?: (FirestoreComment & { replies?: FirestoreComment[] })[];
+    redditComments?: RedditComment[];
 }
 
 /**
@@ -41,13 +58,89 @@ function highlightPhrases(html: string, phrases: string[]): string {
     for (const phrase of sorted) {
         const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const regex = new RegExp(
-            `(?<![<\\w])\\b(${escaped})\\b(?![^<]*>)`,
+            `(?<!<\\w)\\b(${escaped})\\b(?![^<]*>)`,
             'gi'
         );
         result = result.replace(regex, '<mark class="vocab-highlight" data-phrase="$1">$1</mark>');
     }
 
     return result;
+}
+
+/** Inline reddit comment for swipe card */
+function SwipeRedditComment({ comment, depth = 0 }: { comment: RedditComment; depth?: number }) {
+    const [collapsed, setCollapsed] = useState(depth > 1);
+    const hasChildren = comment.children && comment.children.length > 0;
+
+    const depthColors = ['border-blue-200', 'border-neutral-200', 'border-amber-200'];
+    const borderColor = depthColors[depth % depthColors.length];
+
+    const initials = comment.author.slice(0, 2).toUpperCase();
+
+    return (
+        <div className={cn(depth > 0 && `ml-3 pl-3 border-l-2 ${borderColor}`)}>
+            <div className="py-2">
+                <div className="flex items-center gap-2 mb-1">
+                    <div className="w-5 h-5 bg-neutral-200 flex items-center justify-center text-[9px] font-bold text-neutral-600 flex-shrink-0">
+                        {initials}
+                    </div>
+                    <span className="text-xs font-semibold text-neutral-700">{comment.author}</span>
+                    <span className="text-[10px] text-neutral-400">{comment.upvotes}↑</span>
+                    {hasChildren && (
+                        <button onClick={() => setCollapsed(!collapsed)} className="ml-auto text-neutral-400">
+                            {collapsed ? <ChevronDown className="w-3 h-3" /> : <ChevronUp className="w-3 h-3" />}
+                        </button>
+                    )}
+                </div>
+                <p className="text-xs text-neutral-600 leading-relaxed">{comment.body.slice(0, 300)}{comment.body.length > 300 ? '...' : ''}</p>
+            </div>
+            {!collapsed && hasChildren && (
+                <div>
+                    {comment.children.slice(0, 3).map((child) => (
+                        <SwipeRedditComment key={child.id} comment={child} depth={depth + 1} />
+                    ))}
+                    {comment.children.length > 3 && (
+                        <p className="text-[10px] text-neutral-400 pl-3 py-1">+{comment.children.length - 3} more replies</p>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+}
+
+/** Simple comment for swipe card (Firestore) */
+function SwipeFirestoreComment({ comment }: { comment: FirestoreComment & { replies?: FirestoreComment[] } }) {
+    const initial = comment.authorName?.charAt(0)?.toUpperCase() || '?';
+
+    return (
+        <div className="py-3 border-b border-neutral-100 last:border-0">
+            <div className="flex items-start gap-2.5">
+                <div className="w-6 h-6 bg-neutral-200 flex items-center justify-center text-[10px] font-bold text-neutral-600 flex-shrink-0">
+                    {initial}
+                </div>
+                <div className="flex-1 min-w-0">
+                    <span className="text-xs font-semibold text-neutral-700">{comment.authorName || comment.authorUsername}</span>
+                    <p className="text-xs text-neutral-600 leading-relaxed mt-0.5">{comment.content}</p>
+                </div>
+            </div>
+            {/* Replies */}
+            {comment.replies && comment.replies.length > 0 && (
+                <div className="ml-8 mt-2 pl-3 border-l-2 border-neutral-100 space-y-2">
+                    {comment.replies.map((reply) => (
+                        <div key={reply.id} className="flex items-start gap-2">
+                            <div className="w-5 h-5 bg-neutral-100 flex items-center justify-center text-[9px] font-bold text-neutral-500 flex-shrink-0">
+                                {reply.authorName?.charAt(0)?.toUpperCase() || '?'}
+                            </div>
+                            <div>
+                                <span className="text-[10px] font-semibold text-neutral-600">{reply.authorName || reply.authorUsername}</span>
+                                <p className="text-[11px] text-neutral-500 leading-relaxed">{reply.content}</p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
 }
 
 export const SwipeReader = memo(function SwipeReader({
@@ -57,18 +150,58 @@ export const SwipeReader = memo(function SwipeReader({
     onSectionChange,
     currentSection: controlledSection,
     autoAdvance,
+    savedPhrasesCount = 0,
+    embeddedQuestions = [],
+    answeredQuestions = new Set(),
+    onQuestionAnswer,
+    comments = [],
+    redditComments = [],
 }: SwipeReaderProps) {
     const [internalIndex, setInternalIndex] = useState(0);
     const activeIndex = controlledSection ?? internalIndex;
     const cardStackRef = useRef<HTMLDivElement>(null);
 
+    // Build unified items array: content + questions + comments
+    const items: SwipeItem[] = useMemo(() => {
+        const result: SwipeItem[] = [];
+        let paragraphCount = 0;
+
+        for (const section of sections) {
+            paragraphCount++;
+            result.push({ type: 'content', section });
+
+            // Insert questions that should appear after this paragraph
+            const questionsHere = embeddedQuestions.filter(q => q.afterParagraph === paragraphCount);
+            for (const question of questionsHere) {
+                result.push({ type: 'question', question });
+            }
+        }
+
+        // Append comment cards at end
+        const hasComments = comments.length > 0 || redditComments.length > 0;
+        if (hasComments) {
+            result.push({ type: 'comments', comments, redditComments });
+        }
+
+        return result;
+    }, [sections, embeddedQuestions, comments, redditComments]);
+
     // Apply rough-notation highlights when active card changes
-    useVocabHighlighter(cardStackRef, [activeIndex, sections]);
+    useVocabHighlighter(cardStackRef, [activeIndex, items]);
     const [phase, setPhase] = useState<'idle' | 'sending-to-back'>('idle');
     const isAnimating = useRef(false);
 
     const dragX = useMotionValue(0);
     const dragRotate = useTransform(dragX, [-200, 0, 200], [-8, 0, 8]);
+
+    // Check if forward swiping is blocked by unanswered question
+    const isForwardBlocked = useMemo(() => {
+        const currentItem = items[activeIndex];
+        if (currentItem?.type === 'question') {
+            return !answeredQuestions.has(currentItem.question.id);
+        }
+        return false;
+    }, [items, activeIndex, answeredQuestions]);
 
     // Auto-advance effect
     useEffect(() => {
@@ -78,14 +211,15 @@ export const SwipeReader = memo(function SwipeReader({
     }, [autoAdvance]);
 
     const sendToBack = useCallback(() => {
-        if (isAnimating.current || sections.length <= 1) return;
+        if (isAnimating.current || items.length <= 1) return;
+        if (isForwardBlocked) return; // Block forward on unanswered question
         isAnimating.current = true;
 
         animate(dragX, 0, { duration: 0.1 });
         setPhase('sending-to-back');
 
         setTimeout(() => {
-            const nextIndex = (activeIndex + 1) % sections.length;
+            const nextIndex = (activeIndex + 1) % items.length;
             if (controlledSection === undefined) {
                 setInternalIndex(nextIndex);
             }
@@ -93,23 +227,23 @@ export const SwipeReader = memo(function SwipeReader({
             setPhase('idle');
             isAnimating.current = false;
         }, 500);
-    }, [sections.length, activeIndex, controlledSection, onSectionChange, dragX]);
+    }, [items.length, activeIndex, controlledSection, onSectionChange, dragX, isForwardBlocked]);
 
     const goBack = useCallback(() => {
-        if (isAnimating.current || sections.length <= 1) return;
-        const prevIndex = (activeIndex - 1 + sections.length) % sections.length;
+        if (isAnimating.current || items.length <= 1) return;
+        const prevIndex = (activeIndex - 1 + items.length) % items.length;
         if (controlledSection === undefined) {
             setInternalIndex(prevIndex);
         }
         onSectionChange?.(prevIndex);
-    }, [sections.length, activeIndex, controlledSection, onSectionChange]);
+    }, [items.length, activeIndex, controlledSection, onSectionChange]);
 
     const handleDragEnd = useCallback((_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
         if (Math.abs(info.offset.x) > SWIPE_THRESHOLD || Math.abs(info.velocity.x) > 300) {
             if (info.offset.x < 0) {
-                sendToBack(); // Swipe left = next
+                sendToBack();
             } else {
-                goBack(); // Swipe right = previous
+                goBack();
             }
         } else {
             animate(dragX, 0, { type: 'spring', stiffness: 400, damping: 25 });
@@ -141,14 +275,92 @@ export const SwipeReader = memo(function SwipeReader({
     // Build visible stack
     const cards = useMemo(() => {
         const result = [];
-        for (let i = 0; i < Math.min(VISIBLE_CARDS, sections.length); i++) {
-            const idx = (activeIndex + i) % sections.length;
-            result.push({ section: sections[idx], stackPos: i });
+        for (let i = 0; i < Math.min(VISIBLE_CARDS, items.length); i++) {
+            const idx = (activeIndex + i) % items.length;
+            result.push({ item: items[idx], stackPos: i });
         }
         return result;
-    }, [activeIndex, sections]);
+    }, [activeIndex, items]);
 
-    if (sections.length === 0) return null;
+    // Render a card based on item type
+    const renderCardContent = (item: SwipeItem) => {
+        switch (item.type) {
+            case 'content': {
+                const processedContent = highlightPhrases(
+                    sanitizeRichHtml(item.section.content),
+                    highlightedPhrases.length > 0 ? highlightedPhrases : item.section.vocabPhrases
+                );
+
+                return (
+                    <>
+                        {item.section.title && (
+                            <div className="px-8 pt-6 pb-1">
+                                <h2
+                                    className="text-base font-semibold text-neutral-900"
+                                    style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
+                                >
+                                    {item.section.title}
+                                </h2>
+                            </div>
+                        )}
+                        <div
+                            className="px-8 py-6 prose prose-neutral prose-sm max-w-none leading-[1.85] text-neutral-800"
+                            style={{ fontFamily: 'var(--font-serif), "Instrument Serif", Georgia, serif' }}
+                            onClick={handleContentClick}
+                            dangerouslySetInnerHTML={{ __html: processedContent }}
+                        />
+                    </>
+                );
+            }
+
+            case 'question': {
+                return (
+                    <div className="px-6 py-6">
+                        <EmbeddedQuestionCard
+                            question={item.question}
+                            onAnswer={(id, correct) => onQuestionAnswer?.(id, correct)}
+                            isAnswered={answeredQuestions.has(item.question.id)}
+                            compact
+                        />
+                    </div>
+                );
+            }
+
+            case 'comments': {
+                const hasReddit = item.redditComments.length > 0;
+                const hasFirestore = item.comments.length > 0;
+
+                return (
+                    <div className="px-8 py-6 max-h-[70vh] overflow-y-auto">
+                        <div className="flex items-center gap-2.5 mb-4">
+                            <div className="w-8 h-8 bg-neutral-100 flex items-center justify-center">
+                                <MessageSquare className="w-4 h-4 text-neutral-500" />
+                            </div>
+                            <h3 className="text-base font-bold text-neutral-900 font-sans">Discussion</h3>
+                        </div>
+
+                        {hasReddit && (
+                            <div className="space-y-1">
+                                {item.redditComments.map(c => (
+                                    <SwipeRedditComment key={c.id} comment={c} />
+                                ))}
+                            </div>
+                        )}
+
+                        {hasFirestore && (
+                            <div>
+                                {item.comments.map(c => (
+                                    <SwipeFirestoreComment key={c.id} comment={c} />
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                );
+            }
+        }
+    };
+
+    if (items.length === 0) return null;
 
     return (
         <div className="min-h-screen bg-white flex flex-col items-center justify-center px-4 pb-32">
@@ -157,26 +369,28 @@ export const SwipeReader = memo(function SwipeReader({
                 <div className="w-full h-[2px] bg-neutral-200">
                     <div
                         className="h-full bg-neutral-900 transition-all duration-300 ease-out"
-                        style={{ width: `${((activeIndex + 1) / sections.length) * 100}%` }}
+                        style={{ width: `${((activeIndex + 1) / items.length) * 100}%` }}
                     />
                 </div>
             </div>
 
             {/* Card Stack */}
             <div ref={cardStackRef} className="relative w-full max-w-[540px] mx-auto min-h-[220px]">
-                {[...cards].reverse().map(({ section, stackPos }) => {
+                {[...cards].reverse().map(({ item, stackPos }) => {
                     const isTop = stackPos === 0;
                     const target = getCardTarget(stackPos);
                     const zIndex = VISIBLE_CARDS - stackPos;
 
-                    const processedContent = highlightPhrases(
-                        sanitizeRichHtml(section.content),
-                        highlightedPhrases.length > 0 ? highlightedPhrases : section.vocabPhrases
-                    );
+                    // Generate a stable key
+                    const itemKey = item.type === 'content'
+                        ? item.section.id
+                        : item.type === 'question'
+                            ? `q-${item.question.id}`
+                            : 'comments';
 
                     return (
                         <motion.div
-                            key={section.id}
+                            key={itemKey}
                             className="absolute inset-x-0 top-0"
                             style={
                                 isTop && phase === 'idle'
@@ -195,32 +409,21 @@ export const SwipeReader = memo(function SwipeReader({
                         >
                             {/* Card */}
                             <div
-                                className="w-full bg-white border border-neutral-200 flex flex-col"
+                                className={cn(
+                                    'w-full bg-white border flex flex-col',
+                                    item.type === 'question'
+                                        ? 'border-neutral-300 bg-neutral-50'
+                                        : item.type === 'comments'
+                                            ? 'border-neutral-200 bg-white'
+                                            : 'border-neutral-200'
+                                )}
                                 style={{
                                     boxShadow: isTop && phase === 'idle'
                                         ? '0 8px 30px -5px rgba(0,0,0,0.12)'
                                         : '0 2px 10px rgba(0,0,0,0.05)',
                                 }}
                             >
-                                {/* Section title */}
-                                {section.title && (
-                                    <div className="px-8 pt-6 pb-1">
-                                        <h2
-                                            className="text-base font-semibold text-neutral-900"
-                                            style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
-                                        >
-                                            {section.title}
-                                        </h2>
-                                    </div>
-                                )}
-
-                                {/* Section content */}
-                                <div
-                                    className="px-8 py-6 prose prose-neutral prose-sm max-w-none leading-[1.85] text-neutral-800"
-                                    style={{ fontFamily: 'var(--font-serif), "Instrument Serif", Georgia, serif' }}
-                                    onClick={handleContentClick}
-                                    dangerouslySetInnerHTML={{ __html: processedContent }}
-                                />
+                                {renderCardContent(item)}
                             </div>
                         </motion.div>
                     );
@@ -239,12 +442,45 @@ export const SwipeReader = memo(function SwipeReader({
 
                 <button
                     onClick={sendToBack}
-                    className="h-14 w-14 bg-white flex items-center justify-center shadow-sm border border-neutral-200 text-neutral-400 hover:text-neutral-900 hover:bg-neutral-50 transition-colors rounded-full"
+                    disabled={isForwardBlocked}
+                    className={cn(
+                        'h-14 w-14 bg-white flex items-center justify-center shadow-sm border border-neutral-200 transition-colors rounded-full',
+                        isForwardBlocked
+                            ? 'text-neutral-200 cursor-not-allowed'
+                            : 'text-neutral-400 hover:text-neutral-900 hover:bg-neutral-50'
+                    )}
                     aria-label="Next"
                 >
                     <ArrowRight className="w-5 h-5" />
                 </button>
             </div>
+
+            {/* Vocab Bank Redirect CTA (Shows on last content card) */}
+            {activeIndex === items.length - 1 && savedPhrasesCount > 0 && (
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="w-full max-w-[540px] mt-12 mb-8 z-10"
+                >
+                    <div className="bg-blue-50/50 rounded-2xl p-6 border border-blue-100/50 w-full text-center transition-all hover:bg-blue-50/80">
+                        <div className="flex items-center justify-center gap-4 mb-3">
+                            <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" /></svg>
+                            </div>
+                            <h3 className="text-lg font-semibold text-slate-800 font-sans m-0">
+                                {savedPhrasesCount} {savedPhrasesCount === 1 ? 'Phrase' : 'Phrases'} Saved
+                            </h3>
+                        </div>
+                        <a
+                            href="/vocab"
+                            className="inline-flex w-full items-center justify-center px-6 py-3 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-700 transition-colors focus:ring-4 focus:ring-blue-100 outline-none"
+                        >
+                            Review in Vocab Graph
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-2"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
+                        </a>
+                    </div>
+                </motion.div>
+            )}
 
             {/* Vocab highlight styles — rough-notation handles the visual, this just adds cursor */}
             <style jsx global>{`

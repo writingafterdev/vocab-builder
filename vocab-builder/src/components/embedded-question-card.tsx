@@ -2,8 +2,6 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { CheckCircle2, XCircle, HelpCircle, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { EmbeddedQuestion, QuestionType } from '@/lib/db/types';
@@ -12,6 +10,8 @@ interface EmbeddedQuestionCardProps {
     question: EmbeddedQuestion;
     onAnswer: (questionId: string, isCorrect: boolean) => void;
     isAnswered: boolean;
+    /** Compact mode for swipe cards (less padding) */
+    compact?: boolean;
 }
 
 const questionTypeLabels: Record<QuestionType, string> = {
@@ -30,26 +30,11 @@ const questionTypeLabels: Record<QuestionType, string> = {
     perspective_analysis: 'Perspective',
 };
 
-const questionTypeColors: Record<QuestionType, string> = {
-    character_motivation: 'bg-rose-100 text-rose-700',
-    outcome_consequence: 'bg-amber-100 text-amber-700',
-    problem_identification: 'bg-red-100 text-red-700',
-    turning_point: 'bg-purple-100 text-purple-700',
-    tone_mood_shift: 'bg-indigo-100 text-indigo-700',
-    relationship_dynamics: 'bg-pink-100 text-pink-700',
-    attitude_reading: 'bg-orange-100 text-orange-700',
-    decision_reasoning: 'bg-blue-100 text-blue-700',
-    communication_intent: 'bg-teal-100 text-teal-700',
-    detail_tracking: 'bg-green-100 text-green-700',
-    comparison_contrast: 'bg-cyan-100 text-cyan-700',
-    gap_inference: 'bg-violet-100 text-violet-700',
-    perspective_analysis: 'bg-fuchsia-100 text-fuchsia-700',
-};
-
 export function EmbeddedQuestionCard({
     question,
     onAnswer,
-    isAnswered
+    isAnswered,
+    compact = false,
 }: EmbeddedQuestionCardProps) {
     const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
     const [showResult, setShowResult] = useState(false);
@@ -61,58 +46,60 @@ export function EmbeddedQuestionCard({
         onAnswer(question.id, isCorrect);
     };
 
-    const handleContinue = () => {
-        // Already answered, card will be hidden by parent
-    };
-
     const isCorrect = selectedAnswer === question.correctIndex;
 
-    if (isAnswered) {
-        return null; // Hide answered questions
-    }
+    if (isAnswered) return null;
 
     return (
         <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            className="my-8 p-6 bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl border border-slate-200 shadow-sm"
+            className={cn(
+                'bg-neutral-50 border border-neutral-200',
+                compact ? 'p-5' : 'my-8 p-6'
+            )}
         >
             {/* Header */}
             <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 bg-blue-600 rounded-lg">
-                    <HelpCircle className="w-5 h-5 text-white" />
+                <div className="w-8 h-8 bg-neutral-900 flex items-center justify-center">
+                    <HelpCircle className="w-4 h-4 text-white" />
                 </div>
                 <div>
-                    <p className="text-xs font-medium text-slate-500">Comprehension Check</p>
-                    <Badge className={cn('text-[10px] mt-1', questionTypeColors[question.type])}>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-neutral-400">
+                        Comprehension Check
+                    </p>
+                    <span className="text-[10px] font-medium text-neutral-500 uppercase tracking-wide">
                         {questionTypeLabels[question.type]}
-                    </Badge>
+                    </span>
                 </div>
             </div>
 
             {/* Question */}
-            <p className="text-lg font-medium text-slate-800 mb-5 leading-relaxed">
+            <p
+                className="text-base font-normal text-neutral-800 mb-5 leading-relaxed"
+                style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
+            >
                 {question.question}
             </p>
 
             {/* Options */}
-            <div className="space-y-3 mb-6">
+            <div className="space-y-2.5 mb-5">
                 {question.options.map((option, index) => {
                     const isSelected = selectedAnswer === index;
                     const isCorrectOption = index === question.correctIndex;
 
-                    let optionStyle = 'bg-white border-slate-200 hover:border-blue-300 hover:bg-blue-50';
+                    let optionStyle = 'bg-white border-neutral-200 hover:border-neutral-400';
 
                     if (showResult) {
                         if (isCorrectOption) {
-                            optionStyle = 'bg-green-50 border-green-500 text-green-800';
+                            optionStyle = 'bg-emerald-50 border-emerald-400 text-emerald-900';
                         } else if (isSelected && !isCorrectOption) {
-                            optionStyle = 'bg-red-50 border-red-500 text-red-800';
+                            optionStyle = 'bg-red-50 border-red-400 text-red-900';
                         } else {
-                            optionStyle = 'bg-white border-slate-200 opacity-50';
+                            optionStyle = 'bg-white border-neutral-200 opacity-40';
                         }
                     } else if (isSelected) {
-                        optionStyle = 'bg-blue-50 border-blue-500 ring-2 ring-blue-200';
+                        optionStyle = 'bg-neutral-900 border-neutral-900 text-white';
                     }
 
                     return (
@@ -121,19 +108,30 @@ export function EmbeddedQuestionCard({
                             onClick={() => !showResult && setSelectedAnswer(index)}
                             disabled={showResult}
                             className={cn(
-                                'w-full p-4 text-left rounded-lg border-2 transition-all flex items-center gap-3',
+                                'w-full p-3.5 text-left border transition-all flex items-center gap-3 text-sm',
                                 optionStyle
                             )}
                         >
-                            <span className="flex-shrink-0 w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center text-sm font-semibold">
+                            <span
+                                className={cn(
+                                    'flex-shrink-0 w-6 h-6 flex items-center justify-center text-xs font-semibold',
+                                    showResult && isCorrectOption
+                                        ? 'bg-emerald-100 text-emerald-700'
+                                        : showResult && isSelected && !isCorrectOption
+                                            ? 'bg-red-100 text-red-700'
+                                            : isSelected
+                                                ? 'bg-white/20 text-white'
+                                                : 'bg-neutral-100 text-neutral-500'
+                                )}
+                            >
                                 {String.fromCharCode(65 + index)}
                             </span>
-                            <span className="flex-1 text-sm">{option}</span>
+                            <span className="flex-1">{option}</span>
                             {showResult && isCorrectOption && (
-                                <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
+                                <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
                             )}
                             {showResult && isSelected && !isCorrectOption && (
-                                <XCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+                                <XCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
                             )}
                         </button>
                     );
@@ -148,18 +146,26 @@ export function EmbeddedQuestionCard({
                         animate={{ opacity: 1, height: 'auto' }}
                         className="mb-4"
                     >
-                        <div className={cn(
-                            'p-4 rounded-lg',
-                            isCorrect ? 'bg-green-100 border border-green-200' : 'bg-amber-50 border border-amber-200'
-                        )}>
-                            <p className={cn(
-                                'font-semibold mb-1',
-                                isCorrect ? 'text-green-800' : 'text-amber-800'
-                            )}>
+                        <div
+                            className={cn(
+                                'p-4 border',
+                                isCorrect
+                                    ? 'bg-emerald-50 border-emerald-200'
+                                    : 'bg-amber-50 border-amber-200'
+                            )}
+                        >
+                            <p
+                                className={cn(
+                                    'font-semibold text-sm mb-1',
+                                    isCorrect ? 'text-emerald-800' : 'text-amber-800'
+                                )}
+                            >
                                 {isCorrect ? '✓ Correct!' : '✗ Not quite'}
                             </p>
                             {question.explanation && (
-                                <p className="text-sm text-slate-600">{question.explanation}</p>
+                                <p className="text-sm text-neutral-600 leading-relaxed">
+                                    {question.explanation}
+                                </p>
                             )}
                         </div>
                     </motion.div>
@@ -168,21 +174,26 @@ export function EmbeddedQuestionCard({
 
             {/* Action Button */}
             {!showResult ? (
-                <Button
+                <button
                     onClick={handleSubmit}
                     disabled={selectedAnswer === null}
-                    className="w-full bg-blue-600 hover:bg-blue-700"
+                    className={cn(
+                        'w-full py-3 text-sm font-semibold uppercase tracking-[0.05em] transition-colors',
+                        selectedAnswer === null
+                            ? 'bg-neutral-200 text-neutral-400 cursor-not-allowed'
+                            : 'bg-neutral-900 text-white hover:bg-neutral-800'
+                    )}
                 >
                     Check Answer
-                </Button>
+                </button>
             ) : (
-                <Button
-                    onClick={handleContinue}
-                    className="w-full bg-slate-800 hover:bg-slate-900"
+                <button
+                    onClick={() => {/* parent controls continue */ }}
+                    className="w-full py-3 text-sm font-semibold uppercase tracking-[0.05em] bg-neutral-900 text-white hover:bg-neutral-800 transition-colors flex items-center justify-center gap-2"
                 >
                     Continue Reading
-                    <ChevronRight className="w-4 h-4 ml-2" />
-                </Button>
+                    <ChevronRight className="w-4 h-4" />
+                </button>
             )}
         </motion.div>
     );

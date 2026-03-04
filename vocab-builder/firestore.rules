@@ -203,6 +203,25 @@ service cloud.firestore {
     match /favorite_quotes/{docId} {
       allow read, write: if true;
     }
+
+    // Import Sources - cron job feed configuration
+    // Server-side REST API access (admin checked in API endpoint)
+    match /importSources/{sourceId} {
+      allow read, create, update: if true; // Server-side cron access
+      allow delete: if true; // Allow managing sources
+    }
+
+    // Batch Jobs - tracks Grok batch API processing state
+    // Server-side REST API access (cron jobs only)
+    match /batchJobs/{jobId} {
+      allow read, write: if true;
+    }
+
+    // Pre-Generated Exercises - exercises pre-computed by nightly batch
+    // Server-side REST API writes, client reads for instant loading
+    match /preGeneratedExercises/{docId} {
+      allow read, write: if true;
+    }
         
     // Deny all other collections by default
     match /{document=**} {

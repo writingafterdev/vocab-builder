@@ -3,14 +3,16 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { useRouter, usePathname } from 'next/navigation';
-import { Post, ArticleSection } from '@/lib/db/types';
+import { Post, ArticleSection, LexileLevel, Comment as FirestoreComment, RedditComment } from '@/lib/db/types';
 import { updatePost } from '@/lib/db/admin';
+import { getComments, getReplies } from '@/lib/db/comments';
 import { ImmersedReader } from './ImmersedReader';
 import { SwipeReader } from './SwipeReader';
+import { LevelSwitcher } from './LevelSwitcher';
 import { ArticleDock, ArticleDockGroup } from './ArticleDock';
 import { FloatingDock, DockItem } from '@/components/ui/floating-dock';
 import { VocabPopupCard } from './VocabPopupCard';
-import { ArrowLeft, Volume2, Bookmark, ArrowLeftRight, Loader2, Sparkles } from 'lucide-react';
+import { ArrowLeft, Volume2, Bookmark, ArrowLeftRight, Loader2, Sparkles, MessageSquare } from 'lucide-react';
 import { BookOpen, BookmarkSimple, PencilSimple, SquaresFour, User, Gear } from '@phosphor-icons/react';
 
 type ReadingMode = 'immersed' | 'swipe';
@@ -63,6 +65,77 @@ export function ArticleReadingMode({
     const [extractedPhrases, setExtractedPhrases] = useState<string[]>([]);
     const [bounceKey, setBounceKey] = useState(0);
 
+    // === Level Switcher State ===
+    const availableLevels = useMemo<LexileLevel[]>(() => {
+        if (post.levels) {
+            return Object.keys(post.levels) as LexileLevel[];
+        }
+        return [];
+    }, [post.levels]);
+
+    const [selectedLevel, setSelectedLevel] = useState<LexileLevel>(
+        availableLevels.length > 0 ? availableLevels[availableLevels.length - 1] : 'B2'
+    );
+
+    // Current content based on selected level
+    const currentContent = useMemo(() => {
+        if (post.levels?.[selectedLevel]?.content) {
+            return post.levels[selectedLevel].content;
+        }
+        return post.content;
+    }, [post.levels, post.content, selectedLevel]);
+
+    // Current embedded questions based on selected level
+    const currentQuestions = useMemo(() => {
+        if (post.levels?.[selectedLevel]?.embeddedQuestions) {
+            return post.levels[selectedLevel].embeddedQuestions;
+        }
+        return [];
+    }, [post.levels, selectedLevel]);
+
+    // === MCQ State ===
+    const [answeredQuestions, setAnsweredQuestions] = useState<Set<string>>(new Set());
+    const handleQuestionAnswer = useCallback((questionId: string, isCorrect: boolean) => {
+        setAnsweredQuestions(prev => {
+            const next = new Set(prev);
+            next.add(questionId);
+            return next;
+        });
+    }, []);
+
+    // === Comments State ===
+    const [comments, setComments] = useState<(FirestoreComment & { replies?: FirestoreComment[] })[]>([]);
+    const [commentsLoaded, setCommentsLoaded] = useState(false);
+
+    // Load comments on mount
+    useEffect(() => {
+        if (!post.id || commentsLoaded) return;
+
+        async function loadComments() {
+            try {
+                const topLevelComments = await getComments(post.id as string);
+                const commentsWithReplies = await Promise.all(
+                    topLevelComments.map(async (c) => {
+                        const replies = c.replyCount > 0 ? await getReplies(c.id) : [];
+                        return { ...c, replies };
+                    })
+                );
+                setComments(commentsWithReplies);
+            } catch (e) {
+                console.error('Failed to load comments:', e);
+            } finally {
+                setCommentsLoaded(true);
+            }
+        }
+
+        loadComments();
+    }, [post.id, commentsLoaded]);
+
+    // Reddit comments from post data
+    const redditComments = useMemo<RedditComment[]>(() => {
+        return (post as any).redditComments || [];
+    }, [post]);
+
     // Navigation dock items (mirrors the global dock)
     const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/');
     const navDockItems: DockItem[] = [
@@ -83,7 +156,7 @@ export function ArticleReadingMode({
 
         const tempDiv = typeof document !== 'undefined' ? document.createElement('div') : null;
         if (!tempDiv) return [];
-        tempDiv.innerHTML = post.content;
+        tempDiv.innerHTML = currentContent;
 
         const blocks: string[] = [];
         tempDiv.querySelectorAll('p, h1, h2, h3, h4, blockquote, ul, ol, figure').forEach(el => {
@@ -92,7 +165,7 @@ export function ArticleReadingMode({
         });
 
         if (blocks.length <= 1) {
-            return [{ id: 'fallback-0', title: '', content: post.content, vocabPhrases: [] }];
+            return [{ id: 'fallback-0', title: '', content: currentContent, vocabPhrases: [] }];
         }
 
         const blocksPerSection = 1;
@@ -109,7 +182,7 @@ export function ArticleReadingMode({
         }
 
         return fallback;
-    }, [post.sections, post.content]);
+    }, [post.sections, currentContent]);
 
     // Create/update audio element when audioUrl changes
     useEffect(() => {
@@ -148,6 +221,12 @@ export function ArticleReadingMode({
     const allPhrases = useMemo(() => {
         // Freshly extracted phrases take priority
         if (extractedPhrases.length > 0) return extractedPhrases;
+
+        // Level-specific vocabulary
+        if (post.levels?.[selectedLevel]?.vocabularyData) {
+            return Object.keys(post.levels[selectedLevel].vocabularyData!);
+        }
+
         if (sections.length > 0 && sections.some(s => s.vocabPhrases.length > 0)) {
             return sections.flatMap(s => s.vocabPhrases);
         }
@@ -155,7 +234,7 @@ export function ArticleReadingMode({
             return post.phraseData.map(p => p.phrase);
         }
         return post.highlightedPhrases || [];
-    }, [extractedPhrases, sections, post.phraseData, post.highlightedPhrases]);
+    }, [extractedPhrases, sections, post.phraseData, post.highlightedPhrases, post.levels, selectedLevel]);
 
     // Track current popup phrase via ref to keep handlePhraseClick stable
     const vocabPopupPhraseRef = useRef<string | null>(null);
@@ -163,39 +242,38 @@ export function ArticleReadingMode({
     // Handle phrase click — show popup
     const handlePhraseClick = useCallback(
         (phrase: string, context: string, _rect: DOMRect) => {
-            // Re-lookup: same phrase clicked again → bounce
             if (vocabPopupPhraseRef.current?.toLowerCase() === phrase.toLowerCase()) {
                 setBounceKey(k => k + 1);
                 return;
             }
 
-            // Look up phrase data from post
             const phraseData = post.phraseData?.find(
                 p => p.phrase.toLowerCase() === phrase.toLowerCase()
             );
 
+            // Check level-specific vocab data
+            const levelVocab = post.levels?.[selectedLevel]?.vocabularyData?.[phrase.toLowerCase()];
             const vocabData = post.vocabularyData?.[phrase.toLowerCase()];
 
             vocabPopupPhraseRef.current = phrase;
             setBounceKey(0);
             setVocabPopup({
                 phrase,
-                meaning: phraseData?.meaning || vocabData?.meaning || 'Looking up...',
-                example: vocabData?.example,
-                register: phraseData?.register || vocabData?.register,
+                meaning: levelVocab?.meaning || phraseData?.meaning || vocabData?.meaning || 'Looking up...',
+                example: levelVocab?.example || vocabData?.example,
+                register: levelVocab?.register || phraseData?.register || vocabData?.register,
                 nuance: phraseData?.nuance,
                 context: context || undefined,
                 pronunciation: undefined,
-                topic: phraseData?.topic || phraseData?.topics || vocabData?.topic,
-                isHighFrequency: phraseData?.isHighFrequency,
+                topic: levelVocab?.topic || phraseData?.topic || phraseData?.topics || vocabData?.topic,
+                isHighFrequency: levelVocab?.isHighFrequency || phraseData?.isHighFrequency,
             });
 
-            // If no pre-built data, fetch from API
-            if (!phraseData && !vocabData && userId) {
+            if (!phraseData && !vocabData && !levelVocab && userId) {
                 lookupPhrase(phrase, context);
             }
         },
-        [post.phraseData, post.vocabularyData, userId]
+        [post.phraseData, post.vocabularyData, post.levels, selectedLevel, userId]
     );
 
     // Lookup phrase via API
@@ -261,7 +339,12 @@ export function ArticleReadingMode({
 
             if (res.ok) {
                 setSavedPhrases(prev => new Set(prev).add(vocabPopup.phrase.toLowerCase()));
-                import('sonner').then(({ toast }) => toast.success(`Saved "${vocabPopup.phrase}"!`));
+                import('sonner').then(({ toast }) => toast.success(`Saved "${vocabPopup.phrase}"!`, {
+                    action: {
+                        label: 'View in Bank',
+                        onClick: () => router.push('/vocab')
+                    }
+                }));
             } else {
                 import('sonner').then(({ toast }) => toast.error(data.error || 'Failed to save phrase'));
             }
@@ -283,7 +366,6 @@ export function ArticleReadingMode({
             const { auth } = await initializeFirebase();
             const token = auth?.currentUser ? await auth.currentUser.getIdToken() : null;
 
-            // Extract phrases via DeepSeek
             const extractRes = await fetch('/api/admin/extract-phrases', {
                 method: 'POST',
                 headers: {
@@ -292,7 +374,7 @@ export function ArticleReadingMode({
                     ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
                 },
                 body: JSON.stringify({
-                    content: post.content,
+                    content: currentContent,
                     title: post.title,
                 }),
             });
@@ -302,10 +384,7 @@ export function ArticleReadingMode({
             const { phrases } = await extractRes.json();
 
             if (phrases && phrases.length > 0) {
-                // Save directly to Firestore
                 await updatePost(post.id as string, { highlightedPhrases: phrases });
-
-                // Update local state so highlights appear immediately
                 setExtractedPhrases(phrases);
             }
         } catch (e) {
@@ -313,9 +392,10 @@ export function ArticleReadingMode({
         } finally {
             setIsExtractingPhrases(false);
         }
-    }, [isExtractingPhrases, userEmail, post]);
+    }, [isExtractingPhrases, userEmail, post, currentContent]);
 
     // Dock configuration — mode toggle always available
+    const totalComments = comments.length + redditComments.length;
     const dockGroups: ArticleDockGroup[] = [
         {
             actions: [
@@ -382,14 +462,31 @@ export function ArticleReadingMode({
 
     return (
         <div className="min-h-screen">
+            {/* Level Switcher (above content) */}
+            {availableLevels.length > 1 && (
+                <div className="fixed top-4 left-1/2 -translate-x-1/2 z-40">
+                    <LevelSwitcher
+                        selectedLevel={selectedLevel}
+                        availableLevels={availableLevels}
+                        onLevelChange={setSelectedLevel}
+                    />
+                </div>
+            )}
+
             {/* Reader */}
             {mode === 'immersed' ? (
                 <ImmersedReader
                     title={post.title || 'Untitled'}
                     subtitle={post.subtitle || post.caption}
-                    content={post.content}
+                    content={currentContent}
                     highlightedPhrases={allPhrases}
                     onPhraseClick={handlePhraseClick}
+                    savedPhrasesCount={savedPhrases.size}
+                    embeddedQuestions={currentQuestions}
+                    answeredQuestions={answeredQuestions}
+                    onQuestionAnswer={handleQuestionAnswer}
+                    comments={comments}
+                    redditComments={redditComments}
                 />
             ) : (
                 <SwipeReader
@@ -398,6 +495,12 @@ export function ArticleReadingMode({
                     onPhraseClick={handlePhraseClick}
                     onSectionChange={setCurrentSection}
                     currentSection={currentSection}
+                    savedPhrasesCount={savedPhrases.size}
+                    embeddedQuestions={currentQuestions}
+                    answeredQuestions={answeredQuestions}
+                    onQuestionAnswer={handleQuestionAnswer}
+                    comments={comments}
+                    redditComments={redditComments}
                 />
             )}
 

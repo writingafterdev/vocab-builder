@@ -9,8 +9,8 @@ import { safeParseAIJson } from '@/lib/ai-utils';
  * Auto-assigns topics using AI if not provided
  */
 
-const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
-const DEEPSEEK_URL = 'https://api.deepseek.com/v1/chat/completions';
+const XAI_API_KEY = process.env.XAI_API_KEY;
+const XAI_URL = 'https://api.x.ai/v1/chat/completions';
 
 interface ChildExpression {
     type: 'collocation' | 'phrasal_verb';
@@ -51,7 +51,7 @@ import { SocialDistance } from '@/lib/db/types';
 
 // Assign topic and subtopic to phrase using AI (dynamic from Firestore)
 async function assignTopics(phrase: string, meaning: string, userId: string, userEmail: string): Promise<{ topic: string; subtopic?: string }> {
-    if (!DEEPSEEK_API_KEY) return { topic: 'daily_life' };
+    if (!XAI_API_KEY) return { topic: 'daily_life' };
 
     // Fetch existing topics from database using REST
     let existingTopics: any[] = [];
@@ -96,14 +96,14 @@ Response format (JSON only):
   "is_new_subtopic": false
 }`;
 
-        const response = await fetch(DEEPSEEK_URL, {
+        const response = await fetch(XAI_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+                'Authorization': `Bearer ${XAI_API_KEY}`,
             },
             body: JSON.stringify({
-                model: 'deepseek-chat',
+                model: 'grok-4-1-fast-reasoning',
                 messages: [{ role: 'user', content: prompt }],
                 max_tokens: 200,
                 temperature: 0.3,
@@ -121,7 +121,7 @@ Response format (JSON only):
                 userId,
                 userEmail,
                 endpoint: 'save-phrase-topics',
-                model: 'deepseek-chat',
+                model: 'grok-4-1-fast-reasoning',
                 promptTokens: data.usage.prompt_tokens || 0,
                 completionTokens: data.usage.completion_tokens || 0,
                 totalTokens: data.usage.total_tokens || 0,

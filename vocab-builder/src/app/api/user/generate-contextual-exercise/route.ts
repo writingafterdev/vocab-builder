@@ -4,8 +4,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { logTokenUsage } from '@/lib/db/token-tracking';
 import { safeParseAIJson } from '@/lib/ai-utils';
 
-const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
-const DEEPSEEK_URL = 'https://api.deepseek.com/v1/chat/completions';
+const XAI_API_KEY = process.env.XAI_API_KEY;
+const XAI_URL = 'https://api.x.ai/v1/chat/completions';
 
 interface ContextualExerciseRequest {
     phrases: Array<{
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        if (!DEEPSEEK_API_KEY) {
+        if (!XAI_API_KEY) {
             // Return mock response for development
             return NextResponse.json({
                 exercise: {
@@ -73,14 +73,14 @@ Return JSON only:
 
 Make the question feel like something a friend would ask, not like a school assignment.`;
 
-        const response = await fetch(DEEPSEEK_URL, {
+        const response = await fetch(XAI_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+                'Authorization': `Bearer ${XAI_API_KEY}`,
             },
             body: JSON.stringify({
-                model: 'deepseek-chat',
+                model: 'grok-4-1-fast-reasoning',
                 messages: [
                     {
                         role: 'system',
@@ -95,7 +95,7 @@ Make the question feel like something a friend would ask, not like a school assi
         });
 
         if (!response.ok) {
-            console.error('DeepSeek API error:', await response.text());
+            console.error('Grok API error:', await response.text());
             return NextResponse.json(
                 { error: 'Failed to generate exercise' },
                 { status: 500 }
@@ -112,7 +112,7 @@ Make the question feel like something a friend would ask, not like a school assi
                 userId: userId || 'anonymous',
                 userEmail,
                 endpoint: 'generate-contextual-exercise',
-                model: 'deepseek-chat',
+                model: 'grok-4-1-fast-reasoning',
                 promptTokens: data.usage.prompt_tokens || 0,
                 completionTokens: data.usage.completion_tokens || 0,
                 totalTokens: data.usage.total_tokens || 0,

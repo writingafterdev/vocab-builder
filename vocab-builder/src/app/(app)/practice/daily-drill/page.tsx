@@ -44,6 +44,27 @@ export default function DailyDrillPage() {
 
             try {
                 const token = await user.getIdToken();
+
+                // Try pre-generated drills first
+                const preGenRes = await fetch('/api/user/pre-generated-exercises', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'x-user-id': user.uid
+                    }
+                });
+
+                if (preGenRes.ok) {
+                    const preGen = await preGenRes.json();
+                    if (preGen.available && preGen.data?.drills?.length > 0) {
+                        console.log(`[Daily Drill] Using ${preGen.data.drills.length} pre-generated drills`);
+                        setSessionId(`pregen_${Date.now()}`);
+                        setDrills(preGen.data.drills);
+                        setLoading(false);
+                        return;
+                    }
+                }
+
+                // Fallback: real-time generation
                 const response = await fetch('/api/daily-drill/generate', {
                     method: 'POST',
                     headers: {

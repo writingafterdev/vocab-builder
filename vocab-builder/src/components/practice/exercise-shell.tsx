@@ -160,8 +160,24 @@ export default function ExerciseShell({ session, onComplete, onClose }: Exercise
     if (allQuestions.length === 0) {
         return (
             <div className="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center gap-4">
-                <p className="text-neutral-500">No questions available for this session.</p>
-                <button onClick={onClose} className="px-4 py-2 text-sm bg-neutral-100 hover:bg-neutral-200 rounded-lg">Go back</button>
+                <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mb-2">
+                    <span className="text-3xl">⚠️</span>
+                </div>
+                <h2 className="text-xl font-normal text-neutral-900 mb-2" style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}>
+                    Session Interrupted
+                </h2>
+                <p className="text-neutral-500 mb-6 text-sm text-center max-w-xs">
+                    This practice session couldn't be loaded or was interrupted. Let's head back to the lobby.
+                </p>
+                <button
+                    onClick={() => {
+                        clearSavedProgress();
+                        onClose();
+                    }}
+                    className="bg-neutral-900 text-white px-6 py-3 text-sm font-bold uppercase tracking-[0.08em] hover:bg-neutral-800 transition-colors"
+                >
+                    Back to Lobby
+                </button>
             </div>
         );
     }
@@ -335,10 +351,39 @@ export default function ExerciseShell({ session, onComplete, onClose }: Exercise
                         <p className="text-neutral-500 font-medium tracking-wide">Wrapping up session...</p>
                     </>
                 ) : (
-                    <>
-                        <p className="text-neutral-500">Session complete!</p>
-                        <button onClick={onClose} className="px-4 py-2 text-sm bg-neutral-100 hover:bg-neutral-200 rounded-lg">Continue</button>
-                    </>
+                    <div className="max-w-md w-full px-6 text-center flex flex-col items-center">
+                        <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mb-6">
+                            <span className="text-3xl">🎉</span>
+                        </div>
+                        <h2 className="text-2xl font-normal text-neutral-900 mb-2" style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}>
+                            Session Complete!
+                        </h2>
+                        <p className="text-neutral-500 text-sm mb-8">
+                            Great job reviewing your vocabulary. What would you like to do next?
+                        </p>
+
+                        <div className="flex flex-col w-full gap-3">
+                            <button
+                                onClick={() => { onClose(); window.location.href = '/'; }}
+                                className="w-full bg-neutral-900 text-white px-6 py-3.5 text-sm font-bold uppercase tracking-[0.08em] hover:bg-neutral-800 transition-colors flex items-center justify-center gap-2"
+                            >
+                                Keep Reading
+                                <ArrowRight className="w-4 h-4" />
+                            </button>
+                            <button
+                                onClick={() => { onClose(); window.location.href = '/vocab'; }}
+                                className="w-full bg-white text-neutral-900 border border-neutral-200 px-6 py-3.5 text-sm font-bold uppercase tracking-[0.08em] hover:bg-neutral-50 transition-colors"
+                            >
+                                View Your Graph
+                            </button>
+                            <button
+                                onClick={onClose}
+                                className="w-full text-neutral-400 px-6 py-3 text-xs font-medium uppercase tracking-[0.08em] hover:text-neutral-600 transition-colors mt-2"
+                            >
+                                Back to Practice Lobby
+                            </button>
+                        </div>
+                    </div>
                 )}
             </div>
         );

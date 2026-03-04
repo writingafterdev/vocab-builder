@@ -5,8 +5,8 @@ import { logTokenUsage } from '@/lib/db/token-tracking';
  * User translation API using QWEN via DashScope
  */
 
-const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
-const DEEPSEEK_URL = 'https://api.deepseek.com/v1/chat/completions';
+const XAI_API_KEY = process.env.XAI_API_KEY;
+const XAI_URL = 'https://api.x.ai/v1/chat/completions';
 
 export async function POST(request: NextRequest) {
     try {
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        if (!DEEPSEEK_API_KEY) {
+        if (!XAI_API_KEY) {
             return NextResponse.json(
                 { error: 'Translation API key not configured' },
                 { status: 500 }
@@ -52,14 +52,14 @@ Text to translate:
 ${text}
 """`;
 
-        const contentResponse = await fetch(DEEPSEEK_URL, {
+        const contentResponse = await fetch(XAI_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+                'Authorization': `Bearer ${XAI_API_KEY}`,
             },
             body: JSON.stringify({
-                model: 'deepseek-chat',
+                model: 'grok-4-1-fast-reasoning',
                 messages: [{ role: 'user', content: contentPrompt }],
                 max_tokens: 8000,
             }),
@@ -79,7 +79,7 @@ ${text}
                 userId,
                 userEmail,
                 endpoint: 'user-translate',
-                model: 'deepseek-chat',
+                model: 'grok-4-1-fast-reasoning',
                 promptTokens: contentData.usage.prompt_tokens || 0,
                 completionTokens: contentData.usage.completion_tokens || 0,
                 totalTokens: contentData.usage.total_tokens || 0,
@@ -91,14 +91,14 @@ ${text}
         if (title && typeof title === 'string') {
             const titlePrompt = `Translate this title to Vietnamese. Return ONLY the translated title: "${title}"`;
 
-            const titleResponse = await fetch(DEEPSEEK_URL, {
+            const titleResponse = await fetch(XAI_URL, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+                    'Authorization': `Bearer ${XAI_API_KEY}`,
                 },
                 body: JSON.stringify({
-                    model: 'deepseek-chat',
+                    model: 'grok-4-1-fast-reasoning',
                     messages: [{ role: 'user', content: titlePrompt }],
                     max_tokens: 200,
                 }),
@@ -114,7 +114,7 @@ ${text}
                         userId,
                         userEmail,
                         endpoint: 'user-translate-title',
-                        model: 'deepseek-chat',
+                        model: 'grok-4-1-fast-reasoning',
                         promptTokens: titleData.usage.prompt_tokens || 0,
                         completionTokens: titleData.usage.completion_tokens || 0,
                         totalTokens: titleData.usage.total_tokens || 0,

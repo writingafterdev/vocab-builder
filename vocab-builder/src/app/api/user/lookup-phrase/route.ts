@@ -4,8 +4,8 @@ import { GlobalPhraseData, CommonUsage, PhraseVariant, Register, Nuance, SocialD
 import { normalizePhraseKey } from '@/lib/db/practice-types';
 import { safeParseAIJson } from '@/lib/ai-utils';
 
-const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
-const DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions';
+const XAI_API_KEY = process.env.XAI_API_KEY;
+const DEEPSEEK_API_URL = 'https://api.x.ai/v1/chat/completions';
 
 interface LookupRequest {
     phrase: string;
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
         }
 
         // 2. Cache miss - generate all data
-        if (!DEEPSEEK_API_KEY) {
+        if (!XAI_API_KEY) {
             return NextResponse.json(
                 { error: 'API key not configured' },
                 { status: 500 }
@@ -191,10 +191,10 @@ Rules:
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+                'Authorization': `Bearer ${XAI_API_KEY}`,
             },
             body: JSON.stringify({
-                model: 'deepseek-chat',
+                model: 'grok-4-1-fast-reasoning',
                 messages: [
                     {
                         role: 'system',
@@ -209,7 +209,7 @@ Rules:
         });
 
         if (!response.ok) {
-            console.error('DeepSeek API error:', await response.text());
+            console.error('Grok API error:', await response.text());
             return { data: null };
         }
 

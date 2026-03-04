@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyIdToken } from '@/lib/firebase-admin';
-import { runQuery } from '@/lib/firestore-rest';
-import { getNextApiKey } from '@/lib/api-key-rotation';
+import { runQuery, getDocument } from '@/lib/firestore-rest';
+
+const XAI_API_KEY = process.env.XAI_API_KEY;
 
 /**
  * Generate an Immersive Mode session
@@ -61,11 +62,34 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        // Try pre-generated exercises first
+        const today = new Date().toISOString().split('T')[0];
+        const preGenDoc = await getDocument('preGeneratedExercises', `${today}_${userId}`);
+        if (preGenDoc && (preGenDoc as any).immersiveSession) {
+            const immersive = (preGenDoc as any).immersiveSession;
+            const preGenContent = mode === 'listening' ? immersive.listening : immersive.reading;
+            if (preGenContent) {
+                console.log(`[Immersive Generate] Using pre-generated ${mode} content`);
+                return NextResponse.json({
+                    ...preGenContent,
+                    mode,
+                    userId,
+                    phrases: eligiblePhrases.slice(0, 5).map((p: any) => ({
+                        id: p.id,
+                        phrase: p.phrase,
+                        meaning: p.meaning,
+                        learningStep: p.learningStep,
+                    })),
+                    createdAt: new Date().toISOString(),
+                });
+            }
+        }
+
         // Select up to 5 phrases for the session
-        const sessionPhrases = eligiblePhrases.slice(0, 5);
+        const finalPhrases = eligiblePhrases.slice(0, 5);
 
         // Build prompt for content generation
-        const phraseList = sessionPhrases.map((p: any) =>
+        const phraseList = finalPhrases.map((p: any) =>
             `- "${p.phrase}" (${p.meaning})`
         ).join('\n');
 
@@ -96,15 +120,18 @@ Return JSON:
     "phrases": [{ "phrase": "...", "meaning": "...", "id": "..." }]
 }`;
 
-        const apiKey = getNextApiKey();
-        const response = await fetch('https://api.deepseek.com/chat/completions', {
+        if (!XAI_API_KEY) {
+            throw new Error('XAI_API_KEY not configured');
+        }
+
+        const response = await fetch('https://api.x.ai/v1/chat/completions', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`,
+                'Authorization': `Bearer ${XAI_API_KEY}`,
             },
             body: JSON.stringify({
-                model: 'deepseek-chat',
+                model: 'grok-4-1-fast-reasoning',
                 messages: [
                     { role: 'system', content: 'You are an expert English language teacher creating immersive reading/listening content.' },
                     { role: 'user', content: prompt },
@@ -128,7 +155,7 @@ Return JSON:
         const session = JSON.parse(content);
 
         // Add phrase IDs from our db
-        session.phrases = sessionPhrases.map((p: any) => ({
+        session.phrases = finalPhrases.map((p: any) => ({
             id: p.id,
             phrase: p.phrase,
             meaning: p.meaning,

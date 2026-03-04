@@ -527,7 +527,7 @@ function DetailModal({
 
 // ─── Main Page ────────────────────────────────────────
 export default function VocabBankPage() {
-    const { user } = useAuth();
+    const { user, loading: authLoading } = useAuth();
     const router = useRouter();
     const [phrases, setPhrases] = useState<Phrase[]>([]);
     const [loading, setLoading] = useState(true);
@@ -538,10 +538,24 @@ export default function VocabBankPage() {
 
     const { confirm, DialogComponent } = useConfirm();
 
+    // Auth bounce
+    useEffect(() => {
+        if (!authLoading && !user) {
+            toast('Please log in to view your Vocab Bank', {
+                icon: '🔒',
+                description: 'We need to know who you are to show your saved words.',
+            });
+            router.push('/auth/login');
+        }
+    }, [user, authLoading, router]);
+
     // Load phrases
     useEffect(() => {
         const loadPhrases = async () => {
-            if (!user?.uid) { setLoading(false); return; }
+            if (!user?.uid) {
+                if (!authLoading) setLoading(false);
+                return;
+            }
             try {
                 const savedPhrases = await getUserPhrases(user.uid);
                 const visiblePhrases = savedPhrases.filter(sp => {
@@ -581,7 +595,7 @@ export default function VocabBankPage() {
             setLoading(false);
         };
         loadPhrases();
-    }, [user?.uid]);
+    }, [user?.uid, authLoading]);
 
     // Filtering
     const filteredPhrases = useMemo(() => {
@@ -677,6 +691,25 @@ export default function VocabBankPage() {
                     <span><strong className="text-neutral-400 font-medium">{statsNew}</strong> new</span>
                 </div>
             </header>
+
+            {/* Practice Nudge Banner */}
+            {statsReviewing > 0 && (
+                <div className="max-w-6xl mx-auto px-6 pb-8">
+                    <div className="bg-neutral-900 rounded-lg p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-neutral-800">
+                        <div>
+                            <h3 className="text-white text-lg font-medium tracking-tight">You have phrases due for review</h3>
+                            <p className="text-neutral-400 text-sm mt-1">Master your saved vocabulary with an immersive practice session.</p>
+                        </div>
+                        <button
+                            onClick={() => router.push('/practice')}
+                            className="bg-white text-neutral-900 px-5 py-2.5 rounded-md text-sm font-bold uppercase tracking-[0.08em] hover:bg-neutral-100 transition-colors flex items-center gap-2 flex-shrink-0"
+                        >
+                            <Play className="w-4 h-4" fill="currentColor" />
+                            Start Practice
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* ─── Search + Filters ─── */}
             <div className="max-w-6xl mx-auto px-6 pb-8">

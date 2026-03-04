@@ -62,6 +62,21 @@ export default function RightSidebar() {
                 </div>
             </div>
 
+            {/* Vocab Arcade Launch */}
+            <div className="border border-t-0 border-neutral-200 p-5 bg-orange-50/50">
+                <span className="text-[10px] uppercase tracking-[0.15em] text-orange-600 font-bold block mb-3">Time Attack</span>
+                <div className="flex flex-col gap-3">
+                    <p className="text-sm text-neutral-600">Clear due phrases before time runs out.</p>
+                    <button
+                        onClick={() => window.dispatchEvent(new CustomEvent('launch-arcade'))}
+                        className="w-full bg-orange-500 hover:bg-orange-600 text-white px-4 py-2.5 rounded-md text-sm font-bold shadow-sm transition-colors flex justify-center items-center gap-2"
+                    >
+                        <Flame className="w-4 h-4" />
+                        Enter Arcade
+                    </button>
+                </div>
+            </div>
+
             {/* Quick Links */}
             <div className="border border-t-0 border-neutral-200 p-5">
                 <span className="text-[10px] uppercase tracking-[0.15em] text-neutral-400 font-bold block mb-3">Quick Links</span>

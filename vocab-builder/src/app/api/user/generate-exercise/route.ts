@@ -7,8 +7,8 @@ import { safeParseAIJson } from '@/lib/ai-utils';
  * Groups phrases by shared context and creates themed questions
  */
 
-const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
-const DEEPSEEK_URL = 'https://api.deepseek.com/v1/chat/completions';
+const XAI_API_KEY = process.env.XAI_API_KEY;
+const XAI_URL = 'https://api.x.ai/v1/chat/completions';
 
 interface PhraseWithContext {
     phraseId: string;
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
         }
 
-        if (!DEEPSEEK_API_KEY) {
+        if (!XAI_API_KEY) {
             return NextResponse.json({ error: 'API key not configured' }, { status: 500 });
         }
 
@@ -103,14 +103,14 @@ Return JSON format:
     "question": "Your thought-provoking question here?"
 }`;
 
-        const response = await fetch(DEEPSEEK_URL, {
+        const response = await fetch(XAI_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+                'Authorization': `Bearer ${XAI_API_KEY}`,
             },
             body: JSON.stringify({
-                model: 'deepseek-chat',
+                model: 'grok-4-1-fast-reasoning',
                 messages: [{ role: 'user', content: prompt }],
                 max_tokens: 300,
                 temperature: 0.75,
@@ -133,7 +133,7 @@ Return JSON format:
                 userId,
                 userEmail,
                 endpoint: 'generate-exercise',
-                model: 'deepseek-chat',
+                model: 'grok-4-1-fast-reasoning',
                 promptTokens: data.usage.prompt_tokens || 0,
                 completionTokens: data.usage.completion_tokens || 0,
                 totalTokens: data.usage.total_tokens || 0,

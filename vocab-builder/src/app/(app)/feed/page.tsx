@@ -35,6 +35,7 @@ import {
 import { toast } from 'sonner';
 import { getSourceLogo } from '@/lib/sources';
 import { getPosts, createUserArticle } from '@/lib/db/posts';
+import { getUserPhrases } from '@/lib/db/srs';
 
 // import { getCollections } from '@/lib/db/collections';
 import { RichTextEditor } from '@/components/rich-text-editor';
@@ -365,6 +366,7 @@ function LibraryCardSkeleton() {
 
 export default function LibraryPage() {
     const { profile, user } = useAuth();
+    const router = useRouter();
     const [posts, setPosts] = useState<LibraryPost[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
@@ -507,9 +509,36 @@ export default function LibraryPage() {
         setImporting(false);
     };
 
+    const [dueCount, setDueCount] = useState(0);
+
+    const loadDueCount = async () => {
+        if (!user) return;
+        try {
+            const savedPhrases = await getUserPhrases(user.uid);
+            const now = new Date();
+
+            // Helper to handle Firestore timestamps or regular dates
+            const toDate = (d: any): Date => {
+                if (d instanceof Date) return d;
+                if (d && typeof d === 'object' && 'toDate' in d) return d.toDate();
+                return new Date(d || Date.now());
+            };
+
+            const due = savedPhrases.filter(p => {
+                if (!p.nextReviewDate) return true;
+                return toDate(p.nextReviewDate) <= now;
+            });
+
+            setDueCount(due.length);
+        } catch (error) {
+            console.error('Failed to load due count:', error);
+        }
+    };
+
     useEffect(() => {
         loadPosts();
         fetchUserLists();
+        loadDueCount();
     }, [user]);
 
     // Filter posts
@@ -525,7 +554,6 @@ export default function LibraryPage() {
         }
 
         // Tab filter
-        // Tab filter
         if (activeFilter === 'unread' && post.isRead) return false;
         if (activeFilter === 'articles' && post.source?.toLowerCase().includes('book')) return false;
         if (activeFilter === 'books' && !post.source?.toLowerCase().includes('book')) return false;
@@ -534,22 +562,40 @@ export default function LibraryPage() {
         return true;
     });
 
-    const filterTabs: { key: FilterTab; label: string }[] = [
-        { key: 'all', label: 'All' },
-        { key: 'books', label: 'Books' },
-        { key: 'articles', label: 'Articles' },
-        { key: 'news', label: 'News' },
-        { key: 'unread', label: 'Unread' },
-    ];
-
     return (
         <div className="flex gap-6 max-w-[1400px] mx-auto font-[Inter,sans-serif]">
             {/* Main Content - Full Page Scroll Experience */}
             <div className="flex-1 min-w-0">
                 {/* Section 1: Quote Swiper - Full Viewport */}
-                <section className="h-screen flex flex-col justify-center items-center relative">
+                <section className="h-screen flex flex-col justify-center items-center relative pt-8">
+                    {/* Practice Nudge (Shows if due phrases exist) */}
+                    {dueCount > 0 && (
+                        <div className="w-full max-w-[700px] mx-auto px-6 mb-8 absolute top-8 left-1/2 -translate-x-1/2 z-10">
+                            <motion.div
+                                initial={{ opacity: 0, y: -20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="bg-neutral-900 rounded-xl p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-neutral-800"
+                            >
+                                <div>
+                                    <div className="inline-block px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] font-bold text-white bg-amber-500 rounded-sm mb-2">
+                                        Action Required
+                                    </div>
+                                    <h3 className="text-white text-lg font-medium tracking-tight">You have {dueCount} phrase{dueCount !== 1 ? 's' : ''} due for review</h3>
+                                    <p className="text-neutral-400 text-sm mt-1">Strengthen your memory before reading new articles.</p>
+                                </div>
+                                <button
+                                    onClick={() => router.push('/practice')}
+                                    className="bg-white text-neutral-900 px-6 py-3 rounded-lg text-sm font-bold uppercase tracking-[0.08em] hover:bg-neutral-100 transition-colors flex items-center justify-center gap-2 flex-shrink-0 w-full sm:w-auto"
+                                >
+                                    <Check className="w-4 h-4" />
+                                    Start Practice
+                                </button>
+                            </motion.div>
+                        </div>
+                    )}
+
                     {/* Quote Swiper - Centered */}
-                    <div className="w-full max-w-4xl px-8">
+                    <div className="w-full max-w-4xl px-8 flex-1 flex flex-col justify-center">
                         {user?.uid && <QuoteSwiper userId={user.uid} />}
                     </div>
 
@@ -561,9 +607,9 @@ export default function LibraryPage() {
                 <section className="relative pb-32">
 
                     {/* Stacking Cards */}
-                    <div className="relative">
+                    <div className="relative mt-12">
                         {loading ? (
-                            <div className="space-y-6">
+                            <div className="space-y-6 max-w-[700px] mx-auto">
                                 <LibraryCardSkeleton />
                                 <LibraryCardSkeleton />
                                 <LibraryCardSkeleton />

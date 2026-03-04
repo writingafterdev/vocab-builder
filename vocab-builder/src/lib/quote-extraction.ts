@@ -1,12 +1,12 @@
 /**
  * AI-powered quote extraction from articles
- * Uses DeepSeek to identify the most impactful, quotable sentences
+ * Uses Grok (xAI) to identify the most impactful, quotable sentences
  */
 
 import { logTokenUsage } from '@/lib/db/token-tracking';
 
-const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
-const DEEPSEEK_URL = 'https://api.deepseek.com/v1/chat/completions';
+const XAI_API_KEY = process.env.XAI_API_KEY;
+const XAI_URL = 'https://api.x.ai/v1/chat/completions';
 
 /**
  * Extract 3-5 impactful quotes from article content
@@ -20,8 +20,8 @@ export async function extractQuotes(
     userId?: string,
     userEmail?: string
 ): Promise<string[]> {
-    if (!DEEPSEEK_API_KEY) {
-        console.warn('DEEPSEEK_API_KEY not set, skipping quote extraction');
+    if (!XAI_API_KEY) {
+        console.warn('XAI_API_KEY not set, skipping quote extraction');
         return [];
     }
 
@@ -54,14 +54,14 @@ RULES:
 Return ONLY a JSON array of quote strings, e.g.:
 ["Quote one here.", "Quote two here.", "Quote three here."]`;
 
-        const response = await fetch(DEEPSEEK_URL, {
+        const response = await fetch(XAI_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+                'Authorization': `Bearer ${XAI_API_KEY}`,
             },
             body: JSON.stringify({
-                model: 'deepseek-chat',
+                model: 'grok-4-1-fast-reasoning',
                 messages: [{ role: 'user', content: prompt }],
                 max_tokens: 500,
                 temperature: 0.3,
@@ -69,7 +69,7 @@ Return ONLY a JSON array of quote strings, e.g.:
         });
 
         if (!response.ok) {
-            console.error('DeepSeek API error:', response.status);
+            console.error('Grok API error:', response.status);
             return [];
         }
 
@@ -81,7 +81,7 @@ Return ONLY a JSON array of quote strings, e.g.:
                 userId,
                 userEmail: userEmail || '',
                 endpoint: 'extract-quotes',
-                model: 'deepseek-chat',
+                model: 'grok-4-1-fast-reasoning',
                 promptTokens: data.usage.prompt_tokens || 0,
                 completionTokens: data.usage.completion_tokens || 0,
                 totalTokens: data.usage.total_tokens || 0,

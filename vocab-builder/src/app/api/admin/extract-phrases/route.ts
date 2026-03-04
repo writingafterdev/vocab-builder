@@ -6,8 +6,8 @@ import { logTokenUsage } from '@/lib/db/token-tracking';
  * Admin-only endpoint
  */
 
-const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
-const DEEPSEEK_URL = 'https://api.deepseek.com/v1/chat/completions';
+const XAI_API_KEY = process.env.XAI_API_KEY;
+const XAI_URL = 'https://api.x.ai/v1/chat/completions';
 
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase());
 
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        if (!DEEPSEEK_API_KEY) {
+        if (!XAI_API_KEY) {
             return NextResponse.json(
                 { error: 'DeepSeek API key not configured' },
                 { status: 500 }
@@ -73,14 +73,14 @@ ${content.substring(0, 50000)}
 Return ONLY a JSON array with 15-25 phrases in BASE FORM (use one's/someone's for pronouns).
 Example: ["break the ice", "get one's act together", "it goes without saying", "at the end of the day"]`;
 
-        const response = await fetch(DEEPSEEK_URL, {
+        const response = await fetch(XAI_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+                'Authorization': `Bearer ${XAI_API_KEY}`,
             },
             body: JSON.stringify({
-                model: 'deepseek-chat',
+                model: 'grok-4-1-fast-reasoning',
                 messages: [
                     { role: 'system', content: 'You are a linguistics expert specializing in English language learning. Always respond with valid JSON.' },
                     { role: 'user', content: prompt },
@@ -109,7 +109,7 @@ Example: ["break the ice", "get one's act together", "it goes without saying", "
                 userId: 'admin',
                 userEmail: email || 'admin',
                 endpoint: 'admin-extract-phrases',
-                model: 'deepseek-chat',
+                model: 'grok-4-1-fast-reasoning',
                 promptTokens: data.usage.prompt_tokens || 0,
                 completionTokens: data.usage.completion_tokens || 0,
                 totalTokens: data.usage.total_tokens || 0,

@@ -1,8 +1,10 @@
 /**
  * Vocab Builder Cron Worker
  * 
- * This scheduled worker triggers the audio pre-generation endpoint
- * daily to prepare listening exercises for the next day.
+ * This scheduled worker orchestrates daily tasks:
+ * 1. Import new articles from configured RSS/Reddit sources
+ * 2. Process each imported article through the AI pipeline (one at a time)
+ * 3. Pre-generate audio for tomorrow's listening exercises
  */
 
 export interface Env {
@@ -10,16 +12,59 @@ export interface Env {
     CRON_SECRET: string;
 }
 
+/** Call an API endpoint with CRON_SECRET auth */
+async function callEndpoint(
+    url: string,
+    cronSecret: string,
+    method: 'POST' | 'GET' = 'POST'
+): Promise<{ ok: boolean; data: any }> {
+    try {
+        console.log(`[Cron] → ${method} ${url}`);
+
+        const response = await fetch(url, {
+            method,
+            headers: {
+                'Authorization': `Bearer ${cronSecret}`,
+                'Content-Type': 'application/json',
+            },
+        });
+
+        const responseText = await response.text();
+        let data;
+        try {
+            data = JSON.parse(responseText);
+        } catch {
+            data = { raw: responseText };
+        }
+
+        if (response.ok) {
+            console.log(`[Cron] ✓ ${response.status}`);
+        } else {
+            console.error(`[Cron] ✗ ${response.status}: ${responseText.slice(0, 200)}`);
+        }
+
+        return { ok: response.ok, data };
+    } catch (error) {
+        console.error(`[Cron] Request failed:`, error);
+        return { ok: false, data: { error: String(error) } };
+    }
+}
+
+/** Small delay between API calls */
+function sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 export default {
     /**
-     * Scheduled handler - runs on cron trigger
+     * Scheduled handler — runs on cron trigger (daily 5AM ICT / 10PM UTC)
      */
     async scheduled(
-        event: ScheduledEvent,
+        event: ScheduledController,
         env: Env,
         ctx: ExecutionContext
     ): Promise<void> {
-        console.log(`[Cron] Triggered at ${new Date(event.scheduledTime).toISOString()}`);
+        console.log(`[Cron] ═══ Daily job triggered at ${new Date(event.scheduledTime).toISOString()} ═══`);
         console.log(`[Cron] Cron pattern: ${event.cron}`);
 
         const appUrl = env.APP_URL;
@@ -30,37 +75,75 @@ export default {
             return;
         }
 
-        const endpoint = `${appUrl}/api/cron/pre-generate-audio`;
+        // ━━━ Phase 1: Import articles ━━━
+        console.log('[Cron] ── Phase 1: Importing articles ──');
 
-        try {
-            console.log(`[Cron] Calling ${endpoint}`);
+        const importResult = await callEndpoint(
+            `${appUrl}/api/cron/daily-import`,
+            cronSecret
+        );
 
-            const response = await fetch(endpoint, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${cronSecret}`,
-                    'Content-Type': 'application/json',
-                },
-            });
+        if (!importResult.ok) {
+            console.error('[Cron] Import phase failed. Skipping processing.');
+            // Still try audio pre-generation even if import failed
+        } else {
+            const imported = importResult.data?.imported || 0;
+            console.log(`[Cron] Imported ${imported} new articles`);
 
-            const responseText = await response.text();
+            // ━━━ Phase 2: Process articles one-by-one ━━━
+            if (imported > 0) {
+                console.log('[Cron] ── Phase 2: Processing articles ──');
 
-            if (response.ok) {
-                console.log(`[Cron] Success: ${response.status}`);
-                console.log(`[Cron] Response: ${responseText}`);
-            } else {
-                console.error(`[Cron] Failed: ${response.status}`);
-                console.error(`[Cron] Error: ${responseText}`);
+                let remaining = imported;
+                let processed = 0;
+                const maxIterations = imported + 5; // safety limit
+
+                while (remaining > 0 && processed < maxIterations) {
+                    const processResult = await callEndpoint(
+                        `${appUrl}/api/cron/process-next`,
+                        cronSecret
+                    );
+
+                    if (!processResult.ok) {
+                        console.error(`[Cron] Process attempt ${processed + 1} failed.`);
+                        break;
+                    }
+
+                    remaining = processResult.data?.remaining || 0;
+                    processed++;
+
+                    const step = processResult.data?.processed;
+                    if (step) {
+                        console.log(`[Cron] Processed ${processed}: "${step.title?.slice(0, 50)}..." (${remaining} remaining)`);
+                    }
+
+                    // Small delay between processing to avoid rate limits
+                    if (remaining > 0) {
+                        await sleep(3000);
+                    }
+                }
+
+                console.log(`[Cron] Processing complete. ${processed} articles processed.`);
             }
-        } catch (error) {
-            console.error('[Cron] Request failed:', error);
         }
+
+        // ━━━ Phase 3: Pre-generate audio for tomorrow ━━━
+        console.log('[Cron] ── Phase 3: Pre-generating audio ──');
+
+        const audioResult = await callEndpoint(
+            `${appUrl}/api/cron/pre-generate-audio`,
+            cronSecret
+        );
+
+        if (audioResult.ok) {
+            console.log(`[Cron] Audio pre-generation complete`);
+        }
+
+        console.log('[Cron] ═══ Daily job finished ═══');
     },
 
     /**
-     * Optional fetch handler for manual testing via HTTP
-     * GET /run - manually trigger the cron job
-     * GET /health - health check
+     * HTTP handler for manual testing
      */
     async fetch(
         request: Request,
@@ -73,30 +156,36 @@ export default {
             return new Response(JSON.stringify({
                 status: 'ok',
                 timestamp: new Date().toISOString(),
+                jobs: ['daily-import', 'process-articles', 'pre-generate-audio'],
             }), {
                 headers: { 'Content-Type': 'application/json' },
             });
         }
 
         if (url.pathname === '/run') {
-            // Manual trigger - call the scheduled handler
             const scheduledEvent = {
                 scheduledTime: Date.now(),
                 cron: 'manual',
-            } as ScheduledEvent;
+                noRetry: () => { },
+            } as ScheduledController;
 
-            await this.scheduled(scheduledEvent, env, ctx);
+            // Run in background so we can return immediately
+            const handler = this.scheduled?.bind(this);
+            if (handler) {
+                ctx.waitUntil(Promise.resolve(handler(scheduledEvent, env, ctx)));
+            }
 
             return new Response(JSON.stringify({
-                message: 'Cron job triggered manually',
+                message: 'Daily job triggered manually. Check logs for progress.',
                 timestamp: new Date().toISOString(),
             }), {
                 headers: { 'Content-Type': 'application/json' },
             });
         }
 
-        return new Response('Vocab Cron Worker\n\nEndpoints:\n- GET /health\n- GET /run', {
-            status: 200,
-        });
+        return new Response(
+            'Vocab Cron Worker\n\nEndpoints:\n- GET /health\n- GET /run (trigger manually)',
+            { status: 200 }
+        );
     },
 } satisfies ExportedHandler<Env>;

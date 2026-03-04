@@ -1,12 +1,13 @@
 /**
  * Safe AI Response Utilities
  * 
- * Shared helpers for calling DeepSeek API with proper error handling,
+ * Shared helpers for calling Grok (xAI) API with proper error handling,
  * JSON parsing safety, and field validation.
  */
 
-const DEEPSEEK_URL = process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com/chat/completions';
-const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || '';
+const AI_URL = process.env.AI_BASE_URL || 'https://api.x.ai/v1/chat/completions';
+const AI_API_KEY = process.env.XAI_API_KEY || '';
+const AI_MODEL = process.env.AI_MODEL || 'grok-4-1-fast-reasoning';
 
 // ─── Types ─────────────────────────────────────────────────────────────
 
@@ -32,7 +33,7 @@ export type AICallResult<T = unknown> =
 // ─── Core Function ─────────────────────────────────────────────────────
 
 /**
- * Call DeepSeek API with safe JSON parsing and field validation.
+ * Call Grok (xAI) API with safe JSON parsing and field validation.
  * 
  * @returns Parsed JSON data or error with details
  */
@@ -46,8 +47,8 @@ export async function callAI<T = unknown>(options: AICallOptions): Promise<AICal
         requiredFields,
     } = options;
 
-    if (!DEEPSEEK_API_KEY) {
-        return { success: false, error: 'API key not configured' };
+    if (!AI_API_KEY) {
+        return { success: false, error: 'XAI_API_KEY not configured' };
     }
 
     // Build messages
@@ -60,14 +61,14 @@ export async function callAI<T = unknown>(options: AICallOptions): Promise<AICal
     // Call API
     let response: Response;
     try {
-        response = await fetch(DEEPSEEK_URL, {
+        response = await fetch(AI_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+                'Authorization': `Bearer ${AI_API_KEY}`,
             },
             body: JSON.stringify({
-                model: 'deepseek-chat',
+                model: AI_MODEL,
                 messages,
                 max_tokens: maxTokens,
                 temperature,
