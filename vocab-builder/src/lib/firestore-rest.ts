@@ -4,7 +4,14 @@
  */
 
 const FIREBASE_PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+const FIREBASE_API_KEY = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
 const FIRESTORE_BASE_URL = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents`;
+
+/** Append API key to a URL string for authenticated REST access */
+function withKey(url: string): string {
+    const separator = url.includes('?') ? '&' : '?';
+    return FIREBASE_API_KEY ? `${url}${separator}key=${FIREBASE_API_KEY}` : url;
+}
 
 interface FirestoreValue {
     stringValue?: string;
@@ -106,7 +113,7 @@ export async function addDocument(
         fields[key] = toFirestoreValue(value);
     }
 
-    const response = await fetch(`${FIRESTORE_BASE_URL}/${collectionPath}`, {
+    const response = await fetch(withKey(`${FIRESTORE_BASE_URL}/${collectionPath}`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fields }),
@@ -129,7 +136,7 @@ export async function getDocument(
     collectionPath: string,
     documentId: string
 ): Promise<(Record<string, unknown> & { id: string }) | null> {
-    const response = await fetch(`${FIRESTORE_BASE_URL}/${collectionPath}/${documentId}`);
+    const response = await fetch(withKey(`${FIRESTORE_BASE_URL}/${collectionPath}/${documentId}`));
 
     if (response.status === 404) {
         return null;
@@ -170,7 +177,7 @@ export async function updateDocument(
     const url = new URL(`${FIRESTORE_BASE_URL}/${collectionPath}/${documentId}`);
     updateMask.forEach(field => url.searchParams.append('updateMask.fieldPaths', field));
 
-    const response = await fetch(url.toString(), {
+    const response = await fetch(withKey(url.toString()), {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fields }),
@@ -196,7 +203,7 @@ export async function setDocument(
         fields[key] = toFirestoreValue(value);
     }
 
-    const response = await fetch(`${FIRESTORE_BASE_URL}/${collectionPath}/${documentId}`, {
+    const response = await fetch(withKey(`${FIRESTORE_BASE_URL}/${collectionPath}/${documentId}`), {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fields }),
@@ -216,7 +223,7 @@ export async function deleteDocument(
     collectionPath: string,
     documentId: string
 ): Promise<void> {
-    const response = await fetch(`${FIRESTORE_BASE_URL}/${collectionPath}/${documentId}`, {
+    const response = await fetch(withKey(`${FIRESTORE_BASE_URL}/${collectionPath}/${documentId}`), {
         method: 'DELETE',
     });
 
@@ -246,7 +253,7 @@ export async function queryCollection(
         url.searchParams.set('pageSize', options.limit.toString());
     }
 
-    const response = await fetch(url.toString());
+    const response = await fetch(withKey(url.toString()));
 
     if (!response.ok) {
         const error = await response.text();
@@ -312,7 +319,7 @@ export async function runQuery(
         ? `${FIRESTORE_BASE_URL}/${parentPath}:runQuery`
         : `${FIRESTORE_BASE_URL}:runQuery`;
 
-    const response = await fetch(baseUrl, {
+    const response = await fetch(withKey(baseUrl), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ structuredQuery })
