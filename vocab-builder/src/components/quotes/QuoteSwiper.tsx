@@ -27,9 +27,37 @@ const POSITIONS = {
 const SPRING = { type: 'spring' as const, stiffness: 100, damping: 18, mass: 1.2 };
 
 /**
+ * Decode HTML entities like &#x2014; -> —
+ */
+function decodeHtmlEntities(text: string): string {
+    const textarea = typeof document !== 'undefined' ? document.createElement('textarea') : null;
+    if (textarea) {
+        textarea.innerHTML = text;
+        return textarea.value;
+    }
+    // Fallback for SSR
+    return text
+        .replace(/&#8217;/g, "'")
+        .replace(/&#8216;/g, "'")
+        .replace(/&#8220;/g, '"')
+        .replace(/&#x201C;/g, '"')
+        .replace(/&#8221;/g, '"')
+        .replace(/&#x201D;/g, '"')
+        .replace(/&#8212;/g, "—")
+        .replace(/&#x2014;/g, "—")
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&apos;/g, "'");
+}
+
+/**
  * Highlight vocab phrases in plain text (wraps matches in <mark> tags)
  */
-function highlightQuoteText(text: string, phrases: string[]): string {
+function highlightQuoteText(rawText: string, phrases: string[]): string {
+    const text = decodeHtmlEntities(rawText);
     if (!phrases || phrases.length === 0) return text;
 
     // Escape HTML first
@@ -363,7 +391,7 @@ export function QuoteSwiper({ userId }: QuoteSwiperProps) {
                                             className="text-xl md:text-[24px] md:leading-[1.6] text-neutral-900 tracking-tight line-clamp-5"
                                             style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
                                         >
-                                            {quote.text}
+                                            {decodeHtmlEntities(quote.text)}
                                         </p>
                                     )}
                                 </div>
