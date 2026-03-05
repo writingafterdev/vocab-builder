@@ -566,7 +566,7 @@ export default function LibraryPage() {
         <div className="flex gap-6 max-w-[1400px] mx-auto font-[Inter,sans-serif]">
             {/* Main Content - Full Page Scroll Experience */}
             <div className="flex-1 min-w-0">
-                {/* Section 1: Quote Swiper - Full Viewport */}
+                {/* Quote Swiper - Full Viewport */}
                 <section className="h-screen flex flex-col justify-center items-center relative pt-8">
                     {/* Practice Nudge (Shows if due phrases exist) */}
                     {dueCount > 0 && (
@@ -597,53 +597,6 @@ export default function LibraryPage() {
                     {/* Quote Swiper - Centered */}
                     <div className="w-full max-w-4xl px-8 flex-1 flex flex-col justify-center">
                         {user?.uid && <QuoteSwiper userId={user.uid} />}
-                    </div>
-
-                    {/* Separator Line */}
-                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-16 h-px bg-neutral-300" />
-                </section>
-
-                {/* Section 2: Articles - Stacking Cards */}
-                <section className="relative pb-32">
-
-                    {/* Stacking Cards */}
-                    <div className="relative mt-12">
-                        {loading ? (
-                            <div className="space-y-6 max-w-[700px] mx-auto">
-                                <LibraryCardSkeleton />
-                                <LibraryCardSkeleton />
-                                <LibraryCardSkeleton />
-                            </div>
-                        ) : filteredPosts.length === 0 ? (
-                            <div className="text-center py-24">
-                                <BookOpen className="h-16 w-16 text-neutral-200 mx-auto mb-6" />
-                                <h3 className="text-xl font-medium text-neutral-800 mb-2">No materials yet</h3>
-                                <p className="text-neutral-500 mb-6">Import articles or books to build your library.</p>
-                                <Button
-                                    onClick={() => setShowImportModal(true)}
-                                    variant="outline"
-                                    className="gap-2"
-                                >
-                                    <Plus className="h-4 w-4" />
-                                    Import Material
-                                </Button>
-                            </div>
-                        ) : (
-                            <StackingCards totalCards={filteredPosts.length}>
-                                {filteredPosts.map((post) => (
-                                    <StackingCardItem key={post.id} topOffset={120}>
-                                        <div className="mb-4">
-                                            <NewLibraryCard
-                                                post={post}
-                                                size="featured"
-                                                userLists={userLists}
-                                                onAddToList={handleAddToList}
-                                            />
-                                        </div>
-                                    </StackingCardItem>
-                                ))}
-                            </StackingCards>
-                        )}
                     </div>
                 </section>
             </div>
