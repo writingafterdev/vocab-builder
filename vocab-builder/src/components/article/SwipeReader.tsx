@@ -364,18 +364,21 @@ export const SwipeReader = memo(function SwipeReader({
 
     return (
         <div className="min-h-screen bg-white flex flex-col items-center justify-center px-4 pb-32">
-            {/* Progress bar */}
-            <div className="w-full max-w-[540px] mb-10">
-                <div className="w-full h-[2px] bg-neutral-200">
+            {/* Progress indicator */}
+            <div className="w-full max-w-[800px] mb-6 flex items-center justify-between px-2">
+                <div className="flex-1 h-[2px] bg-neutral-200 mr-4">
                     <div
                         className="h-full bg-neutral-900 transition-all duration-300 ease-out"
                         style={{ width: `${((activeIndex + 1) / items.length) * 100}%` }}
                     />
                 </div>
+                <span className="text-[11px] text-neutral-400 font-medium tabular-nums">
+                    {activeIndex + 1} / {items.length}
+                </span>
             </div>
 
             {/* Card Stack */}
-            <div ref={cardStackRef} className="relative w-full max-w-[540px] mx-auto min-h-[300px]">
+            <div ref={cardStackRef} className="relative w-full max-w-[800px] mx-auto min-h-[300px]">
                 {[...cards].reverse().map(({ item, stackPos }) => {
                     const isTop = stackPos === 0;
                     const target = getCardTarget(stackPos);
@@ -413,7 +416,7 @@ export const SwipeReader = memo(function SwipeReader({
                             {/* Card */}
                             <div
                                 className={cn(
-                                    'w-full h-full min-h-[300px] bg-white border flex flex-col rounded-2xl',
+                                    'w-full h-full min-h-[300px] bg-white border flex flex-col',
                                     isTop ? '' : 'overflow-hidden',
                                     item.type === 'question'
                                         ? 'border-neutral-300 bg-neutral-50'
@@ -440,7 +443,7 @@ export const SwipeReader = memo(function SwipeReader({
             <div className="flex items-center justify-center gap-6 mt-8 z-10 relative">
                 <button
                     onClick={goBack}
-                    className="h-14 w-14 bg-white flex items-center justify-center shadow-sm border border-neutral-200 text-neutral-400 hover:text-neutral-900 hover:bg-neutral-50 transition-colors rounded-full"
+                    className="h-14 w-14 bg-white flex items-center justify-center shadow-sm border border-neutral-200 text-neutral-400 hover:text-neutral-900 hover:bg-neutral-50 transition-colors"
                     aria-label="Previous"
                 >
                     <ArrowLeft className="w-5 h-5" />
@@ -450,7 +453,7 @@ export const SwipeReader = memo(function SwipeReader({
                     onClick={sendToBack}
                     disabled={isForwardBlocked}
                     className={cn(
-                        'h-14 w-14 bg-white flex items-center justify-center shadow-sm border border-neutral-200 transition-colors rounded-full',
+                        'h-14 w-14 bg-white flex items-center justify-center shadow-sm border border-neutral-200 transition-colors',
                         isForwardBlocked
                             ? 'text-neutral-200 cursor-not-allowed'
                             : 'text-neutral-400 hover:text-neutral-900 hover:bg-neutral-50'
