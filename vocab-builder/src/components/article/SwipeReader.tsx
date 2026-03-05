@@ -375,7 +375,7 @@ export const SwipeReader = memo(function SwipeReader({
             </div>
 
             {/* Card Stack */}
-            <div ref={cardStackRef} className="relative w-full max-w-[540px] mx-auto h-[65vh] min-h-[450px] max-h-[800px]">
+            <div ref={cardStackRef} className="relative w-full max-w-[540px] mx-auto min-h-[300px]">
                 {[...cards].reverse().map(({ item, stackPos }) => {
                     const isTop = stackPos === 0;
                     const target = getCardTarget(stackPos);
@@ -391,7 +391,10 @@ export const SwipeReader = memo(function SwipeReader({
                     return (
                         <motion.div
                             key={itemKey}
-                            className="absolute inset-x-0 top-0 bottom-10"
+                            className={cn(
+                                "inset-x-0 top-0",
+                                isTop ? "relative w-full" : "absolute w-full h-full"
+                            )}
                             style={
                                 isTop && phase === 'idle'
                                     ? { x: dragX, rotate: dragRotate, zIndex }
@@ -410,7 +413,8 @@ export const SwipeReader = memo(function SwipeReader({
                             {/* Card */}
                             <div
                                 className={cn(
-                                    'w-full h-full bg-white border flex flex-col overflow-hidden rounded-xl',
+                                    'w-full h-full min-h-[300px] bg-white border flex flex-col rounded-2xl',
+                                    isTop ? '' : 'overflow-hidden',
                                     item.type === 'question'
                                         ? 'border-neutral-300 bg-neutral-50'
                                         : item.type === 'comments'
@@ -423,7 +427,7 @@ export const SwipeReader = memo(function SwipeReader({
                                         : '0 2px 10px rgba(0,0,0,0.05)',
                                 }}
                             >
-                                <div className="flex-1 overflow-y-auto overflow-x-hidden w-full no-scrollbar relative">
+                                <div className="w-full flex-1">
                                     {renderCardContent(item)}
                                 </div>
                             </div>
