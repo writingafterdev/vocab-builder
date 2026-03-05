@@ -304,7 +304,7 @@ export const SwipeReader = memo(function SwipeReader({
                             </div>
                         )}
                         <div
-                            className="px-8 py-6 prose prose-neutral prose-sm max-w-none leading-[1.85] text-neutral-800"
+                            className="px-8 py-6 prose prose-neutral prose-sm max-w-full overflow-hidden break-words prose-img:mx-auto prose-img:max-w-full prose-img:h-auto prose-img:rounded-md leading-[1.85] text-neutral-800"
                             style={{ fontFamily: 'var(--font-serif), "Instrument Serif", Georgia, serif' }}
                             onClick={handleContentClick}
                             dangerouslySetInnerHTML={{ __html: processedContent }}
@@ -410,7 +410,7 @@ export const SwipeReader = memo(function SwipeReader({
                             {/* Card */}
                             <div
                                 className={cn(
-                                    'w-full bg-white border flex flex-col',
+                                    'w-full bg-white border flex flex-col overflow-hidden',
                                     item.type === 'question'
                                         ? 'border-neutral-300 bg-neutral-50'
                                         : item.type === 'comments'
