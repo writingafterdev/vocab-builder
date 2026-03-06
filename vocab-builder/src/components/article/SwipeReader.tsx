@@ -156,7 +156,9 @@ export const SwipeReader = memo(function SwipeReader({
     onQuestionAnswer,
     comments = [],
     redditComments = [],
-}: SwipeReaderProps) {
+    author = '',
+    sourceTitle = '',
+}: SwipeReaderProps & { author?: string; sourceTitle?: string }) {
     const [internalIndex, setInternalIndex] = useState(0);
     const activeIndex = controlledSection ?? internalIndex;
     const cardStackRef = useRef<HTMLDivElement>(null);
@@ -266,7 +268,12 @@ export const SwipeReader = memo(function SwipeReader({
     );
 
     const getCardTarget = (stackPos: number) => {
-        if (stackPos === 0 && phase === 'sending-to-back') return POSITIONS.exit;
+        if (phase === 'sending-to-back') {
+            if (stackPos === 0) return POSITIONS.exit;
+            if (stackPos === 1) return POSITIONS.front;
+            if (stackPos === 2) return POSITIONS.middle;
+            return POSITIONS.back;
+        }
         if (stackPos === 0) return POSITIONS.front;
         if (stackPos === 1) return POSITIONS.middle;
         return POSITIONS.back;
@@ -292,24 +299,36 @@ export const SwipeReader = memo(function SwipeReader({
                 );
 
                 return (
-                    <>
-                        {item.section.title && (
-                            <div className="px-8 pt-6 pb-1">
+                    <div className="flex flex-col h-full w-full">
+                        <div className="flex-1 flex flex-col justify-center px-10 md:px-14 py-8 overflow-hidden">
+                            {item.section.title && (
                                 <h2
-                                    className="text-base font-semibold text-neutral-900"
+                                    className="text-base font-semibold text-neutral-900 mb-2"
                                     style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
                                 >
                                     {item.section.title}
                                 </h2>
+                            )}
+                            <div
+                                className="prose prose-neutral max-w-full overflow-hidden break-words prose-img:mx-auto prose-img:max-w-full prose-img:h-auto prose-img:rounded-md text-xl md:text-[24px] md:leading-[1.6] text-neutral-900 tracking-tight"
+                                style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
+                                onClick={handleContentClick}
+                                dangerouslySetInnerHTML={{ __html: processedContent }}
+                            />
+                        </div>
+
+                        {/* Bottom bar */}
+                        <div className="flex items-center justify-between px-10 md:px-14 py-4 border-t border-neutral-100 mt-auto bg-white">
+                            <div className="flex flex-col min-w-0 flex-1 mr-4">
+                                <span className="text-xs font-medium text-neutral-900 truncate">
+                                    {author || 'Unknown Author'}
+                                </span>
+                                <span className="text-[11px] text-neutral-400 truncate">
+                                    {sourceTitle || 'Unknown Source'}
+                                </span>
                             </div>
-                        )}
-                        <div
-                            className="px-8 py-6 prose prose-neutral prose-sm max-w-full overflow-hidden break-words prose-img:mx-auto prose-img:max-w-full prose-img:h-auto prose-img:rounded-md leading-[1.85] text-neutral-800"
-                            style={{ fontFamily: 'var(--font-serif), "Instrument Serif", Georgia, serif' }}
-                            onClick={handleContentClick}
-                            dangerouslySetInnerHTML={{ __html: processedContent }}
-                        />
-                    </>
+                        </div>
+                    </div>
                 );
             }
 
@@ -416,7 +435,7 @@ export const SwipeReader = memo(function SwipeReader({
                             {/* Card */}
                             <div
                                 className={cn(
-                                    'w-full h-full min-h-[300px] bg-white border flex flex-col',
+                                    'w-full h-[280px] bg-white border flex flex-col',
                                     isTop ? '' : 'overflow-hidden',
                                     item.type === 'question'
                                         ? 'border-neutral-300 bg-neutral-50'
@@ -430,7 +449,7 @@ export const SwipeReader = memo(function SwipeReader({
                                         : '0 2px 10px rgba(0,0,0,0.05)',
                                 }}
                             >
-                                <div className="w-full flex-1">
+                                <div className="w-full flex-1 h-full overflow-hidden flex flex-col">
                                     {renderCardContent(item)}
                                 </div>
                             </div>

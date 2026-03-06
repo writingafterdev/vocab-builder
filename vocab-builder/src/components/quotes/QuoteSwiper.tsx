@@ -324,9 +324,11 @@ export function QuoteSwiper({ userId }: QuoteSwiperProps) {
 
     // Determine what each card's target position should be
     const getCardTarget = (stackPos: number) => {
-        if (stackPos === 0 && phase === 'sending-to-back') {
-            // Front card → animate to the exit (back) position
-            return POSITIONS.exit;
+        if (phase === 'sending-to-back') {
+            if (stackPos === 0) return POSITIONS.exit;
+            if (stackPos === 1) return POSITIONS.front;
+            if (stackPos === 2) return POSITIONS.middle;
+            return POSITIONS.back;
         }
         if (stackPos === 0) return POSITIONS.front;
         if (stackPos === 1) return POSITIONS.middle;
