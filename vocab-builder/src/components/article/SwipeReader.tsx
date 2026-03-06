@@ -11,13 +11,14 @@ import { ArrowLeft, ArrowRight, MessageSquare, ChevronDown, ChevronUp } from 'lu
 import type { EmbeddedQuestion, Comment as FirestoreComment, RedditComment } from '@/lib/db/types';
 
 const SWIPE_THRESHOLD = 60;
-const VISIBLE_CARDS = 3;
+const VISIBLE_CARDS = 4;
 
 // Stack position presets
 const POSITIONS = {
     front: { y: 0, x: 0, rotate: 0, scale: 1, opacity: 1 },
     middle: { y: 14, x: 12, rotate: 3, scale: 0.97, opacity: 1 },
     back: { y: 26, x: -10, rotate: -2, scale: 0.94, opacity: 1 },
+    hidden: { y: 38, x: 8, rotate: -1, scale: 0.91, opacity: 0 },
     exit: { y: 26, x: -10, rotate: -2, scale: 0.94, opacity: 0 },
 };
 
@@ -272,11 +273,13 @@ export const SwipeReader = memo(function SwipeReader({
             if (stackPos === 0) return POSITIONS.exit;
             if (stackPos === 1) return POSITIONS.front;
             if (stackPos === 2) return POSITIONS.middle;
-            return POSITIONS.back;
+            if (stackPos === 3) return POSITIONS.back;
+            return POSITIONS.hidden;
         }
         if (stackPos === 0) return POSITIONS.front;
         if (stackPos === 1) return POSITIONS.middle;
-        return POSITIONS.back;
+        if (stackPos === 2) return POSITIONS.back;
+        return POSITIONS.hidden;
     };
 
     // Build visible stack
