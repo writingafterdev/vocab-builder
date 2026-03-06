@@ -501,6 +501,8 @@ export function ArticleReadingMode({
                     onQuestionAnswer={handleQuestionAnswer}
                     comments={comments}
                     redditComments={redditComments}
+                    author={post.authorUsername}
+                    sourceTitle={post.source}
                 />
             )}
 
