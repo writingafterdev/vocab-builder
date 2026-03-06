@@ -567,7 +567,7 @@ export default function LibraryPage() {
             {/* Main Content - Full Page Scroll Experience */}
             <div className="flex-1 min-w-0">
                 {/* Section 1: Quote Swiper */}
-                <section className="min-h-[70vh] flex flex-col justify-center items-center relative pt-8 pb-12">
+                <section className="min-h-[calc(100vh-8rem)] flex flex-col justify-center items-center relative pb-12 xl:pb-0">
                     {/* Practice Nudge (Shows if due phrases exist) */}
                     {dueCount > 0 && (
                         <div className="w-full max-w-[700px] mx-auto px-6 mb-8">
