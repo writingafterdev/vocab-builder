@@ -8,6 +8,7 @@ import { ArrowLeft, ArrowRight, Heart } from 'lucide-react';
 import { useVocabHighlighter } from '@/components/article/useVocabHighlighter';
 import { VocabPopupCard } from '@/components/article/VocabPopupCard';
 import { EditorialLoader } from '@/components/ui/editorial-loader';
+import { cn } from '@/lib/utils';
 
 const SWIPE_THRESHOLD = 60;
 const VISIBLE_CARDS = 4;
@@ -376,9 +377,9 @@ export function QuoteSwiper({ userId }: QuoteSwiperProps) {
                         >
                             {/* Card Content */}
                             <div
-                                className="w-full h-[280px] bg-white border border-neutral-200 flex flex-col overflow-hidden"
+                                className="w-full h-[280px] bg-white border border-neutral-200 flex flex-col overflow-hidden transition-shadow duration-300"
                                 style={{
-                                    boxShadow: isTop && phase === 'idle'
+                                    boxShadow: isTop
                                         ? '0 8px 30px -5px rgba(0,0,0,0.12)'
                                         : '0 2px 10px rgba(0,0,0,0.05)',
                                 }}
@@ -411,14 +412,17 @@ export function QuoteSwiper({ userId }: QuoteSwiperProps) {
                                             {quote.postTitle || 'Untitled'}
                                         </span>
                                     </div>
-                                    {isTop && phase === 'idle' && (
-                                        <button
-                                            onClick={(e) => { e.stopPropagation(); goToArticle(); }}
-                                            className="text-[11px] font-semibold uppercase tracking-[0.15em] text-neutral-400 hover:text-neutral-900 transition-colors whitespace-nowrap flex-shrink-0"
-                                        >
-                                            Read Source →
-                                        </button>
-                                    )}
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); goToArticle(); }}
+                                        className={cn(
+                                            "text-[11px] font-semibold uppercase tracking-[0.15em] whitespace-nowrap flex-shrink-0 transition-all duration-300",
+                                            isTop
+                                                ? "text-neutral-400 hover:text-neutral-900 translate-y-0 opacity-100"
+                                                : "text-transparent pointer-events-none translate-y-1 opacity-0"
+                                        )}
+                                    >
+                                        Read Source →
+                                    </button>
                                 </div>
                             </div>
                         </motion.div>

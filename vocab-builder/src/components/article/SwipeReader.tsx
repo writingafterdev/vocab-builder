@@ -438,7 +438,7 @@ export const SwipeReader = memo(function SwipeReader({
                             {/* Card */}
                             <div
                                 className={cn(
-                                    'w-full h-[280px] bg-white border flex flex-col',
+                                    'w-full h-[280px] bg-white border flex flex-col transition-shadow duration-300',
                                     isTop ? '' : 'overflow-hidden',
                                     item.type === 'question'
                                         ? 'border-neutral-300 bg-neutral-50'
@@ -447,7 +447,7 @@ export const SwipeReader = memo(function SwipeReader({
                                             : 'border-neutral-200'
                                 )}
                                 style={{
-                                    boxShadow: isTop && phase === 'idle'
+                                    boxShadow: isTop
                                         ? '0 8px 30px -5px rgba(0,0,0,0.12)'
                                         : '0 2px 10px rgba(0,0,0,0.05)',
                                 }}
