@@ -10,7 +10,6 @@ import {
     Sun,
     Moon,
     Monitor,
-    CheckCircle,
     AlertCircle,
     Trash2,
     GraduationCap,
@@ -30,7 +29,6 @@ export default function SettingsPage() {
     const [bio, setBio] = useState('');
     const [saving, setSaving] = useState(false);
     const [usernameError, setUsernameError] = useState('');
-    const [successMessage, setSuccessMessage] = useState('');
 
     // Proficiency level state
     const [proficiency, setProficiency] = useState<{
@@ -81,7 +79,6 @@ export default function SettingsPage() {
 
         setSaving(true);
         setUsernameError('');
-        setSuccessMessage('');
 
         try {
             // Check if username changed and is available

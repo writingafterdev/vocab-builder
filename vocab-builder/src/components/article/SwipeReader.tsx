@@ -6,6 +6,7 @@ import { ArticleSection } from '@/lib/db/types';
 import { sanitizeRichHtml } from '@/lib/sanitize';
 import { useVocabHighlighter } from './useVocabHighlighter';
 import { EmbeddedQuestionCard } from '@/components/embedded-question-card';
+import { InlineQuiz } from '@/components/exercise/InlineQuiz';
 import { cn } from '@/lib/utils';
 import { ArrowLeft, ArrowRight, MessageSquare, ChevronDown, ChevronUp } from 'lucide-react';
 import type { EmbeddedQuestion, Comment as FirestoreComment, RedditComment } from '@/lib/db/types';
@@ -28,6 +29,7 @@ const SPRING = { type: 'spring' as const, stiffness: 100, damping: 18, mass: 1.2
 type SwipeItem =
     | { type: 'content'; section: ArticleSection; }
     | { type: 'question'; question: EmbeddedQuestion; }
+    | { type: 'inline_quiz'; quizId: string; sectionContent: string; vocabPhrases: string[]; }
     | { type: 'comments'; comments: (FirestoreComment & { replies?: FirestoreComment[] })[]; redditComments: RedditComment[]; };
 
 interface SwipeReaderProps {
@@ -38,6 +40,7 @@ interface SwipeReaderProps {
     currentSection?: number;
     autoAdvance?: boolean;
     savedPhrasesCount?: number;
+    userId?: string;
     // MCQ props
     embeddedQuestions?: EmbeddedQuestion[];
     answeredQuestions?: Set<string>;
@@ -152,6 +155,7 @@ export const SwipeReader = memo(function SwipeReader({
     currentSection: controlledSection,
     autoAdvance,
     savedPhrasesCount = 0,
+    userId,
     embeddedQuestions = [],
     answeredQuestions = new Set(),
     onQuestionAnswer,
@@ -164,10 +168,14 @@ export const SwipeReader = memo(function SwipeReader({
     const activeIndex = controlledSection ?? internalIndex;
     const cardStackRef = useRef<HTMLDivElement>(null);
 
-    // Build unified items array: content + questions + comments
+    const [quizCompletedIds, setQuizCompletedIds] = useState<Set<string>>(new Set());
+
+    // Build unified items array: content + questions + smart inline quizzes + comments
     const items: SwipeItem[] = useMemo(() => {
         const result: SwipeItem[] = [];
         let paragraphCount = 0;
+        let quizzesInserted = 0;
+        const maxQuizzesPerArticle = 2;
 
         for (const section of sections) {
             paragraphCount++;
@@ -178,6 +186,23 @@ export const SwipeReader = memo(function SwipeReader({
             for (const question of questionsHere) {
                 result.push({ type: 'question', question });
             }
+
+            // Smart quiz placement: insert quiz ONLY after sections that contain vocab phrases
+            const sectionVocab = section.vocabPhrases || [];
+            if (
+                userId &&
+                quizzesInserted < maxQuizzesPerArticle &&
+                sectionVocab.length > 0 &&
+                paragraphCount >= 2 // Don't show quiz too early (after at least 2 sections)
+            ) {
+                result.push({
+                    type: 'inline_quiz',
+                    quizId: `quiz-after-${paragraphCount}`,
+                    sectionContent: section.content,
+                    vocabPhrases: sectionVocab,
+                });
+                quizzesInserted++;
+            }
         }
 
         // Append comment cards at end
@@ -187,7 +212,7 @@ export const SwipeReader = memo(function SwipeReader({
         }
 
         return result;
-    }, [sections, embeddedQuestions, comments, redditComments]);
+    }, [sections, embeddedQuestions, comments, redditComments, userId]);
 
     // Apply rough-notation highlights when active card changes
     useVocabHighlighter(cardStackRef, [activeIndex, items]);
@@ -348,6 +373,21 @@ export const SwipeReader = memo(function SwipeReader({
                 );
             }
 
+            case 'inline_quiz': {
+                if (!userId) return <div className="px-6 py-6" />;
+                return (
+                    <div className="px-6 py-6 flex flex-col justify-center h-full">
+                        <InlineQuiz
+                            userId={userId}
+                            contentTopics={item.vocabPhrases}
+                            contentText={item.sectionContent}
+                            surface="swipe_reader"
+                            onComplete={() => setQuizCompletedIds(prev => new Set(prev).add(item.quizId))}
+                        />
+                    </div>
+                );
+            }
+
             case 'comments': {
                 const hasReddit = item.redditComments.length > 0;
                 const hasFirestore = item.comments.length > 0;
@@ -406,12 +446,21 @@ export const SwipeReader = memo(function SwipeReader({
                     const target = getCardTarget(stackPos);
                     const zIndex = VISIBLE_CARDS - stackPos;
 
+                    // Check if current top card is an unanswered quiz (for blur gate)
+                    const topItem = items[activeIndex];
+                    const isQuizGateActive = topItem?.type === 'inline_quiz'
+                        && !quizCompletedIds.has(topItem.quizId);
+                    // Apply blur to non-top cards when quiz gate is active
+                    const shouldBlur = !isTop && isQuizGateActive;
+
                     // Generate a stable key
                     const itemKey = item.type === 'content'
                         ? item.section.id
                         : item.type === 'question'
                             ? `q-${item.question.id}`
-                            : 'comments';
+                            : item.type === 'inline_quiz'
+                                ? item.quizId
+                                : 'comments';
 
                     return (
                         <motion.div
@@ -450,6 +499,9 @@ export const SwipeReader = memo(function SwipeReader({
                                     boxShadow: isTop
                                         ? '0 8px 30px -5px rgba(0,0,0,0.12)'
                                         : '0 2px 10px rgba(0,0,0,0.05)',
+                                    filter: shouldBlur ? 'blur(6px)' : 'none',
+                                    pointerEvents: shouldBlur ? 'none' : 'auto',
+                                    transition: 'filter 0.3s ease',
                                 }}
                             >
                                 <div className="w-full flex-1 h-full overflow-hidden flex flex-col">

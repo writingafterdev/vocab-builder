@@ -19,6 +19,7 @@ import {
     ChevronRight,
     Link as LinkIcon,
     FileText,
+    Sparkles,
 } from 'lucide-react';
 import {
     DropdownMenu,
@@ -373,6 +374,16 @@ export default function LibraryPage() {
     const [activeFilter, setActiveFilter] = useState<FilterTab>('all');
     // const [selectedCollection, setSelectedCollection] = useState<Collection | null>(null); // Removed
     const [userLists, setUserLists] = useState<Array<{ id: string; name: string; postIds: string[] }>>([]);
+    const [generatedSessions, setGeneratedSessions] = useState<Array<{
+        id: string;
+        title: string;
+        subtitle: string;
+        totalPhrases: number;
+        status: string;
+        sectionCount: number;
+        questionCount: number;
+        createdAt: string;
+    }>>([]);
 
     // Fetch user's reading lists
     const fetchUserLists = async () => {
@@ -510,6 +521,7 @@ export default function LibraryPage() {
     };
 
     const [dueCount, setDueCount] = useState(0);
+    const [preGeneratedQuestions, setPreGeneratedQuestions] = useState<any[]>([]);
 
     const loadDueCount = async () => {
         if (!user) return;
@@ -539,6 +551,25 @@ export default function LibraryPage() {
         loadPosts();
         fetchUserLists();
         loadDueCount();
+
+        // Fetch generated sessions for feed
+        if (user) {
+            fetch('/api/practice/list-sessions', {
+                headers: { 'x-user-id': user.uid },
+            })
+                .then(res => res.ok ? res.json() : { sessions: [] })
+                .then(data => setGeneratedSessions(data.sessions || []))
+                .catch(err => console.warn('Failed to load generated sessions:', err));
+
+            // Pre-generate feed quiz questions (non-blocking)
+            fetch('/api/exercise/pre-generate-feed-quizzes', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-user-id': user.uid },
+            })
+                .then(res => res.ok ? res.json() : { questions: [] })
+                .then(data => setPreGeneratedQuestions(data.questions || []))
+                .catch(err => console.warn('Pre-gen quiz fetch failed:', err));
+        }
     }, [user]);
 
     // Filter posts
@@ -596,7 +627,7 @@ export default function LibraryPage() {
 
                     {/* Quote Swiper - Centered */}
                     <div className="w-full max-w-4xl px-8 flex-1 flex flex-col justify-center">
-                        {user?.uid && <QuoteSwiper userId={user.uid} />}
+                        {user?.uid && <QuoteSwiper userId={user.uid} preGeneratedQuestions={preGeneratedQuestions} />}
                     </div>
 
                     {/* Scroll hint */}
@@ -632,7 +663,47 @@ export default function LibraryPage() {
                                 </Button>
                             </div>
                         ) : (
-                            <StackingCards totalCards={filteredPosts.length}>
+                            <StackingCards totalCards={filteredPosts.length + generatedSessions.length}>
+                                {/* Generated session articles first */}
+                                {generatedSessions.map(session => (
+                                    <StackingCardItem key={session.id} topOffset={120}>
+                                        <div className="mb-4">
+                                            <Link href={`/practice/session/${session.id}`}>
+                                                <motion.div
+                                                    className="bg-white border border-neutral-200 rounded-xl overflow-hidden hover:border-violet-300 transition-all cursor-pointer group"
+                                                    whileHover={{ y: -2, boxShadow: '0 8px 30px -5px rgba(139,92,246,0.15)' }}
+                                                >
+                                                    <div className="p-6">
+                                                        <div className="flex items-center gap-2 mb-3">
+                                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white bg-violet-600 rounded-sm">
+                                                                <Sparkles className="w-3 h-3" /> Practice Session
+                                                            </span>
+                                                            <span className="text-[10px] text-neutral-400">
+                                                                {session.totalPhrases} phrases · {session.questionCount} questions
+                                                            </span>
+                                                            {session.status === 'completed' && (
+                                                                <span className="ml-auto inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 bg-emerald-100 rounded">
+                                                                    <Check className="w-3 h-3" /> Done
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <h3
+                                                            className="text-lg font-normal text-neutral-900 mb-1 group-hover:text-violet-700 transition-colors"
+                                                            style={{ fontFamily: 'var(--font-serif, Georgia, serif)' }}
+                                                        >
+                                                            {session.title}
+                                                        </h3>
+                                                        <p className="text-sm text-neutral-500 line-clamp-2">
+                                                            {session.subtitle}
+                                                        </p>
+                                                    </div>
+                                                </motion.div>
+                                            </Link>
+                                        </div>
+                                    </StackingCardItem>
+                                ))}
+
+                                {/* Regular library cards */}
                                 {filteredPosts.map((post) => (
                                     <StackingCardItem key={post.id} topOffset={120}>
                                         <div className="mb-4">

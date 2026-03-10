@@ -26,7 +26,6 @@ import {
 const ADMIN_EMAIL = 'ducanhcontactonfb@gmail.com';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { XpDisplay } from '@/components/xp-display';
 import { FloatingDock, DockItem } from '@/components/ui/floating-dock';
 import { EditorialLoader } from '@/components/ui/editorial-loader';
 import { useOnlineStatus } from '@/hooks/use-online-status';
@@ -211,10 +210,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                                     </div>
                                 </div>
 
-                                {/* XP Display */}
-                                <div className="mb-4">
-                                    <XpDisplay />
-                                </div>
 
                                 {/* View Profile */}
                                 <Link

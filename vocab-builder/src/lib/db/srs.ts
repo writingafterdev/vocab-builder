@@ -18,7 +18,8 @@ import {
     Timestamp,
 } from 'firebase/firestore';
 import { getDbAsync } from './core';
-import type { SavedPhrase, Post } from './types';
+import type { SavedPhrase, Post, ExerciseSurface, LearningPhase } from './types';
+import type { ExerciseQuestionType } from './types';
 import { DEFAULT_LEARNING_CYCLE } from './types';
 
 // Daily limit for phrase saving (optimal learning)
@@ -939,4 +940,208 @@ export async function unlockChildren(phraseId: string, count: number = 2): Promi
     await updateDoc(phraseRef, { children: updatedChildren });
     console.log(`Unlocked ${toUnlock.length} children for phrase ${phraseId}`);
     return toUnlock.length;
+}
+
+// ============================================================================
+// INLINE EXERCISE SYSTEM (Blended Learning)
+// ============================================================================
+
+// Recognition formats — usable on ALL surfaces
+const RECOGNITION_FORMATS: ExerciseQuestionType[] = [
+    'social_consequence_prediction',
+    'situation_phrase_matching',
+    'tone_interpretation',
+    'contrast_exposure',
+    'why_did_they_say',
+    'appropriateness_judgment',
+    'error_detection',
+    'fill_gap_mcq',
+    'register_sorting',
+    'reading_comprehension',
+    'sentence_correction',
+];
+
+// Production formats — exercises page + full article only
+const PRODUCTION_FORMATS: ExerciseQuestionType[] = [
+    'constrained_production',
+    'transformation_exercise',
+    'dialogue_completion_open',
+    'text_completion',
+    'scenario_production',
+    'multiple_response_generation',
+    'explain_to_friend',
+    'creative_context_use',
+];
+
+// Fast recognition formats suitable for inline surfaces (2-3 options, quick answer)
+const FAST_RECOGNITION_FORMATS: ExerciseQuestionType[] = [
+    'situation_phrase_matching',
+    'tone_interpretation',
+    'contrast_exposure',
+    'appropriateness_judgment',
+    'fill_gap_mcq',
+];
+
+/**
+ * Determine learning phase from review count.
+ * Recognition: reviews 0-3 (observe, recognize, recall)
+ * Production: reviews 4+ (use, create, teach)
+ */
+export function getLearningPhase(reviewCount: number): LearningPhase {
+    const config = DEFAULT_PRACTICE_CONFIG;
+    return reviewCount < config.inline.productionThreshold
+        ? 'recognition'
+        : 'production';
+}
+
+/**
+ * Get question formats compatible with a given surface and learning phase.
+ * Inline surfaces (swiper, action gate, dead time) only get fast recognition formats.
+ * Full article gets all recognition + production.
+ * Exercises page gets everything.
+ */
+export function getSurfaceCompatibleFormats(
+    surface: ExerciseSurface,
+    phase: LearningPhase
+): ExerciseQuestionType[] {
+    switch (surface) {
+        case 'quote_swiper':
+        case 'action_gate':
+        case 'dead_time':
+            // Only fast recognition — binary/3-option MCQ, quick to answer
+            return FAST_RECOGNITION_FORMATS;
+
+        case 'swipe_reader':
+            // All recognition formats (user is in reading mode, slightly more engaged)
+            return RECOGNITION_FORMATS;
+
+        case 'full_article':
+            // Recognition + production (user is deeply engaged)
+            return phase === 'recognition' ? RECOGNITION_FORMATS : PRODUCTION_FORMATS;
+
+        case 'exercises_page':
+            // Everything for the current phase
+            return phase === 'recognition' ? RECOGNITION_FORMATS : PRODUCTION_FORMATS;
+
+        default:
+            return FAST_RECOGNITION_FORMATS;
+    }
+}
+
+/**
+ * Pick the next question format for a phrase using round-robin.
+ * Avoids repeating formats until all have been used, then resets.
+ * Returns a randomly selected format from the unused pool.
+ */
+export function getNextQuestionFormat(
+    completedFormats: ExerciseQuestionType[],
+    surface: ExerciseSurface,
+    phase: LearningPhase
+): ExerciseQuestionType {
+    const availableFormats = getSurfaceCompatibleFormats(surface, phase);
+
+    // Filter out already-completed formats
+    const unused = availableFormats.filter(f => !completedFormats.includes(f));
+
+    // If all exhausted, reset (pick from full list)
+    const pool = unused.length > 0 ? unused : availableFormats;
+
+    // Random pick from pool
+    return pool[Math.floor(Math.random() * pool.length)];
+}
+
+/**
+ * Mark a phrase as reviewed inline to prevent double-serving across surfaces.
+ * Also tracks which format was used and which surface served it.
+ */
+export async function markInlineReviewed(
+    phraseId: string,
+    surface: ExerciseSurface,
+    questionType: ExerciseQuestionType,
+    failed: boolean = false
+): Promise<void> {
+    const firestore = await getDbAsync();
+    const phraseRef = doc(firestore, 'savedPhrases', phraseId);
+    const phraseDoc = await getDoc(phraseRef);
+
+    if (!phraseDoc.exists()) return;
+
+    const data = phraseDoc.data() as SavedPhrase;
+    const existingFormats = data.completedFormats || [];
+
+    // Add format to completed list (for round-robin tracking)
+    const updatedFormats = existingFormats.includes(questionType)
+        ? existingFormats
+        : [...existingFormats, questionType];
+
+    await updateDoc(phraseRef, {
+        lastReviewedAt: Timestamp.now(),
+        lastReviewSource: surface,
+        completedFormats: updatedFormats,
+        ...(failed ? { failedInline: true } : {}),
+    });
+}
+
+/**
+ * Get due phrases filtered for inline exercise use.
+ * Excludes phrases already reviewed today (lastReviewedAt === today).
+ * Optionally filters by content topics for contextual relevance.
+ */
+export async function getInlineDuePhrases(
+    userId: string,
+    options: {
+        contentTopics?: string[];
+        surface: ExerciseSurface;
+        limit?: number;
+    }
+): Promise<SavedPhrase[]> {
+    const duePhrases = await getDuePhrases(userId, options.limit || 10);
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayStartMs = todayStart.getTime();
+
+    // Helper: get timestamp millis
+    const getMs = (t: any): number => {
+        if (!t) return 0;
+        if (typeof t.toMillis === 'function') return t.toMillis();
+        if (typeof t.getTime === 'function') return t.getTime();
+        return 0;
+    };
+
+    // Filter out phrases already reviewed today
+    let filtered = duePhrases.filter(p => {
+        const lastReviewMs = getMs(p.lastReviewedAt);
+        return lastReviewMs < todayStartMs; // Not reviewed today
+    });
+
+    // If content topics provided, prioritize matching phrases
+    if (options.contentTopics && options.contentTopics.length > 0) {
+        const topicSet = new Set(options.contentTopics.map(t => t.toLowerCase()));
+
+        const matching = filtered.filter(p => {
+            const phraseTopics = Array.isArray(p.topic) ? p.topic : p.topic ? [p.topic] : [];
+            const allTopics = [...phraseTopics, ...(p.topics || [])];
+            return allTopics.some(t => topicSet.has(t.toLowerCase()));
+        });
+
+        // Return matching only if we have any; otherwise return empty
+        // (empty > irrelevant — we never show off-topic questions inline)
+        if (matching.length > 0) {
+            filtered = matching;
+        } else {
+            return []; // No contextual match — don't serve anything
+        }
+    }
+
+    // Sort: failedInline first (escalation), then by priority (new > weak > due)
+    filtered.sort((a, b) => {
+        // Failed inline phrases get priority
+        if (a.failedInline && !b.failedInline) return -1;
+        if (!a.failedInline && b.failedInline) return 1;
+        // Then by learning step (lower = newer/weaker)
+        return (a.learningStep || 0) - (b.learningStep || 0);
+    });
+
+    return filtered.slice(0, options.limit || 5);
 }

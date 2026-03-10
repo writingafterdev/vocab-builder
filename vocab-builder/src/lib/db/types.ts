@@ -286,6 +286,16 @@ export interface SavedPhrase {
     nextReviewDate: Timestamp;
     lastReviewDate?: Timestamp;
 
+    // ====== INLINE EXERCISE SYSTEM (Blended Learning) ======
+    // Tracks which question formats have been used for round-robin variety
+    completedFormats?: ExerciseQuestionType[];
+    // Last surface where this phrase was reviewed (for analytics)
+    lastReviewSource?: ExerciseSurface;
+    // Prevents double-serving across surfaces on the same day
+    lastReviewedAt?: Timestamp;
+    // Phrases that failed inline get escalated to exercises page
+    failedInline?: boolean;
+
     // Context Rotation Cache
     lastPracticeConfig?: {
         register: Register;
@@ -790,15 +800,29 @@ export interface ConversationExercise {
 // Session types for the new exercise system
 export type ExerciseSessionType = 'quick_practice' | 'story' | 'listening';
 
-// 15 question types aligned with System Design.md phases
+// ============================================================================
+// INLINE EXERCISE SYSTEM (Blended Learning)
+// ============================================================================
+
+// Where exercises can appear in the app
+export type ExerciseSurface =
+    | 'quote_swiper'    // Feed QuoteSwiper cards
+    | 'swipe_reader'    // Article SwipeReader cards
+    | 'full_article'    // Inline callout in full article
+    | 'action_gate'     // Before save/unlock actions
+    | 'dead_time'       // During loading states
+    | 'exercises_page'; // Dedicated /practice page
+
+// Simplified to 2 learning phases (was 4)
+export type LearningPhase = 'recognition' | 'production';
+
+// Question types organized into 2 phases
 export type ExerciseQuestionType =
-    // Recognition Phase (Review 1-2) - Observe, predict social outcomes
+    // Recognition Phase (Review 1-3) — All surfaces
     | 'social_consequence_prediction'  // What happens if you say this?
     | 'situation_phrase_matching'      // Which phrase fits this situation? (MCQ)
     | 'tone_interpretation'            // How does the speaker feel?
     | 'contrast_exposure'              // What's the difference between X and Y?
-
-    // Comprehension Phase (Review 3-4) - Understand why phrases are used
     | 'why_did_they_say'               // Why did they use THIS phrase?
     | 'appropriateness_judgment'       // Is this phrase appropriate here?
     | 'error_detection'                // What's wrong with this usage?
@@ -807,13 +831,11 @@ export type ExerciseQuestionType =
     | 'reading_comprehension'          // GMAT RC: understand phrase in passage
     | 'sentence_correction'            // GMAT SC: fix subtly misused phrase
 
-    // Guided Production Phase (Review 5-6) - Use with scaffolding
+    // Production Phase (Review 4+) — Exercises page + Full Article only
     | 'constrained_production'         // Use phrase with given constraints
     | 'transformation_exercise'        // Change register (casual→formal)
     | 'dialogue_completion_open'       // Complete dialogue (open response)
     | 'text_completion'                // GMAT TC: fill blanks in paragraph
-
-    // Mastery Phase (Review 7+) - Free authentic production
     | 'scenario_production'            // Generate full response using phrase
     | 'multiple_response_generation'   // Give 2+ valid responses
     | 'explain_to_friend'              // Teach someone when to use this
@@ -823,6 +845,31 @@ export type ExerciseQuestionType =
     | 'story_intro'                    // Read context (no answer required)
     | 'listen_select'                  // Hear audio, pick phrase
     | 'type_what_you_hear';            // Dictation
+
+// Universal inline question format — used by all exercise surfaces
+export interface InlineQuestion {
+    id: string;
+    phraseId: string;
+    phrase: string;
+    surface: ExerciseSurface;
+    phase: LearningPhase;
+    questionType: ExerciseQuestionType;
+
+    // Context-rich scenario (2-3 sentences, not one-liners)
+    scenario: string;
+    // Cluster phrases woven into the scenario for passive exposure
+    clusterPhrases?: string[];
+
+    // For recognition types (MCQ / binary)
+    options?: string[];
+    correctIndex?: number;
+
+    // For production types (text input)
+    prompt?: string;
+
+    explanation?: string;
+    xpReward: number;
+}
 
 // Base interface for all question content types
 interface BaseQuestionContent {

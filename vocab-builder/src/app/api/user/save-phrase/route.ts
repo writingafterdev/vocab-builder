@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { addDocument, queryCollection, serverTimestamp } from '@/lib/firestore-rest';
 import { logTokenUsage } from '@/lib/db/token-tracking';
-import { awardXp } from '@/lib/xp';
+
 import { safeParseAIJson } from '@/lib/ai-utils';
 
 /**
@@ -418,11 +418,6 @@ export async function POST(request: NextRequest) {
         const newTodayCount = currentSaved + incomingCount;
         const remaining = Math.max(0, DAILY_PHRASE_LIMIT - newTodayCount);
 
-        // Award XP for saving phrase
-        let xpResult = null;
-        if (userId) {
-            xpResult = await awardXp(userId, 'phrase_saved');
-        }
 
         return NextResponse.json({
             success: true,
@@ -432,7 +427,6 @@ export async function POST(request: NextRequest) {
             limit: DAILY_PHRASE_LIMIT,
             isChildPhrase: !!parentPhraseId,
             parentPhraseId: parentPhraseId || null,
-            xp: xpResult
         });
 
     } catch (error) {

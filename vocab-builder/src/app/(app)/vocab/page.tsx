@@ -7,7 +7,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import dynamic from 'next/dynamic';
 import {
     Search,
-    Loader2,
     X,
     ChevronDown,
     Trash2,

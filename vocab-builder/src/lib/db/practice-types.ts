@@ -131,7 +131,7 @@ export interface PracticeConfig {
     maxVariantsPerPhrase: number;    // 3
     daysBetweenVariants: number;     // 7
 
-    // Practice mode switching
+    // Practice mode switching (legacy — use inline.productionThreshold instead)
     switchToOpenProductionDay: number;  // 14
 
     // Voice mode
@@ -143,6 +143,15 @@ export interface PracticeConfig {
 
     // Gamification
     streakEnabled: boolean;  // true
+
+    // Inline exercise system (blended learning)
+    inline: {
+        maxPerDay: number;              // Max inline questions across all surfaces per day
+        productionThreshold: number;    // Review # where production phase starts
+        clusterWeavingEnabled: boolean; // Weave cluster phrases into scenarios
+        skipPenalty: number;            // XP penalty for skipping inline (0 = no penalty)
+        quizCardFrequency: number;      // Show quiz card every N cards in swipers
+    };
 }
 
 /**
@@ -170,6 +179,13 @@ export const DEFAULT_PRACTICE_CONFIG: PracticeConfig = {
     dailyQuestionLimit: 30,
     retryWrongInSameSession: true,
     streakEnabled: true,
+    inline: {
+        maxPerDay: 15,
+        productionThreshold: 4,
+        clusterWeavingEnabled: true,
+        skipPenalty: 0,
+        quizCardFrequency: 4,
+    },
 };
 
 /**

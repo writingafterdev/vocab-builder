@@ -8,6 +8,8 @@ import { ArrowLeft, ArrowRight, Heart } from 'lucide-react';
 import { useVocabHighlighter } from '@/components/article/useVocabHighlighter';
 import { VocabPopupCard } from '@/components/article/VocabPopupCard';
 import { EditorialLoader } from '@/components/ui/editorial-loader';
+import { QuizCard } from '@/components/exercise/QuizCard';
+import { useInlineExercise, shouldShowQuiz, recordCardViewed, resetQuizSession } from '@/hooks/useInlineExercise';
 import { cn } from '@/lib/utils';
 
 const SWIPE_THRESHOLD = 60;
@@ -15,6 +17,7 @@ const VISIBLE_CARDS = 4;
 
 interface QuoteSwiperProps {
     userId: string;
+    preGeneratedQuestions?: any[];
 }
 
 // Stack position presets: front → middle → back
@@ -74,7 +77,7 @@ function highlightQuoteText(rawText: string, phrases: string[]): string {
     return html;
 }
 
-export function QuoteSwiper({ userId }: QuoteSwiperProps) {
+export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps) {
     const router = useRouter();
     const [quotes, setQuotes] = useState<Quote[]>([]);
     const [loading, setLoading] = useState(true);
@@ -106,6 +109,33 @@ export function QuoteSwiper({ userId }: QuoteSwiperProps) {
     // Drag tracking for the top card
     const dragX = useMotionValue(0);
     const dragRotate = useTransform(dragX, [-200, 0, 200], [-8, 0, 8]);
+
+    // Smart inline exercise state
+    const currentQuote = quotes[activeIndex];
+    const hasVocabPhrases = !!(currentQuote?.highlightedPhrases && currentQuote.highlightedPhrases.length > 0);
+    const [showQuizForCard, setShowQuizForCard] = useState(false);
+    const {
+        question: quizQuestion,
+        isLoading: quizLoading,
+        hasAnswered: quizAnswered,
+        result: quizResult,
+        xpEarned: quizXp,
+        fetchQuestion,
+        submitAnswer,
+        skip: skipQuiz,
+        reset: resetQuiz,
+    } = useInlineExercise({
+        surface: 'quote_swiper',
+        contentText: currentQuote?.text,
+        contentTopics: currentQuote?.highlightedPhrases,
+        userId,
+        preGeneratedQuestions,
+    });
+
+    // Reset quiz session when component mounts
+    useEffect(() => {
+        resetQuizSession();
+    }, []);
 
     useEffect(() => {
         let cancelled = false;
@@ -157,7 +187,16 @@ export function QuoteSwiper({ userId }: QuoteSwiperProps) {
 
         // Phase 2: After animation plays, swap the index
         setTimeout(() => {
-            setActiveIndex(prev => (prev + 1) % quotes.length);
+            setActiveIndex(prev => {
+                const next = (prev + 1) % quotes.length;
+                // Reset quiz state when moving to next card
+                if (showQuizForCard) {
+                    resetQuiz();
+                    setShowQuizForCard(false);
+                }
+                return next;
+            });
+            recordCardViewed();
             setPhase('idle');
             isAnimating.current = false;
         }, 500);
@@ -228,8 +267,13 @@ export function QuoteSwiper({ userId }: QuoteSwiperProps) {
     };
 
     const goToArticle = () => {
-        const quote = quotes[activeIndex];
-        if (quote) router.push(`/post/${quote.postId}`);
+        const quote = quotes[activeIndex] as any;
+        if (!quote) return;
+        if (quote.sourceType === 'generated_session' && quote.sessionId) {
+            router.push(`/practice/session/${quote.sessionId}`);
+        } else {
+            router.push(`/post/${quote.postId}`);
+        }
     };
 
     // Handle clicks on highlighted vocab marks
@@ -324,6 +368,17 @@ export function QuoteSwiper({ userId }: QuoteSwiperProps) {
 
     const isSaved = savedQuotes.has(quotes[activeIndex].id);
 
+    // Smart quiz: check if current quote has vocab phrases and we should show a quiz
+    useEffect(() => {
+        if (hasVocabPhrases && shouldShowQuiz() && !quizQuestion && !quizLoading && !showQuizForCard) {
+            // This quote has vocab phrases and we're eligible for a quiz
+            setShowQuizForCard(true);
+            fetchQuestion();
+        } else if (!hasVocabPhrases) {
+            setShowQuizForCard(false);
+        }
+    }, [activeIndex, hasVocabPhrases, quizQuestion, quizLoading, showQuizForCard, fetchQuestion]);
+
     // Determine what each card's target position should be
     const getCardTarget = (stackPos: number) => {
         if (phase === 'sending-to-back') {
@@ -355,10 +410,12 @@ export function QuoteSwiper({ userId }: QuoteSwiperProps) {
                     const isTop = stackPos === 0;
                     const target = getCardTarget(stackPos);
                     const zIndex = VISIBLE_CARDS - stackPos;
+                    const cardIdx = (activeIndex + stackPos) % quotes.length;
+                    const showQuiz = isTop && showQuizForCard && quizQuestion;
 
                     return (
                         <motion.div
-                            key={quote.id}
+                            key={showQuiz ? `quiz-${quizQuestion.id}` : quote.id}
                             className="absolute inset-x-0 top-0"
                             style={
                                 isTop && phase === 'idle'
@@ -375,56 +432,79 @@ export function QuoteSwiper({ userId }: QuoteSwiperProps) {
                             }}
                             transition={SPRING}
                         >
-                            {/* Card Content */}
-                            <div
-                                className="w-full h-[280px] bg-white border border-neutral-200 flex flex-col overflow-hidden transition-shadow duration-300"
-                                style={{
-                                    boxShadow: isTop
-                                        ? '0 8px 30px -5px rgba(0,0,0,0.12)'
-                                        : '0 2px 10px rgba(0,0,0,0.05)',
-                                }}
-                            >
-                                {/* Quote Text */}
-                                <div className="flex-1 flex items-center px-10 md:px-14 py-8 overflow-hidden" onClick={isTop ? handleMarkClick : undefined}>
-                                    {quote.highlightedPhrases && quote.highlightedPhrases.length > 0 ? (
-                                        <p
-                                            className="text-xl md:text-[24px] md:leading-[1.6] text-neutral-900 tracking-tight line-clamp-5"
-                                            style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
-                                            dangerouslySetInnerHTML={{ __html: highlightQuoteText(quote.text, quote.highlightedPhrases) }}
-                                        />
-                                    ) : (
-                                        <p
-                                            className="text-xl md:text-[24px] md:leading-[1.6] text-neutral-900 tracking-tight line-clamp-5"
-                                            style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
-                                        >
-                                            {decodeHtmlEntities(quote.text)}
-                                        </p>
+                            {showQuiz ? (
+                                /* Quiz Card */
+                                <QuizCard
+                                    question={quizQuestion}
+                                    onAnswer={submitAnswer}
+                                    onSkip={() => { skipQuiz(); sendToBack(); }}
+                                    hasAnswered={quizAnswered}
+                                    result={quizResult}
+                                    xpEarned={quizXp}
+                                />
+                            ) : (
+                                /* Regular Quote Card */
+                                <div
+                                    className="w-full h-[280px] bg-white border border-neutral-200 flex flex-col overflow-hidden transition-shadow duration-300"
+                                    style={{
+                                        boxShadow: isTop
+                                            ? '0 8px 30px -5px rgba(0,0,0,0.12)'
+                                            : '0 2px 10px rgba(0,0,0,0.05)',
+                                    }}
+                                >
+                                    {/* Generated session badge */}
+                                    {(quote as any).sourceType === 'generated_session' && (
+                                        <div className="absolute top-3 left-3 z-10">
+                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-violet-700 bg-violet-100 rounded-sm">
+                                                ✦ Practice Article
+                                            </span>
+                                        </div>
                                     )}
-                                </div>
 
-                                {/* Bottom bar */}
-                                <div className="flex items-center justify-between px-10 md:px-14 py-4 border-t border-neutral-100">
-                                    <div className="flex flex-col min-w-0 flex-1 mr-4">
-                                        <span className="text-xs font-medium text-neutral-900 truncate">
-                                            {quote.author || 'Unknown'}
-                                        </span>
-                                        <span className="text-[11px] text-neutral-400 truncate">
-                                            {quote.postTitle || 'Untitled'}
-                                        </span>
-                                    </div>
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); goToArticle(); }}
-                                        className={cn(
-                                            "text-[11px] font-semibold uppercase tracking-[0.15em] whitespace-nowrap flex-shrink-0 transition-all duration-300",
-                                            isTop
-                                                ? "text-neutral-400 hover:text-neutral-900 translate-y-0 opacity-100"
-                                                : "text-transparent pointer-events-none translate-y-1 opacity-0"
+                                    {/* Quote Text */}
+                                    <div className="flex-1 flex items-center px-10 md:px-14 py-8 overflow-hidden" onClick={isTop ? handleMarkClick : undefined}>
+                                        {quote.highlightedPhrases && quote.highlightedPhrases.length > 0 ? (
+                                            <p
+                                                className="text-xl md:text-[24px] md:leading-[1.6] text-neutral-900 tracking-tight line-clamp-5"
+                                                style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
+                                                dangerouslySetInnerHTML={{ __html: highlightQuoteText(quote.text, quote.highlightedPhrases) }}
+                                            />
+                                        ) : (
+                                            <p
+                                                className="text-xl md:text-[24px] md:leading-[1.6] text-neutral-900 tracking-tight line-clamp-5"
+                                                style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
+                                            >
+                                                {decodeHtmlEntities(quote.text)}
+                                            </p>
                                         )}
-                                    >
-                                        Read Source →
-                                    </button>
+                                    </div>
+
+                                    {/* Bottom bar */}
+                                    <div className="flex items-center justify-between px-10 md:px-14 py-4 border-t border-neutral-100">
+                                        <div className="flex flex-col min-w-0 flex-1 mr-4">
+                                            <span className="text-xs font-medium text-neutral-900 truncate">
+                                                {quote.author || 'Unknown'}
+                                            </span>
+                                            <span className="text-[11px] text-neutral-400 truncate">
+                                                {quote.postTitle || 'Untitled'}
+                                            </span>
+                                        </div>
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); goToArticle(); }}
+                                            className={cn(
+                                                "text-[11px] font-semibold uppercase tracking-[0.15em] whitespace-nowrap flex-shrink-0 transition-all duration-300",
+                                                isTop
+                                                    ? (quote as any).sourceType === 'generated_session'
+                                                        ? "text-violet-500 hover:text-violet-700 translate-y-0 opacity-100"
+                                                        : "text-neutral-400 hover:text-neutral-900 translate-y-0 opacity-100"
+                                                    : "text-transparent pointer-events-none translate-y-1 opacity-0"
+                                            )}
+                                        >
+                                            {(quote as any).sourceType === 'generated_session' ? 'Read Article →' : 'Read Source →'}
+                                        </button>
+                                    </div>
                                 </div>
-                            </div>
+                            )}
                         </motion.div>
                     );
                 })}

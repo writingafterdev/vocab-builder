@@ -496,6 +496,7 @@ export function ArticleReadingMode({
                     onSectionChange={setCurrentSection}
                     currentSection={currentSection}
                     savedPhrasesCount={savedPhrases.size}
+                    userId={userId}
                     embeddedQuestions={currentQuestions}
                     answeredQuestions={answeredQuestions}
                     onQuestionAnswer={handleQuestionAnswer}
