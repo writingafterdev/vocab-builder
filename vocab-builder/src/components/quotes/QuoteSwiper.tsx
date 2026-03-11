@@ -9,8 +9,19 @@ import { useVocabHighlighter } from '@/components/article/useVocabHighlighter';
 import { VocabPopupCard } from '@/components/article/VocabPopupCard';
 import { EditorialLoader } from '@/components/ui/editorial-loader';
 import { QuizCard } from '@/components/exercise/QuizCard';
-import { useInlineExercise, shouldShowQuiz, recordCardViewed, resetQuizSession } from '@/hooks/useInlineExercise';
 import { cn } from '@/lib/utils';
+import type { InlineQuestion } from '@/lib/db/types';
+
+interface DeckItem {
+    id: string;
+    type: 'quote' | 'quiz';
+    data: any; // Quote | InlineQuestion
+    quizState?: {
+        hasAnswered: boolean;
+        result: 'correct' | 'wrong' | null;
+        xpEarned: number;
+    };
+}
 
 const SWIPE_THRESHOLD = 60;
 const VISIBLE_CARDS = 4;
@@ -79,13 +90,18 @@ function highlightQuoteText(rawText: string, phrases: string[]): string {
 
 export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps) {
     const router = useRouter();
-    const [quotes, setQuotes] = useState<Quote[]>([]);
+    const [deck, setDeck] = useState<DeckItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [activeIndex, setActiveIndex] = useState(0);
     const [savedQuotes, setSavedQuotes] = useState<Set<string>>(new Set());
     const [phase, setPhase] = useState<'idle' | 'sending-to-back'>('idle');
     const isAnimating = useRef(false);
     const cardStackRef = useRef<HTMLDivElement>(null);
+
+    // Quiz queue: stored in a ref so arrival never triggers re-renders
+    const quizQueueRef = useRef<any[]>([]);
+    const quotesSinceLastQuizRef = useRef(0);
+    const quizzesInjectedRef = useRef(false);
 
     // Vocab popup state
     const [vocabPopup, setVocabPopup] = useState<{
@@ -103,39 +119,12 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
     const [savedPhrases, setSavedPhrases] = useState<Set<string>>(new Set());
     const vocabPopupPhraseRef = useRef<string | null>(null);
 
-    // Apply rough-notation highlights when active card changes
-    useVocabHighlighter(cardStackRef, [activeIndex, quotes]);
+    // Apply rough-notation highlights when active card changes (only for quotes)
+    useVocabHighlighter(cardStackRef, [activeIndex, deck]);
 
     // Drag tracking for the top card
     const dragX = useMotionValue(0);
     const dragRotate = useTransform(dragX, [-200, 0, 200], [-8, 0, 8]);
-
-    // Smart inline exercise state
-    const currentQuote = quotes[activeIndex];
-    const hasVocabPhrases = !!(currentQuote?.highlightedPhrases && currentQuote.highlightedPhrases.length > 0);
-    const [showQuizForCard, setShowQuizForCard] = useState(false);
-    const {
-        question: quizQuestion,
-        isLoading: quizLoading,
-        hasAnswered: quizAnswered,
-        result: quizResult,
-        xpEarned: quizXp,
-        fetchQuestion,
-        submitAnswer,
-        skip: skipQuiz,
-        reset: resetQuiz,
-    } = useInlineExercise({
-        surface: 'quote_swiper',
-        contentText: currentQuote?.text,
-        contentTopics: currentQuote?.highlightedPhrases,
-        userId,
-        preGeneratedQuestions,
-    });
-
-    // Reset quiz session when component mounts
-    useEffect(() => {
-        resetQuizSession();
-    }, []);
 
     useEffect(() => {
         let cancelled = false;
@@ -156,7 +145,12 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
                 if (!cancelled) {
                     if (quotesRes.ok) {
                         const data = await quotesRes.json();
-                        setQuotes(data.quotes || []);
+                        const fetchedQuotes = data.quotes || [];
+                        setDeck(fetchedQuotes.map((q: any) => ({
+                            id: q.id,
+                            type: 'quote',
+                            data: q
+                        })));
                     }
                     if (savedRes.ok) {
                         const data = await savedRes.json();
@@ -175,8 +169,15 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
         return () => { cancelled = true; };
     }, [userId]);
 
+    // Store pre-generated questions in a ref — NO re-render on arrival
+    useEffect(() => {
+        if (preGeneratedQuestions && preGeneratedQuestions.length > 0 && !quizzesInjectedRef.current) {
+            quizQueueRef.current = [...preGeneratedQuestions];
+        }
+    }, [preGeneratedQuestions]);
+
     const sendToBack = () => {
-        if (isAnimating.current || quotes.length <= 1) return;
+        if (isAnimating.current || deck.length <= 1) return;
         isAnimating.current = true;
 
         // Reset drag position
@@ -187,18 +188,61 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
 
         // Phase 2: After animation plays, swap the index
         setTimeout(() => {
-            setActiveIndex(prev => {
-                const next = (prev + 1) % quotes.length;
-                // Reset quiz state when moving to next card
-                if (showQuizForCard) {
-                    resetQuiz();
-                    setShowQuizForCard(false);
+            setDeck(prevDeck => {
+                const newIndex = (activeIndex + 1) % prevDeck.length;
+                const nextCard = prevDeck[newIndex];
+
+                // Track quotes swiped since last quiz
+                if (nextCard?.type === 'quote') {
+                    quotesSinceLastQuizRef.current++;
+                } else {
+                    // Landing on a quiz resets counter
+                    quotesSinceLastQuizRef.current = 0;
                 }
-                return next;
+
+                // Check if we should inject a quiz from the queue
+                // Use interval of 2: quiz inserted after 2 quote swipes,
+                // then takes VISIBLE_CARDS-1 (=3) more swipes to reach front.
+                // Total gap between quizzes: ~5 cards (feels natural).
+                const QUIZ_INTERVAL = 2;
+                if (
+                    quotesSinceLastQuizRef.current >= QUIZ_INTERVAL &&
+                    quizQueueRef.current.length > 0
+                ) {
+                    const quizData = quizQueueRef.current.shift()!;
+                    quizzesInjectedRef.current = true;
+                    quotesSinceLastQuizRef.current = 0;
+
+                    // Insert quiz at the HIDDEN position (stackPos = VISIBLE_CARDS - 1).
+                    // This is opacity:0, so completely invisible on insertion.
+                    // Over the next few swipes it naturally migrates:
+                    //   hidden(opacity:0) → back → middle → front
+                    // just like every other card in the stack.
+                    const insertPos = newIndex + VISIBLE_CARDS - 1;
+                    const quizItem: DeckItem = {
+                        id: quizData.id || `quiz-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+                        type: 'quiz',
+                        data: quizData,
+                        quizState: {
+                            hasAnswered: false,
+                            result: null,
+                            xpEarned: 0,
+                        },
+                    };
+
+                    const nextDeck = [...prevDeck];
+                    nextDeck.splice(insertPos, 0, quizItem);
+                    setActiveIndex(newIndex);
+                    setPhase('idle');
+                    isAnimating.current = false;
+                    return nextDeck;
+                }
+
+                setActiveIndex(newIndex);
+                setPhase('idle');
+                isAnimating.current = false;
+                return prevDeck;
             });
-            recordCardViewed();
-            setPhase('idle');
-            isAnimating.current = false;
         }, 500);
     };
 
@@ -212,45 +256,38 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
 
     const handleSave = async (e?: React.MouseEvent) => {
         if (e) e.stopPropagation();
-        const quote = quotes[activeIndex];
-        if (quote && userId) {
-            // Optimistic update
-            setSavedQuotes(prev => {
-                const next = new Set(prev);
-                next.has(quote.id) ? next.delete(quote.id) : next.add(quote.id);
-                return next;
+        const currentItem = deck[activeIndex];
+        if (currentItem?.type !== 'quote' || !userId) return;
+        
+        const quote = currentItem.data as Quote;
+        
+        // Optimistic update
+        setSavedQuotes(prev => {
+            const next = new Set(prev);
+            next.has(quote.id) ? next.delete(quote.id) : next.add(quote.id);
+            return next;
+        });
+
+        // API call
+        try {
+            // Extract only needed properties to save payload size and avoid circular refs
+            const quoteToSave = {
+                id: quote.id,
+                text: quote.text,
+                postId: quote.postId,
+                postTitle: quote.postTitle,
+                author: quote.author
+            };
+
+            const res = await fetch('/api/user/save-quote', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-user-id': userId },
+                body: JSON.stringify({ quote: quoteToSave }),
             });
 
-            // API call
-            try {
-                // Extract only needed properties to save payload size and avoid circular refs
-                const quoteToSave = {
-                    id: quote.id,
-                    text: quote.text,
-                    postId: quote.postId,
-                    postTitle: quote.postTitle,
-                    author: quote.author
-                };
-
-                const res = await fetch('/api/user/save-quote', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'x-user-id': userId },
-                    body: JSON.stringify({ quote: quoteToSave }),
-                });
-
-                if (!res.ok) {
-                    const data = await res.json();
-                    import('sonner').then(({ toast }) => toast.error(data.error || 'Failed to save quote'));
-                    // Revert state
-                    setSavedQuotes(prev => {
-                        const next = new Set(prev);
-                        next.has(quote.id) ? next.delete(quote.id) : next.add(quote.id);
-                        return next;
-                    });
-                }
-            } catch (error) {
-                console.error('Failed to save quote:', error);
-                import('sonner').then(({ toast }) => toast.error('Check your connection'));
+            if (!res.ok) {
+                const data = await res.json();
+                import('sonner').then(({ toast }) => toast.error(data.error || 'Failed to save quote'));
                 // Revert state
                 setSavedQuotes(prev => {
                     const next = new Set(prev);
@@ -258,22 +295,78 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
                     return next;
                 });
             }
+        } catch (error) {
+            console.error('Failed to save quote:', error);
+            import('sonner').then(({ toast }) => toast.error('Check your connection'));
+            // Revert state
+            setSavedQuotes(prev => {
+                const next = new Set(prev);
+                next.has(quote.id) ? next.delete(quote.id) : next.add(quote.id);
+                return next;
+            });
         }
     };
 
     const goPrevious = () => {
-        if (isAnimating.current || quotes.length <= 1) return;
-        setActiveIndex(prev => (prev === 0 ? quotes.length - 1 : prev - 1));
+        if (isAnimating.current || deck.length <= 1) return;
+        setActiveIndex(prev => (prev === 0 ? deck.length - 1 : prev - 1));
     };
 
     const goToArticle = () => {
-        const quote = quotes[activeIndex] as any;
-        if (!quote) return;
-        if (quote.sourceType === 'generated_session' && quote.sessionId) {
-            router.push(`/practice/session/${quote.sessionId}`);
+        const item = deck[activeIndex];
+        if (!item || item.type !== 'quote') return;
+        const quote = item.data as Quote;
+        if ((quote as any).sourceType === 'generated_session' && (quote as any).sessionId) {
+            router.push(`/practice/session/${(quote as any).sessionId}`);
         } else {
             router.push(`/post/${quote.postId}`);
         }
+    };
+
+    // Handle Quiz Answer inside QuoteSwiper
+    const handleQuizAnswer = async (answerIndex: number) => {
+        const currentItem = deck[activeIndex];
+        if (!currentItem || currentItem.type !== 'quiz' || currentItem.quizState?.hasAnswered) return;
+
+        const question = currentItem.data as InlineQuestion;
+        const isCorrect = answerIndex === question.correctIndex;
+        const resultStatus = isCorrect ? 'correct' : 'wrong';
+
+        // Optimistically update deck state
+        setDeck(prev => {
+            const next = [...prev];
+            next[activeIndex] = {
+                ...next[activeIndex],
+                quizState: {
+                    hasAnswered: true,
+                    result: resultStatus,
+                    xpEarned: isCorrect ? question.xpReward : 0
+                }
+            };
+            return next;
+        });
+
+        // Submit to backend
+        try {
+            await fetch('/api/exercise/submit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-user-id': userId },
+                body: JSON.stringify({
+                    phraseId: question.phraseId,
+                    questionType: question.questionType,
+                    answer: answerIndex,
+                    surface: 'quote_swiper',
+                    responseTimeMs: 0,
+                }),
+            });
+        } catch (error) {
+            console.error('Failed to submit inline exercise:', error);
+        }
+
+        // Auto-advance after answering correctly (or let the user read the explanation)
+        setTimeout(() => {
+            sendToBack();
+        }, isCorrect ? 1500 : 3000);
     };
 
     // Handle clicks on highlighted vocab marks
@@ -282,8 +375,10 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
         if (target.tagName !== 'MARK' || !target.dataset.phrase) return;
 
         e.stopPropagation();
-        const phrase = target.dataset.phrase;
-        const quoteText = quotes[activeIndex]?.text || '';
+        const phrase = (target as any).target?.dataset?.phrase || target.dataset.phrase;
+        
+        const currentItem = deck[activeIndex];
+        const quoteText = currentItem?.type === 'quote' ? (currentItem.data as Quote).text : '';
 
         // Same phrase clicked again → bounce
         if (vocabPopupPhraseRef.current?.toLowerCase() === phrase.toLowerCase()) {
@@ -309,24 +404,24 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
             .then(data => {
                 if (!data) return;
                 const result = data.data || data;
-                setVocabPopup(prev =>
-                    prev?.phrase.toLowerCase() === phrase.toLowerCase()
-                        ? {
-                            ...prev,
-                            meaning: result.meaning || prev.meaning,
-                            register: result.register,
-                            nuance: result.nuance,
-                            context: result.context || prev.context,
-                            contextTranslation: result.contextTranslation,
-                            pronunciation: result.pronunciation,
-                            topic: result.topic,
-                            isHighFrequency: result.isHighFrequency,
-                        }
-                        : prev
-                );
+                setVocabPopup(prev => {
+                    if (!prev || prev.phrase.toLowerCase() !== phrase.toLowerCase()) return prev;
+                    return {
+                        ...prev,
+                        phrase: prev.phrase,
+                        meaning: result.meaning || prev.meaning,
+                        register: result.register,
+                        nuance: result.nuance,
+                        context: result.context || prev.context,
+                        contextTranslation: result.contextTranslation,
+                        pronunciation: result.pronunciation,
+                        topic: result.topic,
+                        isHighFrequency: result.isHighFrequency,
+                    };
+                });
             })
             .catch(err => console.error('Phrase lookup failed:', err));
-    }, [activeIndex, quotes, userId]);
+    }, [activeIndex, deck, userId]);
 
     // Save phrase to user vocab
     const handleSavePhrase = useCallback(async () => {
@@ -364,20 +459,11 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
         );
     }
 
-    if (quotes.length === 0) return null;
+    if (deck.length === 0) return null;
 
-    const isSaved = savedQuotes.has(quotes[activeIndex].id);
+    const currentTop = deck[activeIndex];
+    const isSaved = currentTop?.type === 'quote' ? savedQuotes.has(currentTop.id) : false;
 
-    // Smart quiz: check if current quote has vocab phrases and we should show a quiz
-    useEffect(() => {
-        if (hasVocabPhrases && shouldShowQuiz() && !quizQuestion && !quizLoading && !showQuizForCard) {
-            // This quote has vocab phrases and we're eligible for a quiz
-            setShowQuizForCard(true);
-            fetchQuestion();
-        } else if (!hasVocabPhrases) {
-            setShowQuizForCard(false);
-        }
-    }, [activeIndex, hasVocabPhrases, quizQuestion, quizLoading, showQuizForCard, fetchQuestion]);
 
     // Determine what each card's target position should be
     const getCardTarget = (stackPos: number) => {
@@ -396,9 +482,9 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
 
     // Build the visible stack
     const cards = [];
-    for (let i = 0; i < Math.min(VISIBLE_CARDS, quotes.length); i++) {
-        const idx = (activeIndex + i) % quotes.length;
-        cards.push({ quote: quotes[idx], stackPos: i });
+    for (let i = 0; i < Math.min(VISIBLE_CARDS, deck.length); i++) {
+        const idx = (activeIndex + i) % deck.length;
+        cards.push({ item: deck[idx], stackPos: i });
     }
 
     return (
@@ -406,16 +492,14 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
             {/* Card Stack */}
             <div ref={cardStackRef} className="relative w-full max-w-[800px] mx-auto h-[340px]">
                 {/* Render back to front for proper z-order */}
-                {[...cards].reverse().map(({ quote, stackPos }) => {
+                {[...cards].reverse().map(({ item, stackPos }) => {
                     const isTop = stackPos === 0;
                     const target = getCardTarget(stackPos);
                     const zIndex = VISIBLE_CARDS - stackPos;
-                    const cardIdx = (activeIndex + stackPos) % quotes.length;
-                    const showQuiz = isTop && showQuizForCard && quizQuestion;
 
                     return (
                         <motion.div
-                            key={showQuiz ? `quiz-${quizQuestion.id}` : quote.id}
+                            key={item.id}
                             className="absolute inset-x-0 top-0"
                             style={
                                 isTop && phase === 'idle'
@@ -432,15 +516,15 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
                             }}
                             transition={SPRING}
                         >
-                            {showQuiz ? (
-                                /* Quiz Card */
+                            {item.type === 'quiz' ? (
+                                /* Quiz Card — rendered inline, same size as quote cards */
                                 <QuizCard
-                                    question={quizQuestion}
-                                    onAnswer={submitAnswer}
-                                    onSkip={() => { skipQuiz(); sendToBack(); }}
-                                    hasAnswered={quizAnswered}
-                                    result={quizResult}
-                                    xpEarned={quizXp}
+                                    question={item.data as InlineQuestion}
+                                    onAnswer={handleQuizAnswer}
+                                    onSkip={() => { sendToBack(); }}
+                                    hasAnswered={item.quizState?.hasAnswered || false}
+                                    result={item.quizState?.result || null}
+                                    xpEarned={item.quizState?.xpEarned || 0}
                                 />
                             ) : (
                                 /* Regular Quote Card */
@@ -453,7 +537,7 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
                                     }}
                                 >
                                     {/* Generated session badge */}
-                                    {(quote as any).sourceType === 'generated_session' && (
+                                    {(item.data as any).sourceType === 'generated_session' && (
                                         <div className="absolute top-3 left-3 z-10">
                                             <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-violet-700 bg-violet-100 rounded-sm">
                                                 ✦ Practice Article
@@ -463,18 +547,18 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
 
                                     {/* Quote Text */}
                                     <div className="flex-1 flex items-center px-10 md:px-14 py-8 overflow-hidden" onClick={isTop ? handleMarkClick : undefined}>
-                                        {quote.highlightedPhrases && quote.highlightedPhrases.length > 0 ? (
+                                        {(item.data as Quote).highlightedPhrases && (item.data as Quote).highlightedPhrases!.length > 0 ? (
                                             <p
                                                 className="text-xl md:text-[24px] md:leading-[1.6] text-neutral-900 tracking-tight line-clamp-5"
                                                 style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
-                                                dangerouslySetInnerHTML={{ __html: highlightQuoteText(quote.text, quote.highlightedPhrases) }}
+                                                dangerouslySetInnerHTML={{ __html: highlightQuoteText((item.data as Quote).text, (item.data as Quote).highlightedPhrases || []) }}
                                             />
                                         ) : (
                                             <p
                                                 className="text-xl md:text-[24px] md:leading-[1.6] text-neutral-900 tracking-tight line-clamp-5"
                                                 style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
                                             >
-                                                {decodeHtmlEntities(quote.text)}
+                                                {decodeHtmlEntities((item.data as Quote).text)}
                                             </p>
                                         )}
                                     </div>
@@ -483,10 +567,10 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
                                     <div className="flex items-center justify-between px-10 md:px-14 py-4 border-t border-neutral-100">
                                         <div className="flex flex-col min-w-0 flex-1 mr-4">
                                             <span className="text-xs font-medium text-neutral-900 truncate">
-                                                {quote.author || 'Unknown'}
+                                                {(item.data as Quote).author || 'Unknown'}
                                             </span>
                                             <span className="text-[11px] text-neutral-400 truncate">
-                                                {quote.postTitle || 'Untitled'}
+                                                {(item.data as Quote).postTitle || 'Untitled'}
                                             </span>
                                         </div>
                                         <button
@@ -494,13 +578,13 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
                                             className={cn(
                                                 "text-[11px] font-semibold uppercase tracking-[0.15em] whitespace-nowrap flex-shrink-0 transition-all duration-300",
                                                 isTop
-                                                    ? (quote as any).sourceType === 'generated_session'
+                                                    ? (item.data as any).sourceType === 'generated_session'
                                                         ? "text-violet-500 hover:text-violet-700 translate-y-0 opacity-100"
                                                         : "text-neutral-400 hover:text-neutral-900 translate-y-0 opacity-100"
                                                     : "text-transparent pointer-events-none translate-y-1 opacity-0"
                                             )}
                                         >
-                                            {(quote as any).sourceType === 'generated_session' ? 'Read Article →' : 'Read Source →'}
+                                            {(item.data as any).sourceType === 'generated_session' ? 'Read Article →' : 'Read Source →'}
                                         </button>
                                     </div>
                                 </div>
