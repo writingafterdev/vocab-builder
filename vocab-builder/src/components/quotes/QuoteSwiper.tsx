@@ -209,39 +209,7 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
                     quotesSinceLastQuizRef.current >= QUIZ_INTERVAL &&
                     quizQueueRef.current.length > 0
                 ) {
-                    // Smart quiz selection: pick a quiz that matches phrases
-                    // from the quotes the user just swiped through.
-                    const recentQuotes: Quote[] = [];
-                    for (let r = 0; r < Math.min(QUIZ_INTERVAL + VISIBLE_CARDS, prevDeck.length); r++) {
-                        const rIdx = (newIndex - r + prevDeck.length) % prevDeck.length;
-                        const rItem = prevDeck[rIdx];
-                        if (rItem?.type === 'quote') {
-                            recentQuotes.push(rItem.data as Quote);
-                        }
-                    }
-
-                    // Collect all highlighted phrases from recent quotes
-                    const recentPhrases = new Set<string>();
-                    for (const q of recentQuotes) {
-                        if (q.highlightedPhrases) {
-                            for (const p of q.highlightedPhrases) {
-                                recentPhrases.add(p.toLowerCase());
-                            }
-                        }
-                    }
-
-                    // Find a quiz whose phrase matches a recent highlight
-                    let matchIdx = -1;
-                    if (recentPhrases.size > 0) {
-                        matchIdx = quizQueueRef.current.findIndex(
-                            (qz: any) => recentPhrases.has((qz.phrase || '').toLowerCase())
-                        );
-                    }
-
-                    // Use matched quiz, or fall back to the first in queue
-                    const quizData = matchIdx >= 0
-                        ? quizQueueRef.current.splice(matchIdx, 1)[0]
-                        : quizQueueRef.current.shift()!;
+                    const quizData = quizQueueRef.current.shift()!;
                     quizzesInjectedRef.current = true;
                     quotesSinceLastQuizRef.current = 0;
 
