@@ -31,6 +31,16 @@ export function QuizCard({
 
     const options = question.options || [];
     const emotion = (question as any).emotion || '';
+    const format = (question as any).format || 'fill_blank';
+
+    const FORMAT_LABELS: Record<string, string> = {
+        fill_blank: 'Fill the Blank',
+        tone_read: 'Read the Tone',
+        spot_error: 'Spot the Error',
+        best_response: 'Best Response',
+        true_false: 'Usage Check',
+    };
+    const formatLabel = FORMAT_LABELS[format] || 'Quick Check';
 
     const handleSelect = (index: number) => {
         if (hasAnswered) return;
@@ -58,7 +68,7 @@ export function QuizCard({
                 <div className="flex items-center gap-2">
                     <Zap className="w-3 h-3 text-amber-400" />
                     <span className="text-[11px] font-semibold uppercase tracking-[0.15em] text-amber-400">
-                        Quick Check
+                        {formatLabel}
                     </span>
                 </div>
                 {emotion && (

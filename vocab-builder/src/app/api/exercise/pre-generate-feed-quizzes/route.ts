@@ -135,41 +135,61 @@ export async function POST(request: NextRequest) {
             `${phraseSpecs.length + i + 1}. DRILL: weakness in ${s.weaknessCategory} — wrong: "${s.example}", correct: "${s.correction}", explanation: ${s.meaning}`
         );
 
-        const prompt = `You are a master educator, expert linguist, and witty screenwriter. Generate ${allSpecs.length} fill-in-the-blank vocabulary exercises for a social media-style feed.
+        const prompt = `You are a master educator, expert linguist, and witty screenwriter. Generate ${allSpecs.length} vocabulary exercises for a social media-style feed.
 
 CORE RULES:
 - Do NOT write dry, academic, "textbook" sentences.
-- Every scenario must feel like a snippet from a movie script, a heated text message exchange, a dramatic workplace email, or a relatable everyday frustration.
+- Every scenario must feel like a snippet from a movie script, a heated text message, a dramatic workplace email, or a relatable everyday frustration.
 - Inject a SPECIFIC emotion: passive-aggression, panic, awe, outrage, sarcasm, desperation, tenderness, exasperation, smugness, etc.
-- The scenario MUST contain enough context clues that the target word is the ONLY word that perfectly fits.
 - Use authentic, modern phrasing matched to the register (casual roommate argument vs. corporate meeting vs. late-night DM).
 - Show, don't tell: instead of "she was angry," describe her slamming a laptop shut.
 - Wrong options should be TEMPTINGLY plausible — the kind of mistake a smart learner would make.
+- IMPORTANT: Vary the format across questions! Do NOT use the same format for every question.
 
 Items:
 ${[...phraseLines, ...drillLines].join('\n')}
 
-For PHRASE items: craft a vivid scenario where the user must identify what the phrase means in that emotional context.
-For DRILL items: craft a scenario testing whether the user can spot or fix the weakness.
+AVAILABLE FORMATS (mix them — use at least 3 different formats across all questions):
+
+1. "fill_blank" — Fill in the blank
+   Scenario has a ___ where the target phrase goes. Options are 3 possible words.
+   Example: "She slammed her laptop, turned to her co-founder, and said: 'I think it's time to ___ this whole strategy.'"
+   Options: ["pivot", "abandon", "rethink"]
+
+2. "tone_read" — Read the tone
+   Paint a vivid scene using the phrase naturally (no blank). Ask what the speaker's TONE or INTENT is.
+   Example: "Your manager replies 'Per my last email' after you ask the same question twice."
+   Options: ["Genuinely helpful reminder", "Barely concealed frustration", "Casual follow-up"]
+
+3. "spot_error" — Spot the misuse
+   Use the target phrase INCORRECTLY in a scenario. Ask which version fixes it.
+   Example: "He said 'I could care less about the deadline' to show his indifference."
+   Options: ["Correct as written", "'couldn't care less'", "'could not care'"]
+
+4. "best_response" — Best response
+   Set up a social situation. Ask which reply uses the phrase most naturally.
+   Example: "Your friend just got promoted but seems weirdly unhappy about it. You say:"
+   Options: ["'That's bittersweet, huh?'", "'So you hate it?'", "'Congrats, period.'"]
+
+5. "true_false" — Usage judgment
+   Present a sentence using the phrase. Ask if the usage is natural.
+   Example: "A CEO tells investors: 'We need to PIVOT our approach to the Asian market.'"
+   Options: ["Perfectly natural", "Wrong register — too casual", "Wrong meaning entirely"]
 
 Return a JSON object { "questions": [...] } with one entry per item:
 {
   "questions": [
     {
       "phraseIndex": 0,
-      "emotion": "one-word emotion tag, e.g. sarcasm, panic, tenderness, outrage",
-      "scenario": "A vivid, emotionally grounded micro-story (2-3 sentences, max 50 words). Paint a scene with stakes. Use the target phrase naturally with a blank: ___.",
+      "format": "fill_blank",
+      "emotion": "one-word emotion tag, e.g. sarcasm, panic, tenderness",
+      "scenario": "Vivid micro-story (2-3 sentences, max 50 words). For fill_blank: include ___. For others: use the phrase naturally.",
       "options": ["Option A", "Option B", "Option C"],
       "correctIndex": 0,
       "explanation": "Quick, warm debrief — like a friend explaining it over coffee (1 sentence)"
     }
   ]
-}
-
-EXAMPLES OF GOOD SCENARIOS:
-- "Your roommate has been 'forgetting' to wash their dishes for three weeks. You finally snap and leave a Post-it on the fridge: 'Just so you know, I ___ your little system of selective blindness.'"
-- "It's 2 AM. Your startup's demo is in six hours and the API just went down. Your CTO messages the group chat: 'Don't panic, but we might need to ___ our entire approach before sunrise.'"
-- "She stared at the rejection letter, then quietly closed her laptop, poured herself a glass of wine, and said with devastating calm: 'Well, I suppose that ___ any remaining doubt.'"`;
+}`;
 
         const response = await fetch(XAI_URL, {
             method: 'POST',
@@ -238,6 +258,7 @@ EXAMPLES OF GOOD SCENARIOS:
                 correctIndex: item.correctIndex ?? 0,
                 explanation: item.explanation || spec.meaning,
                 emotion: item.emotion || 'curiosity',
+                format: item.format || 'fill_blank',
                 xpReward: 10,
                 source: spec.source,
             };
