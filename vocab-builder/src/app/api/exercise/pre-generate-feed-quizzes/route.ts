@@ -135,33 +135,41 @@ export async function POST(request: NextRequest) {
             `${phraseSpecs.length + i + 1}. DRILL: weakness in ${s.weaknessCategory} — wrong: "${s.example}", correct: "${s.correction}", explanation: ${s.meaning}`
         );
 
-        const prompt = `Generate ${allSpecs.length} quick-fire vocab questions for a social media-style feed. These pop up between content cards, so they need to be INSTANT FUN — think BuzzFeed quiz energy meets language nerd precision.
+        const prompt = `You are a master educator, expert linguist, and witty screenwriter. Generate ${allSpecs.length} fill-in-the-blank vocabulary exercises for a social media-style feed.
+
+CORE RULES:
+- Do NOT write dry, academic, "textbook" sentences.
+- Every scenario must feel like a snippet from a movie script, a heated text message exchange, a dramatic workplace email, or a relatable everyday frustration.
+- Inject a SPECIFIC emotion: passive-aggression, panic, awe, outrage, sarcasm, desperation, tenderness, exasperation, smugness, etc.
+- The scenario MUST contain enough context clues that the target word is the ONLY word that perfectly fits.
+- Use authentic, modern phrasing matched to the register (casual roommate argument vs. corporate meeting vs. late-night DM).
+- Show, don't tell: instead of "she was angry," describe her slamming a laptop shut.
+- Wrong options should be TEMPTINGLY plausible — the kind of mistake a smart learner would make.
 
 Items:
 ${[...phraseLines, ...drillLines].join('\n')}
 
-For PHRASE items: test if the user truly understands the phrase in a social context.
-For DRILL items: test if the user can spot or fix the weakness (e.g. wrong grammar, wrong register, wrong collocation).
+For PHRASE items: craft a vivid scenario where the user must identify what the phrase means in that emotional context.
+For DRILL items: craft a scenario testing whether the user can spot or fix the weakness.
 
 Return a JSON object { "questions": [...] } with one entry per item:
 {
   "questions": [
     {
       "phraseIndex": 0,
-      "scenario": "A punchy scenario (max 35 words). Think: 'Your boss just said this in a meeting...' or 'Someone texts you this at 2am...'",
+      "emotion": "one-word emotion tag, e.g. sarcasm, panic, tenderness, outrage",
+      "scenario": "A vivid, emotionally grounded micro-story (2-3 sentences, max 50 words). Paint a scene with stakes. Use the target phrase naturally with a blank: ___.",
       "options": ["Option A", "Option B", "Option C"],
       "correctIndex": 0,
-      "explanation": "Quick conversational debrief (1 sentence)"
+      "explanation": "Quick, warm debrief — like a friend explaining it over coffee (1 sentence)"
     }
   ]
 }
 
-TONE:
-- Each scenario should paint a vivid social moment (dinner party, job interview, awkward date, group chat)
-- Wrong options should be TEMPTINGLY wrong — the kind of mistake a smart person would make
-- Explanations should feel like a friend saying "oh yeah, it actually means..."
-- NEVER ask "What does X mean?" — always frame as a social situation
-- Keep it snappy — this is a feed, not an exam`;
+EXAMPLES OF GOOD SCENARIOS:
+- "Your roommate has been 'forgetting' to wash their dishes for three weeks. You finally snap and leave a Post-it on the fridge: 'Just so you know, I ___ your little system of selective blindness.'"
+- "It's 2 AM. Your startup's demo is in six hours and the API just went down. Your CTO messages the group chat: 'Don't panic, but we might need to ___ our entire approach before sunrise.'"
+- "She stared at the rejection letter, then quietly closed her laptop, poured herself a glass of wine, and said with devastating calm: 'Well, I suppose that ___ any remaining doubt.'"`;
 
         const response = await fetch(XAI_URL, {
             method: 'POST',
@@ -170,13 +178,13 @@ TONE:
                 'Authorization': `Bearer ${XAI_API_KEY}`,
             },
             body: JSON.stringify({
-                model: 'grok-3-mini-fast',
+                model: 'grok-4-1-fast-reasoning',
                 messages: [
-                    { role: 'system', content: 'You are a witty language mentor who creates social-situation quiz questions. You think in terms of dinner parties, job interviews, and group chats — not classrooms. Return valid JSON only.' },
+                    { role: 'system', content: 'You are a master educator, expert linguist, and witty screenwriter. You create emotionally vivid fill-in-the-blank vocabulary exercises. Every sentence you write feels ripped from a movie script, a heated group chat, or a devastating breakup text. Return valid JSON only.' },
                     { role: 'user', content: prompt },
                 ],
-                temperature: 0.8,
-                max_tokens: 2000,
+                temperature: 0.85,
+                max_tokens: 3000,
                 response_format: { type: 'json_object' },
             }),
         });
@@ -196,7 +204,7 @@ TONE:
                 userId,
                 userEmail: request.headers.get('x-user-email') || 'anonymous',
                 endpoint: 'pre-generate-feed-quizzes',
-                model: 'grok-3-mini-fast',
+                model: 'grok-4-1-fast-reasoning',
                 promptTokens: data.usage.prompt_tokens || 0,
                 completionTokens: data.usage.completion_tokens || 0,
                 totalTokens: data.usage.total_tokens || 0,
@@ -229,6 +237,7 @@ TONE:
                 options: item.options || [spec.meaning, 'Something else', 'Neither of the above'],
                 correctIndex: item.correctIndex ?? 0,
                 explanation: item.explanation || spec.meaning,
+                emotion: item.emotion || 'curiosity',
                 xpReward: 10,
                 source: spec.source,
             };

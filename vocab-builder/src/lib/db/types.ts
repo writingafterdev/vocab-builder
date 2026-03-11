@@ -868,6 +868,7 @@ export interface InlineQuestion {
     prompt?: string;
 
     explanation?: string;
+    emotion?: string;  // e.g. 'sarcasm', 'panic', 'tenderness' — for UI badge
     xpReward: number;
 }
 
