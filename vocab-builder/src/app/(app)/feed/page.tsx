@@ -607,40 +607,15 @@ export default function LibraryPage() {
             {/* Main Content - Full Page Scroll Experience */}
             <div className="flex-1 min-w-0">
                 {/* Section 1: Quote Swiper */}
-                <section className="min-h-[calc(100vh-8rem)] flex flex-col justify-center items-center relative pb-12 xl:pb-0">
-                    {/* Practice Nudge (Shows if due phrases exist) */}
-                    {dueCount > 0 && (
-                        <div className="w-full max-w-[700px] mx-auto px-6 mb-8">
-                            <motion.div
-                                initial={{ opacity: 0, y: -20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                className="bg-neutral-900 rounded-xl p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-neutral-800"
-                            >
-                                <div>
-                                    <div className="inline-block px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] font-bold text-white bg-amber-500 rounded-sm mb-2">
-                                        Action Required
-                                    </div>
-                                    <h3 className="text-white text-lg font-medium tracking-tight">You have {dueCount} phrase{dueCount !== 1 ? 's' : ''} due for review</h3>
-                                    <p className="text-neutral-400 text-sm mt-1">Strengthen your memory before reading new articles.</p>
-                                </div>
-                                <button
-                                    onClick={() => router.push('/practice')}
-                                    className="bg-white text-neutral-900 px-6 py-3 rounded-lg text-sm font-bold uppercase tracking-[0.08em] hover:bg-neutral-100 transition-colors flex items-center justify-center gap-2 flex-shrink-0 w-full sm:w-auto"
-                                >
-                                    <Check className="w-4 h-4" />
-                                    Start Practice
-                                </button>
-                            </motion.div>
-                        </div>
-                    )}
+                <section className="min-h-[calc(100vh-4rem)] flex flex-col justify-center items-center relative">
 
                     {/* Quote Swiper - Centered */}
-                    <div className="w-full max-w-4xl px-8 flex-1 flex flex-col justify-center">
+                    <div className="w-full max-w-4xl px-8 flex-1 flex flex-col justify-center -mt-8">
                         {user?.uid && <QuoteSwiper userId={user.uid} preGeneratedQuestions={preGeneratedQuestions} />}
                     </div>
 
                     {/* Scroll hint */}
-                    <div className="mt-8 flex flex-col items-center gap-1 text-neutral-300">
+                    <div className="absolute bottom-4 flex flex-col items-center gap-1 text-neutral-300 animate-bounce">
                         <span className="text-[10px] uppercase tracking-[0.2em] font-medium">Articles</span>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
                     </div>

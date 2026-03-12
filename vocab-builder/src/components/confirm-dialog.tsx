@@ -49,27 +49,29 @@ export function ConfirmDialog({
                 </AlertDialogHeader>
 
                 {options.dontAskAgainKey && (
-                    <div className="flex items-center space-x-2 py-2">
+                    <div className="flex items-center space-x-2 py-4">
                         <Checkbox
                             id="dont-ask"
                             checked={dontAsk}
                             onCheckedChange={(checked) => setDontAsk(checked as boolean)}
+                            className="border-neutral-300 data-[state=checked]:bg-neutral-900"
                         />
                         <label
                             htmlFor="dont-ask"
-                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-slate-600 cursor-pointer"
+                            className="text-xs tracking-[0.05em] uppercase font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-neutral-500 cursor-pointer"
                         >
                             Don't ask me again
                         </label>
                     </div>
                 )}
 
-                <AlertDialogFooter>
+                <AlertDialogFooter className="mt-4 gap-3 sm:gap-2">
                     <AlertDialogCancel
                         onClick={() => {
                             confirmResolve?.(false);
                             onOpenChange(false);
                         }}
+                        className="rounded-none border-neutral-200 uppercase tracking-wider text-xs font-bold hover:bg-neutral-50 text-neutral-600"
                     >
                         {options.cancelText || 'Cancel'}
                     </AlertDialogCancel>
@@ -81,7 +83,11 @@ export function ConfirmDialog({
                             confirmResolve?.(true);
                             onOpenChange(false);
                         }}
-                        className={options.destructive ? 'bg-red-600 hover:bg-red-700' : ''}
+                        className={`rounded-none uppercase tracking-wider text-xs font-bold ${
+                            options.destructive 
+                                ? 'bg-red-600 hover:bg-red-700 text-white shadow-none' 
+                                : 'bg-neutral-900 hover:bg-neutral-800 text-white shadow-none'
+                        }`}
                     >
                         {options.confirmText || 'Confirm'}
                     </AlertDialogAction>
