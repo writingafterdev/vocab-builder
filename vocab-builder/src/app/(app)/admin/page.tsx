@@ -250,6 +250,9 @@ export default function AdminPage() {
     const [userPostsList, setUserPostsList] = useState<UserPost[]>([]);
     const [userTokens, setUserTokens] = useState<{ total: number; calls: number; byEndpoint: UserTokenUsage[] } | null>(null);
 
+    // Feed Quizzes Admin triggers
+    const [isTriggeringFeed, setIsTriggeringFeed] = useState(false);
+    const [isCollectingFeed, setIsCollectingFeed] = useState(false);
 
     const isAdmin = user?.email === ADMIN_EMAIL;
 
@@ -866,14 +869,63 @@ export default function AdminPage() {
                 </Button>
             </div>
 
-            {/* Quick Links */}
-            <div className="flex gap-2">
+            {/* Quick Links & Actions */}
+            <div className="flex flex-wrap items-center gap-2">
                 <Link href="/admin/batch-status">
                     <Button variant="outline" size="sm" className="gap-2 text-xs">
                         <Sparkles className="h-3.5 w-3.5" />
                         Batch Pipeline
                     </Button>
                 </Link>
+                <div className="h-4 w-px bg-neutral-300 mx-2" />
+                <Button 
+                    variant="secondary" 
+                    size="sm" 
+                    className="gap-2 text-xs"
+                    disabled={isTriggeringFeed}
+                    onClick={async () => {
+                        setIsTriggeringFeed(true);
+                        try {
+                            const res = await fetch('/api/cron/daily-import', { 
+                                method: 'POST',
+                                headers: { 'Authorization': 'Bearer ' + (prompt('Enter CRON_SECRET:') || '') }
+                            });
+                            const data = await res.json();
+                            alert(JSON.stringify(data, null, 2));
+                        } catch (e: any) {
+                            alert('Error: ' + e.message);
+                        } finally {
+                            setIsTriggeringFeed(false);
+                        }
+                    }}
+                >
+                    {isTriggeringFeed ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                    Gen Feed Quizzes
+                </Button>
+                <Button 
+                    variant="secondary" 
+                    size="sm" 
+                    className="gap-2 text-xs"
+                    disabled={isCollectingFeed}
+                    onClick={async () => {
+                        setIsCollectingFeed(true);
+                        try {
+                            const res = await fetch('/api/cron/collect-batch', { 
+                                method: 'POST',
+                                headers: { 'Authorization': 'Bearer ' + (prompt('Enter CRON_SECRET:') || '') }
+                            });
+                            const data = await res.json();
+                            alert(JSON.stringify(data, null, 2));
+                        } catch (e: any) {
+                            alert('Error: ' + e.message);
+                        } finally {
+                            setIsCollectingFeed(false);
+                        }
+                    }}
+                >
+                    {isCollectingFeed ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                    Collect Feed Quizzes
+                </Button>
             </div>
 
             {/* Tabs */}
