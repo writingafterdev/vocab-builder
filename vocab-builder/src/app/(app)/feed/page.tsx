@@ -448,9 +448,13 @@ export default function LibraryPage() {
     const loadPosts = async () => {
         setLoading(true);
         try {
-            const fetchedPosts = await getPosts(20, user?.uid);
+            const fetchedPosts = await getPosts(40, user?.uid);
+            
+            // Randomize the order of the fetched posts so the feed feels fresh
+            const shuffledPosts = [...fetchedPosts].sort(() => 0.5 - Math.random()).slice(0, 20);
+
             // Add mock progress and phrases count for now
-            const postsWithMeta = fetchedPosts.map(p => ({
+            const postsWithMeta = shuffledPosts.map(p => ({
                 ...p,
                 progress: Math.floor(Math.random() * 100),
                 phrasesCount: Math.floor(Math.random() * 20),
@@ -556,14 +560,20 @@ export default function LibraryPage() {
         if (user) {
             fetch('/api/practice/list-sessions', {
                 headers: { 'x-user-id': user.uid },
+                cache: 'no-store'
             })
                 .then(res => res.ok ? res.json() : { sessions: [] })
-                .then(data => setGeneratedSessions(data.sessions || []))
+                .then(data => {
+                    const sessions = data.sessions || [];
+                    // Randomize newly generated sessions too
+                    setGeneratedSessions(sessions.sort(() => 0.5 - Math.random()).slice(0, 5));
+                })
                 .catch(err => console.warn('Failed to load generated sessions:', err));
 
             // Fetch daily pre-generated feed quizzes from Firestore via API
             fetch('/api/exercise/feed-quizzes', {
                 headers: { 'x-user-id': user.uid },
+                cache: 'no-store'
             })
                 .then(res => res.ok ? res.json() : { quizzes: [] })
                 .then(data => setPreGeneratedQuestions(data.quizzes || []))

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -253,6 +253,19 @@ export default function AdminPage() {
     // Feed Quizzes Admin triggers
     const [isTriggeringFeed, setIsTriggeringFeed] = useState(false);
     const [isCollectingFeed, setIsCollectingFeed] = useState(false);
+    const [logs, setLogs] = useState<string[]>([]);
+    const endOfLogsRef = useRef<HTMLDivElement>(null);
+
+    const addLog = (msg: string) => {
+        const time = new Date().toLocaleTimeString();
+        setLogs(prev => [...prev, `[${time}] ${msg}`]);
+    };
+
+    useEffect(() => {
+        if (endOfLogsRef.current) {
+            endOfLogsRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
+    }, [logs]);
 
     const isAdmin = user?.email === ADMIN_EMAIL;
 
@@ -884,18 +897,23 @@ export default function AdminPage() {
                     className="gap-2 text-xs"
                     disabled={isTriggeringFeed}
                     onClick={async () => {
+                        const secret = prompt('Enter CRON_SECRET:');
+                        if (!secret) return;
                         setIsTriggeringFeed(true);
+                        addLog('Triggering /api/cron/daily-import...');
                         try {
                             const res = await fetch('/api/cron/daily-import', { 
                                 method: 'POST',
-                                headers: { 'Authorization': 'Bearer ' + (prompt('Enter CRON_SECRET:') || '') }
+                                headers: { 'Authorization': 'Bearer ' + secret }
                             });
+                            addLog(`Status: ${res.status} ${res.statusText}`);
                             const data = await res.json();
-                            alert(JSON.stringify(data, null, 2));
+                            addLog('Response:\n' + JSON.stringify(data, null, 2));
                         } catch (e: any) {
-                            alert('Error: ' + e.message);
+                            addLog('Error: ' + e.message);
                         } finally {
                             setIsTriggeringFeed(false);
+                            addLog('Done.');
                         }
                     }}
                 >
@@ -908,18 +926,23 @@ export default function AdminPage() {
                     className="gap-2 text-xs"
                     disabled={isCollectingFeed}
                     onClick={async () => {
+                        const secret = prompt('Enter CRON_SECRET:');
+                        if (!secret) return;
                         setIsCollectingFeed(true);
+                        addLog('Triggering /api/cron/collect-batch...');
                         try {
                             const res = await fetch('/api/cron/collect-batch', { 
                                 method: 'POST',
-                                headers: { 'Authorization': 'Bearer ' + (prompt('Enter CRON_SECRET:') || '') }
+                                headers: { 'Authorization': 'Bearer ' + secret }
                             });
+                            addLog(`Status: ${res.status} ${res.statusText}`);
                             const data = await res.json();
-                            alert(JSON.stringify(data, null, 2));
+                            addLog('Response:\n' + JSON.stringify(data, null, 2));
                         } catch (e: any) {
-                            alert('Error: ' + e.message);
+                            addLog('Error: ' + e.message);
                         } finally {
                             setIsCollectingFeed(false);
+                            addLog('Done.');
                         }
                     }}
                 >
@@ -927,6 +950,27 @@ export default function AdminPage() {
                     Collect Feed Quizzes
                 </Button>
             </div>
+
+            {/* Terminal Output */}
+            {logs.length > 0 && (
+                <div className="flex flex-col gap-1 overflow-y-auto whitespace-pre-wrap break-all border border-neutral-800 rounded-lg shadow-inner bg-black text-green-400 font-mono text-xs p-4 max-h-64 mt-4">
+                    <div className="flex items-center justify-between pb-2 mb-2 border-b border-neutral-800 text-neutral-500">
+                        <span>Terminal Output</span>
+                        <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="p-0 w-6 h-6 hover:bg-neutral-800 hover:text-white"
+                            onClick={() => setLogs([])}
+                        >
+                            <X className="w-3 h-3" />
+                        </Button>
+                    </div>
+                    {logs.map((log, i) => (
+                        <div key={i}>{log}</div>
+                    ))}
+                    <div ref={endOfLogsRef} />
+                </div>
+            )}
 
             {/* Tabs */}
             <div className="flex flex-wrap gap-2 border-b border-neutral-200 pb-2">

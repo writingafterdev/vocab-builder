@@ -139,7 +139,10 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
                     : { 'x-user-id': userId };
 
                 const [quotesRes, savedRes] = await Promise.all([
-                    fetch('/api/quotes/get-mixed-quotes', { headers }),
+                    fetch('/api/quotes/get-mixed-quotes', { 
+                        headers,
+                        cache: 'no-store'
+                    }),
                     fetch('/api/user/saved-quote-ids', { headers })
                 ]);
 
