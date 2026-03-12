@@ -561,14 +561,13 @@ export default function LibraryPage() {
                 .then(data => setGeneratedSessions(data.sessions || []))
                 .catch(err => console.warn('Failed to load generated sessions:', err));
 
-            // Pre-generate feed quiz questions (non-blocking)
-            fetch('/api/exercise/pre-generate-feed-quizzes', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'x-user-id': user.uid },
+            // Fetch daily pre-generated feed quizzes from Firestore via API
+            fetch('/api/exercise/feed-quizzes', {
+                headers: { 'x-user-id': user.uid },
             })
-                .then(res => res.ok ? res.json() : { questions: [] })
-                .then(data => setPreGeneratedQuestions(data.questions || []))
-                .catch(err => console.warn('Pre-gen quiz fetch failed:', err));
+                .then(res => res.ok ? res.json() : { quizzes: [] })
+                .then(data => setPreGeneratedQuestions(data.quizzes || []))
+                .catch(err => console.warn('Feed quiz fetch failed:', err));
         }
     }, [user]);
 

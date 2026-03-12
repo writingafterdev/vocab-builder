@@ -618,6 +618,36 @@ export default function VocabBankPage() {
         ));
     }, [phrases]);
 
+    // Delete ALL handler
+    const handleDeleteAll = useCallback(async () => {
+        if (!await confirm({
+            title: 'Delete All Phrases',
+            description: `This will permanently delete all ${phrases.length} phrase${phrases.length !== 1 ? 's' : ''} from your vocab bank. This cannot be undone.`,
+            confirmText: 'Delete All',
+            destructive: true,
+        })) return;
+
+        try {
+            const res = await fetch('/api/user/delete-all-phrases', {
+                method: 'DELETE',
+                headers: { 'x-user-id': user!.uid },
+            });
+            if (res.ok) {
+                const { deleted } = await res.json();
+                setPhrases([]);
+                if (user?.uid) {
+                    localStorage.removeItem(`due_clusters_${user.uid}`);
+                    localStorage.removeItem(`ondemand_clusters_${user.uid}`);
+                }
+                toast.success(`Deleted ${deleted} phrase${deleted !== 1 ? 's' : ''}`);
+            } else {
+                toast.error('Failed to delete all phrases');
+            }
+        } catch {
+            toast.error('Failed to delete all phrases');
+        }
+    }, [confirm, phrases.length, user?.uid]);
+
     // Delete handler
     const handleDeletePhrase = useCallback(async (phraseId: string) => {
         if (!await confirm({
@@ -683,12 +713,23 @@ export default function VocabBankPage() {
                 </p>
 
                 {/* Stats bar */}
-                <div className="flex items-center gap-6 mt-8 text-xs text-neutral-400">
-                    <span><strong className="text-neutral-900 text-lg font-normal">{phrases.length}</strong> phrases</span>
-                    <span className="text-neutral-200">|</span>
-                    <span><strong className="text-emerald-600 font-medium">{statsMastered}</strong> mastered</span>
-                    <span><strong className="text-amber-500 font-medium">{statsReviewing}</strong> reviewing</span>
-                    <span><strong className="text-neutral-400 font-medium">{statsNew}</strong> new</span>
+                <div className="flex items-center justify-between mt-8">
+                    <div className="flex items-center gap-6 text-xs text-neutral-400">
+                        <span><strong className="text-neutral-900 text-lg font-normal">{phrases.length}</strong> phrases</span>
+                        <span className="text-neutral-200">|</span>
+                        <span><strong className="text-emerald-600 font-medium">{statsMastered}</strong> mastered</span>
+                        <span><strong className="text-amber-500 font-medium">{statsReviewing}</strong> reviewing</span>
+                        <span><strong className="text-neutral-400 font-medium">{statsNew}</strong> new</span>
+                    </div>
+                    {phrases.length > 0 && (
+                        <button
+                            onClick={handleDeleteAll}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium uppercase tracking-wider text-neutral-400 hover:text-red-500 hover:bg-red-50 border border-neutral-200 hover:border-red-200 transition-all duration-200"
+                        >
+                            <Trash2 className="w-3 h-3" />
+                            Delete All
+                        </button>
+                    )}
                 </div>
             </header>
 

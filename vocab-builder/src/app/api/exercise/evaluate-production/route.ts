@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
                 'Authorization': `Bearer ${XAI_API_KEY}`,
             },
             body: JSON.stringify({
-                model: 'grok-3-mini-fast',
+                model: 'grok-4-1-fast-reasoning',
                 messages: [
                     {
                         role: 'system',
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
                 userId,
                 userEmail: request.headers.get('x-user-email') || 'anonymous',
                 endpoint: 'evaluate-production',
-                model: 'grok-3-mini-fast',
+                model: 'grok-4-1-fast-reasoning',
                 promptTokens: data.usage.prompt_tokens || 0,
                 completionTokens: data.usage.completion_tokens || 0,
                 totalTokens: data.usage.total_tokens || 0,

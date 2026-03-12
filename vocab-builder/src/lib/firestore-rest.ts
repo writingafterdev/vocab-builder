@@ -311,7 +311,7 @@ export async function runQuery(
     }
 
     if (limit) {
-        structuredQuery.limit = { value: limit };
+        structuredQuery.limit = limit;
     }
 
     // Build the URL - if there's a parent path, include it

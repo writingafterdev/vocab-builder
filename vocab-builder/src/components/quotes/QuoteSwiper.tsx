@@ -98,9 +98,10 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
     const isAnimating = useRef(false);
     const cardStackRef = useRef<HTMLDivElement>(null);
 
-    // Quiz queue: stored in a ref so arrival never triggers re-renders
+    // Smart Injection state
     const quizQueueRef = useRef<any[]>([]);
-    const quotesSinceLastQuizRef = useRef(0);
+    const targetQuizSwipesRef = useRef<Set<number>>(new Set());
+    const totalSwipesRef = useRef(0);
     const quizzesInjectedRef = useRef(false);
 
     // Vocab popup state
@@ -169,12 +170,37 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
         return () => { cancelled = true; };
     }, [userId]);
 
-    // Store pre-generated questions in a ref — NO re-render on arrival
+    // Store pre-generated questions and calculate smart insertion points
     useEffect(() => {
         if (preGeneratedQuestions && preGeneratedQuestions.length > 0 && !quizzesInjectedRef.current) {
             quizQueueRef.current = [...preGeneratedQuestions];
+            
+            // Calculate random, distributed swipe indices for injection
+            const quizCount = preGeneratedQuestions.length;
+            const availableQuotes = deck.filter(d => d.type === 'quote').length;
+            
+            // If we have more quizzes than quotes (rare), just do every other quote
+            // Otherwise, distribute them. We want to avoid injecting on swipe 1 or 2 to let them settle.
+            const minWiggleRoom = 2; // minimum swipes between quizzes
+            const startOffset = 3;   // don't show quiz before 3rd swipe
+            
+            const targetSwipes = new Set<number>();
+            let currentTarget = startOffset;
+
+            // Distribute roughly evenly, with random jitter
+            const averageGap = Math.max(minWiggleRoom, Math.floor(availableQuotes / quizCount));
+
+            for (let i = 0; i < quizCount; i++) {
+                // Add some jitter (0 to 2 extra swipes) to make it unpredictable
+                const jitter = Math.floor(Math.random() * 3);
+                currentTarget += averageGap + (i > 0 ? jitter : 0);
+                targetSwipes.add(currentTarget);
+            }
+
+            targetQuizSwipesRef.current = targetSwipes;
+            console.log(`[QuoteSwiper] Smart Injection map calculated for ${quizCount} quizzes at swipes:`, Array.from(targetSwipes));
         }
-    }, [preGeneratedQuestions]);
+    }, [preGeneratedQuestions, deck.length]);
 
     const sendToBack = () => {
         if (isAnimating.current || deck.length <= 1) return;
@@ -192,50 +218,36 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
                 const newIndex = (activeIndex + 1) % prevDeck.length;
                 const nextCard = prevDeck[newIndex];
 
-                // Track quotes swiped since last quiz
+                // Smart Injection Logic
                 if (nextCard?.type === 'quote') {
-                    quotesSinceLastQuizRef.current++;
-                } else {
-                    // Landing on a quiz resets counter
-                    quotesSinceLastQuizRef.current = 0;
-                }
+                    totalSwipesRef.current += 1;
+                    
+                    if (
+                        targetQuizSwipesRef.current.has(totalSwipesRef.current) &&
+                        quizQueueRef.current.length > 0
+                    ) {
+                        const quizData = quizQueueRef.current.shift()!;
+                        quizzesInjectedRef.current = true;
 
-                // Check if we should inject a quiz from the queue
-                // Use interval of 2: quiz inserted after 2 quote swipes,
-                // then takes VISIBLE_CARDS-1 (=3) more swipes to reach front.
-                // Total gap between quizzes: ~5 cards (feels natural).
-                const QUIZ_INTERVAL = 2;
-                if (
-                    quotesSinceLastQuizRef.current >= QUIZ_INTERVAL &&
-                    quizQueueRef.current.length > 0
-                ) {
-                    const quizData = quizQueueRef.current.shift()!;
-                    quizzesInjectedRef.current = true;
-                    quotesSinceLastQuizRef.current = 0;
+                        const insertPos = newIndex + VISIBLE_CARDS - 1;
+                        const quizItem: DeckItem = {
+                            id: quizData.id || `quiz-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+                            type: 'quiz',
+                            data: quizData,
+                            quizState: {
+                                hasAnswered: false,
+                                result: null,
+                                xpEarned: 0,
+                            },
+                        };
 
-                    // Insert quiz at the HIDDEN position (stackPos = VISIBLE_CARDS - 1).
-                    // This is opacity:0, so completely invisible on insertion.
-                    // Over the next few swipes it naturally migrates:
-                    //   hidden(opacity:0) → back → middle → front
-                    // just like every other card in the stack.
-                    const insertPos = newIndex + VISIBLE_CARDS - 1;
-                    const quizItem: DeckItem = {
-                        id: quizData.id || `quiz-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-                        type: 'quiz',
-                        data: quizData,
-                        quizState: {
-                            hasAnswered: false,
-                            result: null,
-                            xpEarned: 0,
-                        },
-                    };
-
-                    const nextDeck = [...prevDeck];
-                    nextDeck.splice(insertPos, 0, quizItem);
-                    setActiveIndex(newIndex);
-                    setPhase('idle');
-                    isAnimating.current = false;
-                    return nextDeck;
+                        const nextDeck = [...prevDeck];
+                        nextDeck.splice(insertPos, 0, quizItem);
+                        setActiveIndex(newIndex);
+                        setPhase('idle');
+                        isAnimating.current = false;
+                        return nextDeck;
+                    }
                 }
 
                 setActiveIndex(newIndex);

@@ -80,6 +80,8 @@ export async function POST(request: NextRequest) {
                     await processArticleResults(succeeded);
                 } else if (jobType === 'exercise_generation') {
                     await processExerciseResults(succeeded);
+                } else if (jobType === 'feed_quiz_generation') {
+                    await processFeedQuizResults(succeeded);
                 }
 
                 // Mark batch job as completed
@@ -323,6 +325,70 @@ async function processExerciseResults(
             console.log(`[CollectBatch] ✓ User ${userId}: ${questions.length} questions, ${drills.length} drills, immersive=${!!immersiveSession}, bundle=${!!bundle}`);
         } catch (error) {
             console.error(`[CollectBatch] Failed to parse exercises for ${userId}:`, error);
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// FEED QUIZZES RESULT PROCESSING
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function processFeedQuizResults(
+    results: { batch_request_id: string; response?: { content: string } }[]
+) {
+    const dateStr = new Date().toISOString().split('T')[0];
+
+    for (const result of results) {
+        // batch_request_id format: "feed_quizzes_{userId}"
+        const match = result.batch_request_id.match(/^feed_quizzes_(.+)$/);
+        if (!match) {
+            console.error(`[CollectBatch] Invalid feed quiz request ID: ${result.batch_request_id}`);
+            continue;
+        }
+
+        const userId = match[1];
+        const content = result.response?.content;
+        if (!content) {
+            console.error(`[CollectBatch] No content for user ${userId} feed quizzes`);
+            continue;
+        }
+
+        try {
+            const parsed = JSON.parse(content);
+            const docId = `${dateStr}_${userId}`;
+            
+            const rawItems = Array.isArray(parsed) ? parsed : (parsed.questions || parsed.items || []);
+
+            const questions = rawItems.map((q: any, i: number) => ({
+                id: `feedquiz_${dateStr}_${userId}_${i}_${Math.random().toString(36).slice(2, 6)}`,
+                phraseId: q.phraseId || `unknown_${i}`, // This assumes phraseId was mapped back, but grok output doesn't have it explicitly unless ordered. We rely on order if missing.
+                phrase: q.phrase || '',
+                surface: 'quote_swiper',
+                phase: 'recognition',
+                questionType: q.questionType || 'situation_phrase_matching',
+                format: q.format || 'fill_blank',
+                emotion: q.emotion || 'neutral',
+                scenario: q.scenario || 'What does this mean?',
+                options: Array.isArray(q.options) ? q.options : [],
+                correctIndex: typeof q.correctIndex === 'number' ? q.correctIndex : 0,
+                explanation: q.explanation || '',
+                xpReward: 10,
+                // we recover actual phrase IDs from the order generated in the daily import route
+                // but since the model only returns "phraseIndex", we'll just trust what the frontend gets.
+                phraseIndex: q.phraseIndex, 
+            }));
+
+            const feedQuizData = {
+                userId,
+                date: dateStr,
+                questions,
+                generatedAt: new Date().toISOString(),
+            };
+
+            await setDocument('feedQuizzes', docId, feedQuizData);
+            console.log(`[CollectBatch] ✓ User ${userId} feed quizzes: ${questions.length} generated.`);
+        } catch (error) {
+            console.error(`[CollectBatch] Failed to parse feed quizzes for ${userId}:`, error);
         }
     }
 }

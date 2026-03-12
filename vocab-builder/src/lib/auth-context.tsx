@@ -79,61 +79,68 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 const { onAuthStateChanged } = await import('firebase/auth');
                 const { doc, getDoc, setDoc, serverTimestamp } = await import('firebase/firestore');
 
-                unsubscribe = onAuthStateChanged(auth, async (user) => {
-                    setUser(user);
+                unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+                    setUser(firebaseUser);
 
-                    if (user && db) {
-                        const userRef = doc(db, 'users', user.uid);
-                        const userSnap = await getDoc(userRef);
+                    if (firebaseUser && db) {
+                        try {
+                            const userRef = doc(db, 'users', firebaseUser.uid);
+                            const userSnap = await getDoc(userRef);
 
-                        if (userSnap.exists()) {
-                            await setDoc(userRef, { lastActiveAt: serverTimestamp() }, { merge: true });
-                            setProfile(userSnap.data() as UserProfile);
-                        } else {
-                            const newProfile = {
-                                uid: user.uid,
-                                email: user.email || '',
-                                displayName: user.displayName || '',
-                                username: user.email?.split('@')[0] || `user${Date.now()}`,
-                                bio: '',
-                                photoURL: user.photoURL || '',
-                                role: 'user' as const,
-                                createdAt: serverTimestamp(),
-                                lastActiveAt: serverTimestamp(),
-                                stats: {
-                                    totalPhrases: 0,
-                                    totalComments: 0,
-                                    totalReposts: 0,
-                                    currentStreak: 0,
-                                    longestStreak: 0,
-                                    lastStudyDate: null,
-                                    xp: 0,
-                                    level: 1,
-                                    xpToday: 0,
-                                    xpTodayDate: null,
-                                    redeemedDays: 0,
-                                },
-                                subscription: {
-                                    status: 'trial' as const,
-                                    plan: null,
-                                    trialEndsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-                                    currentPeriodEnd: null,
-                                },
-                                settings: {
-                                    dailyGoal: 10,
-                                    preferredStyles: ['twitter', 'instagram'],
-                                    notificationsEnabled: true,
-                                },
-                            };
+                            if (userSnap.exists()) {
+                                await setDoc(userRef, { lastActiveAt: serverTimestamp() }, { merge: true });
+                                setProfile(userSnap.data() as UserProfile);
+                            } else {
+                                const newProfile = {
+                                    uid: firebaseUser.uid,
+                                    email: firebaseUser.email || '',
+                                    displayName: firebaseUser.displayName || '',
+                                    username: firebaseUser.email?.split('@')[0] || `user${Date.now()}`,
+                                    bio: '',
+                                    photoURL: firebaseUser.photoURL || '',
+                                    role: 'user' as const,
+                                    createdAt: serverTimestamp(),
+                                    lastActiveAt: serverTimestamp(),
+                                    stats: {
+                                        totalPhrases: 0,
+                                        totalComments: 0,
+                                        totalReposts: 0,
+                                        currentStreak: 0,
+                                        longestStreak: 0,
+                                        lastStudyDate: null,
+                                        xp: 0,
+                                        level: 1,
+                                        xpToday: 0,
+                                        xpTodayDate: null,
+                                        redeemedDays: 0,
+                                    },
+                                    subscription: {
+                                        status: 'trial' as const,
+                                        plan: null,
+                                        trialEndsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+                                        currentPeriodEnd: null,
+                                    },
+                                    settings: {
+                                        dailyGoal: 10,
+                                        preferredStyles: ['twitter', 'instagram'],
+                                        notificationsEnabled: true,
+                                    },
+                                };
 
-                            await setDoc(userRef, newProfile);
-                            setProfile(newProfile as unknown as UserProfile);
+                                await setDoc(userRef, newProfile);
+                                setProfile(newProfile as unknown as UserProfile);
+                            }
+                        } catch (firestoreError) {
+                            // Firestore may be blocked (ad blocker, network, etc.)
+                            // Still mark auth as resolved so the app doesn't hang
+                            console.warn('[Auth] Firestore profile fetch failed (ad blocker?):', firestoreError);
+                        } finally {
+                            setLoading(false);
                         }
                     } else {
                         setProfile(null);
+                        setLoading(false);
                     }
-
-                    setLoading(false);
                 });
             } catch (error) {
                 console.error('Failed to initialize Firebase:', error);

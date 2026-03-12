@@ -71,7 +71,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         );
     }
 
-    if (!user || !profile) {
+    if (!user) {
         return null;
     }
 
@@ -201,12 +201,12 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                                 {/* User info */}
                                 <div className="flex items-center gap-3 px-2 py-3 mb-4">
                                     <Avatar className="h-10 w-10">
-                                        <AvatarImage src={profile.photoURL} alt={profile.displayName} />
-                                        <AvatarFallback className="bg-neutral-200">{profile.displayName?.charAt(0) || 'U'}</AvatarFallback>
+                                        <AvatarImage src={profile?.photoURL} alt={profile?.displayName} />
+                                        <AvatarFallback className="bg-neutral-200">{profile?.displayName?.charAt(0) || 'U'}</AvatarFallback>
                                     </Avatar>
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-medium truncate">{profile.displayName}</p>
-                                        <p className="text-xs text-neutral-500 truncate">@{profile.username}</p>
+                                        <p className="text-sm font-medium truncate">{profile?.displayName}</p>
+                                        <p className="text-xs text-neutral-500 truncate">@{profile?.username}</p>
                                     </div>
                                 </div>
 
@@ -222,7 +222,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                                 </Link>
 
                                 {/* Upgrade CTA */}
-                                {profile.subscription.status === 'trial' && (
+                                {profile?.subscription?.status === 'trial' && (
                                     <div className="mb-4">
                                         <Link href="/subscription" className="block group">
                                             <div className="flex items-center justify-between p-1.5 pl-4 bg-neutral-900 border border-neutral-800 rounded-xl shadow-[0_2px_12px_-4px_rgba(0,0,0,0.2)] hover:shadow-[0_4px_16px_-4px_rgba(0,0,0,0.3)] transition-all duration-300">

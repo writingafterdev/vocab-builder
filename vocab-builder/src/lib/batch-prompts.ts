@@ -325,3 +325,109 @@ export function buildExerciseBatchRequest(
 ): BatchRequest {
   return buildUserExerciseBatchRequest(userId, phrases);
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// FEED QUIZZES GENERATION PROMPT
+// ═══════════════════════════════════════════════════════════════════════════
+
+export interface FeedQuizSpec {
+  phraseId: string;
+  phrase: string;
+  meaning: string;
+  register: string;
+  questionType: string;
+  source: 'phrase' | 'drill';
+  weaknessCategory?: string;
+  example?: string;
+  correction?: string;
+}
+
+/**
+ * Builds a batch request to generate feed quizzes (the 8 interactive formats).
+ * This runs daily to pre-generate swipeable quizzes based on due phrases & weaknesses.
+ */
+export function buildFeedQuizBatchRequest(
+  userId: string,
+  specs: FeedQuizSpec[]
+): BatchRequest {
+  // Separate phrases and drills to format them correctly in the prompt
+  const phraseSpecs = specs.filter(s => s.source === 'phrase');
+  const drillSpecs = specs.filter(s => s.source === 'drill');
+
+  const phraseLines = phraseSpecs.map((s, i) => 
+      `${i + 1}. PHRASE: "${s.phrase}" (meaning: ${s.meaning}, register: ${s.register}, type: ${s.questionType})`
+  );
+  
+  const drillLines = drillSpecs.map((s, i) => 
+      `${phraseSpecs.length + i + 1}. DRILL: weakness in ${s.weaknessCategory} — wrong: "${s.example}", correct: "${s.correction}", explanation: ${s.meaning}`
+  );
+
+  const prompt = `You are a master educator, expert linguist, and witty screenwriter. Generate ${specs.length} vocabulary exercises for a social media-style feed.
+
+CORE RULES:
+- Do NOT write dry, academic, "textbook" sentences.
+- Every scenario must feel like a snippet from a movie script, a heated text message, a dramatic workplace email, or a relatable everyday frustration.
+- Inject a SPECIFIC emotion: passive-aggression, panic, awe, outrage, sarcasm, desperation, tenderness, exasperation, smugness, etc.
+- Use authentic, modern phrasing matched to the register (casual roommate argument vs. corporate meeting vs. late-night DM).
+- Show, don't tell: instead of "she was angry," describe her slamming a laptop shut.
+- Wrong options should be TEMPTINGLY plausible — the kind of mistake a smart learner would make.
+- IMPORTANT: Vary the format across questions! Do NOT use the same format for every question.
+
+Items:
+${[...phraseLines, ...drillLines].join('\n')}
+
+AVAILABLE FORMATS (mix them — use at least 3 different formats across all questions):
+
+1. "fill_blank" — Fill in the blank
+   Scenario has a ___ where the target phrase goes. Options are 3 possible words.
+   Example: "She slammed her laptop, turned to her co-founder, and said: 'I think it's time to ___ this whole strategy.'"
+   Options: ["pivot", "abandon", "rethink"]
+
+2. "tone_read" — Read the tone
+   Paint a vivid scene using the phrase naturally (no blank). Ask what the speaker's TONE or INTENT is.
+   Example: "Your manager replies 'Per my last email' after you ask the same question twice."
+   Options: ["Genuinely helpful reminder", "Barely concealed frustration", "Casual follow-up"]
+
+3. "spot_error" — Spot the misuse
+   Use the target phrase INCORRECTLY in a scenario. Ask which version fixes it.
+   Example: "He said 'I could care less about the deadline' to show his indifference."
+   Options: ["Correct as written", "'couldn't care less'", "'could not care'"]
+
+4. "best_response" — Best response
+   Set up a social situation. Ask which reply uses the phrase most naturally.
+   Example: "Your friend just got promoted but seems weirdly unhappy about it. You say:"
+   Options: ["'That's bittersweet, huh?'", "'So you hate it?'", "'Congrats, period.'"]
+
+5. "true_false" — Usage judgment
+   Present a sentence using the phrase. Ask if the usage is natural.
+   Example: "A CEO tells investors: 'We need to PIVOT our approach to the Asian market.'"
+   Options: ["Perfectly natural", "Wrong register — too casual", "Wrong meaning entirely"]
+
+Return a JSON object { "questions": [...] } with one entry per item in the exact order requested:
+{
+  "questions": [
+    {
+      "phraseIndex": 0,
+      "format": "fill_blank",
+      "emotion": "one-word emotion tag, e.g. sarcasm, panic, tenderness",
+      "scenario": "Vivid micro-story (2-3 sentences, max 50 words). For fill_blank: include ___. For others: use the phrase naturally.",
+      "options": ["Option A", "Option B", "Option C"],
+      "correctIndex": 0,
+      "explanation": "Quick, warm debrief — like a friend explaining it over coffee (1 sentence)"
+    }
+  ]
+}`;
+
+  return {
+    batch_request_id: `feed_quizzes_${userId}`,
+    messages: [
+      { 
+        role: 'system', 
+        content: 'You are a master educator, expert linguist, and witty screenwriter. You create emotionally vivid fill-in-the-blank vocabulary exercises. Every sentence you write feels ripped from a movie script, a heated group chat, or a devastating breakup text. Return valid JSON only.' 
+      },
+      { role: 'user', content: prompt }
+    ],
+    response_format: { type: 'json_object' },
+    max_tokens: 4000
+  };
+}

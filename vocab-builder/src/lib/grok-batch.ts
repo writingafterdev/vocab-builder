@@ -189,28 +189,35 @@ export async function getBatchResults(
 
     // Normalize results
     const succeeded: BatchResult[] = (data.succeeded || data.results || [])
-        .filter((r: any) => !r.error_message && r.response)
-        .map((r: any) => ({
-            batch_request_id: r.batch_request_id,
-            response: {
-                content: r.response?.content
-                    || r.response?.choices?.[0]?.message?.content
-                    || r.response?.body?.choices?.[0]?.message?.content
-                    || '',
-                usage: r.response?.usage
-                    || r.response?.body?.usage
-                    || { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
-                finish_reason: r.response?.finish_reason
-                    || r.response?.choices?.[0]?.finish_reason
-                    || 'unknown',
-            },
-        }));
+        .filter((r: any) => {
+            const isValid = !r.error_message && !r.error && !r.batch_result?.error;
+            const hasResponse = r.response || r.batch_result?.response;
+            return isValid && hasResponse;
+        })
+        .map((r: any) => {
+            const actualResponse = r.response || r.batch_result?.response?.chat_get_completion || r.batch_result?.response;
+            return {
+                batch_request_id: r.batch_request_id,
+                response: {
+                    content: actualResponse?.content
+                        || actualResponse?.choices?.[0]?.message?.content
+                        || actualResponse?.body?.choices?.[0]?.message?.content
+                        || '',
+                    usage: actualResponse?.usage
+                        || actualResponse?.body?.usage
+                        || { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+                    finish_reason: actualResponse?.finish_reason
+                        || actualResponse?.choices?.[0]?.finish_reason
+                        || 'unknown',
+                },
+            };
+        });
 
     const failed: BatchResult[] = (data.failed || data.results || [])
-        .filter((r: any) => r.error_message || r.error)
+        .filter((r: any) => r.error_message || r.error || r.batch_result?.error)
         .map((r: any) => ({
             batch_request_id: r.batch_request_id,
-            error_message: r.error_message || r.error?.message || 'Unknown error',
+            error_message: r.error_message || r.error?.message || r.batch_result?.error?.message || 'Unknown error',
         }));
 
     return {

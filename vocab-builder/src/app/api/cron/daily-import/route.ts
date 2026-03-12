@@ -13,7 +13,7 @@ import {
     serverTimestamp,
 } from '@/lib/firestore-rest';
 import { createBatch, addBatchRequests } from '@/lib/grok-batch';
-import { buildArticleBatchRequest, buildUserExerciseBatchRequest } from '@/lib/batch-prompts';
+import { buildArticleBatchRequest, buildUserExerciseBatchRequest, buildFeedQuizBatchRequest, type FeedQuizSpec } from '@/lib/batch-prompts';
 import { getUserWeaknesses } from '@/lib/db/user-weaknesses';
 
 const CRON_SECRET = process.env.CRON_SECRET;
@@ -175,6 +175,7 @@ export async function POST(request: NextRequest) {
                     todayEnd.setHours(23, 59, 59, 999);
                     const dateStr = new Date().toISOString().split('T')[0];
                     const allExerciseRequests: ReturnType<typeof buildUserExerciseBatchRequest>[] = [];
+                    const allFeedQuizRequests: ReturnType<typeof buildFeedQuizBatchRequest>[] = [];
                     const userPhraseMap: Record<string, string[]> = {};
 
                     for (const user of users) {
@@ -228,24 +229,64 @@ export async function POST(request: NextRequest) {
                                 console.error(`[DailyImport] Weakness fetch failed for ${userId}:`, e);
                             }
 
-                            // One comprehensive request per user
-                            const exerciseReq = buildUserExerciseBatchRequest(
-                                userId,
-                                todayDue.map(p => ({
-                                    id: p.id as string,
-                                    phrase: p.phrase as string,
-                                    meaning: p.meaning as string | undefined,
-                                    register: p.register as string | undefined,
-                                    nuance: p.nuance as string | undefined,
-                                    context: p.context as string | undefined,
-                                    topics: p.topics as string[] | undefined,
-                                    learningStep: (p.learningStep as number) || 1,
-                                })),
-                                weaknesses,
-                            );
-                            allExerciseRequests.push(exerciseReq);
-                            userPhraseMap[userId] = todayDue.map(p => p.id as string);
-                        } catch (err) {
+                                // One comprehensive request per user
+                                const exerciseReq = buildUserExerciseBatchRequest(
+                                    userId,
+                                    todayDue.map(p => ({
+                                        id: p.id as string,
+                                        phrase: p.phrase as string,
+                                        meaning: p.meaning as string | undefined,
+                                        register: p.register as string | undefined,
+                                        nuance: p.nuance as string | undefined,
+                                        context: p.context as string | undefined,
+                                        topics: p.topics as string[] | undefined,
+                                        learningStep: (p.learningStep as number) || 1,
+                                    })),
+                                    weaknesses,
+                                );
+                                allExerciseRequests.push(exerciseReq);
+                                userPhraseMap[userId] = todayDue.map(p => p.id as string);
+
+                                // Construct Feed Quiz Specs for all due phrases + max 2 weaknesses
+                                const FEED_QUESTION_TYPES = [
+                                    'situation_phrase_matching',
+                                    'tone_interpretation',
+                                    'appropriateness_judgment',
+                                    'fill_gap_mcq',
+                                    'why_did_they_say',
+                                ];
+                                
+                                const feedQuizSpecs: FeedQuizSpec[] = todayDue.map(p => {
+                                    const completedFormats = (p.completedFormats || []) as string[];
+                                    const unused = FEED_QUESTION_TYPES.filter(t => !completedFormats.includes(t));
+                                    const questionType = (unused.length > 0 ? unused : FEED_QUESTION_TYPES)[Math.floor(Math.random() * (unused.length > 0 ? unused : FEED_QUESTION_TYPES).length)];
+
+                                    return {
+                                        phraseId: p.id as string,
+                                        phrase: p.phrase as string,
+                                        meaning: (p.meaning as string) || '',
+                                        register: (p.register as string) || 'neutral',
+                                        questionType,
+                                        source: 'phrase' as const,
+                                    };
+                                });
+
+                                const drillSpecs: FeedQuizSpec[] = weaknesses.slice(0, 2).map(w => ({
+                                    phraseId: w.id,
+                                    phrase: w.specific,
+                                    meaning: w.explanation,
+                                    register: 'neutral',
+                                    questionType: 'appropriateness_judgment',
+                                    source: 'drill' as const,
+                                    weaknessCategory: w.category,
+                                    example: w.examples[0] || '',
+                                    correction: w.correction,
+                                }));
+
+                                const feedReq = buildFeedQuizBatchRequest(userId, [...feedQuizSpecs, ...drillSpecs]);
+                                allFeedQuizRequests.push(feedReq);
+
+                            } catch (err) {
                             console.error(`[DailyImport] Exercise query failed for user ${userId}:`, err);
                         }
                     }
@@ -269,6 +310,24 @@ export async function POST(request: NextRequest) {
                         console.log(`[DailyImport] Phase 3: submitted ${allExerciseRequests.length} user exercise requests to Grok batch ${exerciseBatchId}`);
                     } else {
                         console.log('[DailyImport] Phase 3: no due phrases found for any user');
+                    }
+
+                    // Feed Quizzes Batch Submission
+                    if (allFeedQuizRequests.length > 0) {
+                        const feedQuizBatchId = await createBatch(`feed_quizzes_${dateStr}`);
+                        await addBatchRequests(feedQuizBatchId, allFeedQuizRequests);
+
+                        await addDocument('batchJobs', {
+                            batchId: feedQuizBatchId,
+                            name: `feed_quizzes_${dateStr}`,
+                            provider: 'grok',
+                            type: 'feed_quiz_generation',
+                            status: 'submitted',
+                            requestCount: allFeedQuizRequests.length,
+                            submittedAt: new Date().toISOString(),
+                        });
+
+                        console.log(`[DailyImport] Phase 3: submitted ${allFeedQuizRequests.length} feed quiz requests to Grok batch ${feedQuizBatchId}`);
                     }
                 }
             } catch (error) {

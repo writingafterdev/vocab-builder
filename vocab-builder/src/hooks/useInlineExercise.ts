@@ -99,13 +99,12 @@ export function useInlineExercise({
 
         try {
             // ── Try pre-generated questions first ──
-            if (preGeneratedQuestions && preGeneratedQuestions.length > 0 && contentText) {
-                const contentLower = contentText.toLowerCase();
-                const match = preGeneratedQuestions.find(q =>
-                    contentLower.includes(q.phrase.toLowerCase())
-                );
-                if (match) {
-                    setQuestion({ ...match, surface });
+            if (preGeneratedQuestions && preGeneratedQuestions.length > 0) {
+                // Find first unused pre-generated question
+                // (In a real app, you'd track which ones were skipped, but for now just use session state to index)
+                const nextQuestion = preGeneratedQuestions[sessionState.quizzesShown % preGeneratedQuestions.length];
+                if (nextQuestion) {
+                    setQuestion({ ...nextQuestion, surface });
                     answerStartRef.current = Date.now();
                     sessionState.quizzesShown++;
                     sessionState.cardsSinceLastQuiz = 0;
