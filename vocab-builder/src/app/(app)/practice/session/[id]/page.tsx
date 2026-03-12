@@ -61,12 +61,12 @@ function QuestionGate({
 
     if (isCompleted) {
         return (
-            <div className="my-8 p-6 bg-emerald-50 border border-emerald-200 rounded-2xl">
-                <div className="flex items-center gap-2 text-emerald-700">
-                    <Check className="w-5 h-5" />
-                    <span className="text-sm font-semibold">Completed</span>
+            <div className="my-12 p-8 border border-neutral-200 bg-neutral-50">
+                <div className="flex items-center gap-2 text-neutral-900 mb-4">
+                    <Check className="w-4 h-4" />
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-neutral-500">Completed</span>
                 </div>
-                <p className="text-sm text-emerald-600 mt-2 italic">
+                <p className="text-[15px] leading-relaxed text-neutral-700 italic" style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}>
                     {question.explanation}
                 </p>
             </div>
@@ -96,122 +96,121 @@ function QuestionGate({
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="my-8 relative"
+            className="my-12 relative"
         >
-            {/* Question card */}
-            <div className="bg-white border-2 border-neutral-900 rounded-2xl overflow-hidden shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+            <div className="bg-white border border-neutral-200 p-8 md:p-10">
                 {/* Header */}
-                <div className="bg-neutral-900 px-6 py-3 flex items-center justify-between">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 pb-4 border-b border-neutral-100">
                     <div className="flex items-center gap-2">
-                        <Lock className="w-4 h-4 text-amber-400" />
-                        <span className="text-xs font-bold text-white uppercase tracking-wider">
+                        <Lock className="w-3.5 h-3.5 text-neutral-400" />
+                        <span className="text-[10px] font-bold text-neutral-900 uppercase tracking-widest">
                             Comprehension Check
                         </span>
                     </div>
-                    <span className="text-xs text-neutral-400">
-                        {question.targetPhrase && `Testing: "${question.targetPhrase}"`}
-                    </span>
+                    {question.targetPhrase && (
+                        <span className="text-[10px] text-neutral-400 uppercase tracking-wider">
+                            Testing: "{question.targetPhrase}"
+                        </span>
+                    )}
                 </div>
 
                 {/* Question */}
-                <div className="p-6">
-                    <p className="text-lg font-medium text-neutral-900 leading-relaxed mb-6"
-                       style={{ fontFamily: 'var(--font-serif, Georgia, serif)' }}>
-                        {question.question}
-                    </p>
+                <p className="text-xl md:text-2xl text-neutral-900 mb-8 leading-relaxed"
+                   style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}>
+                    {question.question}
+                </p>
 
-                    {/* Options */}
-                    <div className="space-y-3">
-                        {question.options.map((option, idx) => {
-                            let optionStyle = 'border-neutral-200 hover:border-neutral-400 bg-white';
-                            if (showResult) {
-                                if (idx === question.correctIndex) {
-                                    optionStyle = 'border-emerald-500 bg-emerald-50 text-emerald-900';
-                                } else if (idx === selectedIndex && !isCorrect) {
-                                    optionStyle = 'border-red-400 bg-red-50 text-red-800';
-                                } else {
-                                    optionStyle = 'border-neutral-100 bg-neutral-50 text-neutral-400';
-                                }
-                            } else if (idx === selectedIndex) {
-                                optionStyle = 'border-neutral-900 bg-neutral-50';
+                {/* Options */}
+                <div className="space-y-3">
+                    {question.options.map((option, idx) => {
+                        let optionStyle = 'border-neutral-200 hover:border-neutral-900 bg-white text-neutral-600 hover:text-neutral-900';
+                        if (showResult) {
+                            if (idx === question.correctIndex) {
+                                optionStyle = 'border-emerald-500 bg-emerald-50 text-emerald-900';
+                            } else if (idx === selectedIndex && !isCorrect) {
+                                optionStyle = 'border-red-200 bg-red-50 text-red-900';
+                            } else {
+                                optionStyle = 'border-neutral-100 bg-neutral-50 text-neutral-400';
                             }
+                        } else if (idx === selectedIndex) {
+                            optionStyle = 'border-neutral-900 bg-neutral-900 text-white';
+                        }
 
-                            return (
-                                <button
-                                    key={idx}
-                                    onClick={() => !showResult && setSelectedIndex(idx)}
-                                    disabled={showResult}
-                                    className={`w-full text-left p-4 rounded-xl border-2 transition-all duration-200 ${optionStyle}`}
-                                >
-                                    <div className="flex items-start gap-3">
-                                        <span className="flex-shrink-0 w-7 h-7 rounded-full border-2 border-current flex items-center justify-center text-xs font-bold mt-0.5">
-                                            {String.fromCharCode(65 + idx)}
-                                        </span>
-                                        <span className="text-sm leading-relaxed">{option}</span>
-                                    </div>
-                                </button>
-                            );
-                        })}
-                    </div>
-
-                    {/* Result feedback */}
-                    <AnimatePresence>
-                        {showResult && (
-                            <motion.div
-                                initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: 'auto' }}
-                                className="mt-6"
+                        return (
+                            <button
+                                key={idx}
+                                onClick={() => !showResult && setSelectedIndex(idx)}
+                                disabled={showResult}
+                                className={`w-full text-left p-4 md:p-5 border transition-all duration-200 outline-none focus-visible:ring-1 focus-visible:ring-neutral-900 ${optionStyle}`}
                             >
-                                {isCorrect ? (
-                                    <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <span className="text-lg">🎯</span>
-                                            <span className="text-sm font-bold text-emerald-700">Nailed it!</span>
-                                        </div>
-                                        <p className="text-sm text-emerald-600 leading-relaxed">
-                                            {question.explanation}
-                                        </p>
-                                    </div>
-                                ) : (
-                                    <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <span className="text-lg">🤔</span>
-                                            <span className="text-sm font-bold text-amber-700">
-                                                Not quite — {attempts < 3 ? 'try again!' : 'here\'s the answer'}
-                                            </span>
-                                        </div>
+                                <div className="flex items-start gap-4">
+                                    <span className={`flex-shrink-0 w-6 h-6 border flex items-center justify-center text-[10px] font-bold mt-0.5 ${
+                                        idx === selectedIndex && !showResult ? 'border-neutral-700 text-white' : 'border-current'
+                                    }`}>
+                                        {String.fromCharCode(65 + idx)}
+                                    </span>
+                                    <span className="text-sm tracking-wide leading-relaxed font-medium">{option}</span>
+                                </div>
+                            </button>
+                        );
+                    })}
+                </div>
+
+                {/* Result feedback */}
+                <AnimatePresence>
+                    {showResult && (
+                        <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            className="mt-8 overflow-hidden"
+                        >
+                            {isCorrect ? (
+                                <div className="p-6 border border-emerald-200 bg-emerald-50/50">
+                                    <h4 className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-3">
+                                        Correct
+                                    </h4>
+                                    <p className="text-[15px] text-emerald-800 leading-relaxed italic" style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}>
+                                        {question.explanation}
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="p-6 border border-amber-200 bg-amber-50/50 flex flex-col items-start gap-4">
+                                    <div>
+                                        <h4 className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-3">
+                                            {attempts < 3 ? 'Incorrect' : 'Answer'}
+                                        </h4>
                                         {attempts >= 3 && (
-                                            <p className="text-sm text-amber-600 leading-relaxed mb-3">
+                                            <p className="text-[15px] text-amber-800 leading-relaxed italic mb-4" style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}>
                                                 {question.explanation}
                                             </p>
                                         )}
-                                        <button
-                                            onClick={attempts >= 3 ? onCorrect : handleRetry}
-                                            className="text-sm font-semibold text-amber-700 hover:text-amber-900 underline underline-offset-2"
-                                        >
-                                            {attempts >= 3 ? 'Continue reading →' : 'Try again →'}
-                                        </button>
                                     </div>
-                                )}
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-
-                    {/* Submit button */}
-                    {!showResult && (
-                        <button
-                            onClick={handleSubmit}
-                            disabled={selectedIndex === null}
-                            className={`mt-6 w-full py-3.5 rounded-xl text-sm font-bold uppercase tracking-wider transition-all ${
-                                selectedIndex !== null
-                                    ? 'bg-neutral-900 text-white hover:bg-neutral-800 shadow-lg'
-                                    : 'bg-neutral-100 text-neutral-400 cursor-not-allowed'
-                            }`}
-                        >
-                            Check Answer
-                        </button>
+                                    <button
+                                        onClick={attempts >= 3 ? onCorrect : handleRetry}
+                                        className="text-[10px] font-bold uppercase tracking-widest text-neutral-900 border-b border-neutral-900 pb-0.5 hover:text-neutral-500 hover:border-neutral-500 transition-colors"
+                                    >
+                                        {attempts >= 3 ? 'Continue reading' : 'Try again'}
+                                    </button>
+                                </div>
+                            )}
+                        </motion.div>
                     )}
-                </div>
+                </AnimatePresence>
+
+                {/* Submit button */}
+                {!showResult && (
+                    <button
+                        onClick={handleSubmit}
+                        disabled={selectedIndex === null}
+                        className={`mt-8 w-full py-4 text-[10px] font-bold uppercase tracking-widest transition-all outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
+                            selectedIndex !== null
+                                ? 'bg-neutral-900 text-white hover:bg-neutral-800 focus-visible:ring-neutral-900'
+                                : 'bg-neutral-50 text-neutral-300 border border-neutral-200 cursor-not-allowed'
+                        }`}
+                    >
+                        Check Answer
+                    </button>
+                )}
             </div>
         </motion.div>
     );
@@ -263,55 +262,55 @@ function CompletionScreen({
         <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="min-h-[60vh] flex items-center justify-center"
+            className="min-h-[60vh] flex items-center justify-center py-20"
         >
             <div className="text-center max-w-md mx-auto px-6">
                 <motion.div
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
-                    className="w-20 h-20 bg-neutral-900 rounded-full flex items-center justify-center mx-auto mb-6"
+                    className="w-20 h-20 bg-neutral-900 rounded-none flex items-center justify-center mx-auto mb-8"
                 >
-                    <Trophy className="w-10 h-10 text-amber-400" />
+                    <Trophy className="w-8 h-8 text-white" />
                 </motion.div>
 
                 <h2
-                    className="text-3xl font-normal text-neutral-900 mb-2"
+                    className="text-3xl md:text-4xl font-normal text-neutral-900 mb-4"
                     style={{ fontFamily: 'var(--font-serif, Georgia, serif)' }}
                 >
                     Session Complete
                 </h2>
 
-                <p className="text-neutral-500 mb-8">
+                <p className="text-neutral-500 mb-10 tracking-wide font-medium">
                     You reviewed {session.totalPhrases} phrases with {accuracy}% accuracy.
                 </p>
 
                 {/* Stats */}
-                <div className="grid grid-cols-3 gap-4 mb-8">
-                    <div className="p-4 bg-neutral-50 rounded-xl">
-                        <div className="text-2xl font-bold text-neutral-900">{session.totalPhrases}</div>
-                        <div className="text-xs text-neutral-400 mt-1">Phrases</div>
+                <div className="grid grid-cols-3 gap-4 mb-10">
+                    <div className="p-5 bg-neutral-50 border border-neutral-100">
+                        <div className="text-[28px] font-normal font-serif text-neutral-900">{session.totalPhrases}</div>
+                        <div className="text-[10px] uppercase tracking-widest text-neutral-400 mt-2 font-bold">Phrases</div>
                     </div>
-                    <div className="p-4 bg-neutral-50 rounded-xl">
-                        <div className="text-2xl font-bold text-neutral-900">{correctCount}</div>
-                        <div className="text-xs text-neutral-400 mt-1">Correct</div>
+                    <div className="p-5 bg-neutral-50 border border-neutral-100">
+                        <div className="text-[28px] font-normal font-serif text-neutral-900">{correctCount}</div>
+                        <div className="text-[10px] uppercase tracking-widest text-neutral-400 mt-2 font-bold">Correct</div>
                     </div>
-                    <div className="p-4 bg-neutral-50 rounded-xl">
-                        <div className="text-2xl font-bold text-emerald-600">{accuracy}%</div>
-                        <div className="text-xs text-neutral-400 mt-1">Accuracy</div>
+                    <div className="p-5 bg-neutral-50 border border-neutral-100">
+                        <div className="text-[28px] font-normal font-serif text-neutral-900">{accuracy}%</div>
+                        <div className="text-[10px] uppercase tracking-widest text-emerald-600 mt-2 font-bold">Accuracy</div>
                     </div>
                 </div>
 
                 <div className="space-y-3">
                     <button
                         onClick={() => router.push('/feed')}
-                        className="w-full py-3.5 bg-neutral-900 text-white rounded-xl text-sm font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors"
+                        className="w-full py-4 bg-neutral-900 text-white text-[10px] font-bold uppercase tracking-widest hover:bg-neutral-800 transition-colors border border-neutral-900"
                     >
-                        Back to Feed
+                        Back to Library
                     </button>
                     <button
                         onClick={() => router.push('/practice')}
-                        className="w-full py-3.5 bg-neutral-100 text-neutral-700 rounded-xl text-sm font-semibold hover:bg-neutral-200 transition-colors"
+                        className="w-full py-4 bg-white text-neutral-900 border border-neutral-200 text-[10px] font-bold uppercase tracking-widest hover:border-neutral-900 hover:bg-neutral-50 transition-colors"
                     >
                         Start Another Session
                     </button>
@@ -691,42 +690,39 @@ function WritingPromptCard({
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="my-12"
+            className="my-12 relative"
         >
-            <div className="bg-gradient-to-br from-violet-50 to-indigo-50 border-2 border-violet-200 rounded-2xl overflow-hidden">
+            <div className="bg-white border border-neutral-200 p-8 md:p-10">
                 {/* Header */}
-                <div className="bg-violet-600 px-6 py-3 flex items-center justify-between">
+                <div className="flex items-center justify-between mb-8 pb-4 border-b border-neutral-100">
                     <div className="flex items-center gap-2">
-                        <Sparkles className="w-4 h-4 text-violet-200" />
-                        <span className="text-xs font-bold text-white uppercase tracking-wider">
+                        <Sparkles className="w-4 h-4 text-neutral-400" />
+                        <span className="text-[10px] font-bold text-neutral-900 uppercase tracking-widest">
                             Your Turn
                         </span>
                     </div>
                     <button
                         onClick={() => setSkipped(true)}
-                        className="text-xs text-violet-300 hover:text-white transition-colors"
+                        className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest hover:text-neutral-900 transition-colors"
                     >
-                        Skip →
+                        Skip
                     </button>
                 </div>
 
-                <div className="p-6">
+                <div className="">
                     {!feedback ? (
                         <>
                             <h3
-                                className="text-xl font-normal text-neutral-900 mb-2"
-                                style={{ fontFamily: 'var(--font-serif, Georgia, serif)' }}
+                                className="text-xl md:text-2xl text-neutral-900 mb-4"
+                                style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
                             >
-                                Now use them yourself
+                                Use these phrases in a short paragraph
                             </h3>
-                            <p className="text-sm text-neutral-600 mb-4 leading-relaxed">
-                                Write a short paragraph (3-5 sentences) that naturally uses at least 2 of these phrases:
-                            </p>
-                            <div className="flex flex-wrap gap-2 mb-5">
+                            <div className="flex flex-wrap gap-2 mb-8">
                                 {targetPhrases.map((phrase, i) => (
                                     <span
                                         key={i}
-                                        className="px-3 py-1.5 bg-white border border-violet-200 rounded-lg text-sm font-medium text-violet-700"
+                                        className="px-3 py-1.5 border border-neutral-200 text-[11px] font-bold uppercase tracking-wider text-neutral-600 bg-neutral-50"
                                     >
                                         {phrase}
                                     </span>
@@ -735,24 +731,24 @@ function WritingPromptCard({
                             <textarea
                                 value={response}
                                 onChange={(e) => setResponse(e.target.value)}
-                                placeholder="Write naturally — pretend you're telling a story or explaining something to a friend..."
+                                placeholder="Write naturally (3-5 sentences)..."
                                 rows={5}
-                                className="w-full bg-white border border-neutral-200 rounded-xl px-4 py-3 text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-violet-300 focus:border-transparent resize-none"
-                                style={{ fontFamily: 'var(--font-serif, Georgia, serif)' }}
+                                className="w-full bg-white border border-neutral-200 p-5 text-sm md:text-[15px] text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900 resize-none font-serif leading-relaxed"
+                                style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
                             />
                             <button
                                 onClick={handleSubmit}
                                 disabled={response.trim().length < 20 || isSubmitting}
-                                className={`mt-4 w-full py-3.5 rounded-xl text-sm font-bold uppercase tracking-wider transition-all ${
+                                className={`mt-6 w-full py-4 text-[10px] font-bold uppercase tracking-widest transition-all ${
                                     response.trim().length >= 20
-                                        ? 'bg-violet-600 text-white hover:bg-violet-700 shadow-lg'
-                                        : 'bg-neutral-100 text-neutral-400 cursor-not-allowed'
+                                        ? 'bg-neutral-900 text-white hover:bg-neutral-800'
+                                        : 'bg-neutral-50 border border-neutral-200 text-neutral-400 cursor-not-allowed'
                                 }`}
                             >
                                 {isSubmitting ? (
                                     <span className="flex items-center justify-center gap-2">
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                        Evaluating...
+                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                        Evaluating
                                     </span>
                                 ) : (
                                     'Check My Writing'
@@ -762,29 +758,29 @@ function WritingPromptCard({
                     ) : (
                         <div>
                             <h3
-                                className="text-xl font-normal text-neutral-900 mb-4"
-                                style={{ fontFamily: 'var(--font-serif, Georgia, serif)' }}
+                                className="text-xl md:text-2xl text-neutral-900 mb-6"
+                                style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
                             >
                                 Naturalness Report
                             </h3>
-                            <div className="space-y-3">
+                            <div className="space-y-4">
                                 {feedback.detections.map((d, i) => (
-                                    <div key={i} className="bg-white rounded-xl p-4 border border-neutral-100">
-                                        <div className="flex items-center gap-2 mb-1">
+                                    <div key={i} className="bg-white border border-neutral-200 p-5">
+                                        <div className="flex items-center gap-3 mb-3">
                                             <span>{tierEmoji(d.tier)}</span>
-                                            <span className="text-sm font-semibold text-neutral-900">
+                                            <span className="text-sm font-semibold text-neutral-900 tracking-wide font-medium">
                                                 "{d.phrase}"
                                             </span>
-                                            <span className={`text-[10px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded ${
-                                                d.tier === 'NATURAL' ? 'bg-emerald-100 text-emerald-700' :
-                                                d.tier === 'ACCEPTABLE' ? 'bg-amber-100 text-amber-700' :
-                                                d.tier === 'FORCED' ? 'bg-orange-100 text-orange-700' :
-                                                'bg-neutral-100 text-neutral-500'
+                                            <span className={`text-[10px] border px-2 py-0.5 uppercase tracking-widest font-bold ${
+                                                d.tier === 'NATURAL' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                                d.tier === 'ACCEPTABLE' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                                                d.tier === 'FORCED' ? 'bg-orange-50 text-orange-700 border-orange-200' :
+                                                'bg-neutral-50 text-neutral-500 border-neutral-200'
                                             }`}>
                                                 {d.tier}
                                             </span>
                                         </div>
-                                        <p className="text-xs text-neutral-500 leading-relaxed">
+                                        <p className="text-[15px] text-neutral-700 leading-relaxed italic" style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}>
                                             {d.reasoning}
                                         </p>
                                     </div>
