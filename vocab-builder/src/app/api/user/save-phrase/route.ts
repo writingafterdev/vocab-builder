@@ -49,11 +49,13 @@ import {
 } from '@/lib/db/topics';
 import { SocialDistance } from '@/lib/db/types';
 
-// Assign topic and subtopic to phrase using AI (dynamic from Firestore)
+// Assign topic and subtopic to phrase using AI (association-aware)
 async function assignTopics(phrase: string, meaning: string, userId: string, userEmail: string): Promise<{ topic: string; subtopic?: string }> {
     if (!XAI_API_KEY) return { topic: 'daily_life' };
 
-    // Fetch existing topics from database using REST
+    const { setDocument, updateDocument, runQuery } = await import('@/lib/firestore-rest');
+
+    // 1. Fetch existing topic definitions
     let existingTopics: any[] = [];
     try {
         existingTopics = await queryCollection('topics');
@@ -61,7 +63,49 @@ async function assignTopics(phrase: string, meaning: string, userId: string, use
         console.error('Failed to fetch topics for AI', e);
     }
 
-    let topicList = "No existing topics yet. You may create new ones.";
+    // 2. Fetch user's saved phrases to build subtopic → phrases map
+    let userPhrases: any[] = [];
+    try {
+        userPhrases = await runQuery('savedPhrases', [
+            { field: 'userId', op: 'EQUAL', value: userId },
+        ], 200); // cap at 200 for prompt size
+    } catch (e) {
+        console.error('Failed to fetch user phrases for topic context', e);
+    }
+
+    // Build subtopic clusters: { "topic/subtopic" → ["phrase1", "phrase2"] }
+    const subtopicClusters: Record<string, { topic: string; topicLabel: string; subtopic: string; subtopicLabel: string; phrases: string[] }> = {};
+    for (const p of userPhrases) {
+        const t = p.topic || p.topics?.[0];
+        const s = p.subtopic || p.subtopics?.[0];
+        if (!t || !s || t === 'pending_ai') continue;
+        const key = `${t}/${s}`;
+        if (!subtopicClusters[key]) {
+            // Find labels from existing topics
+            const topicDef = existingTopics.find((et: any) => et.id === t);
+            const subtopicDef = topicDef?.subtopics?.find((st: any) => st.id === s);
+            subtopicClusters[key] = {
+                topic: t,
+                topicLabel: topicDef?.label || t,
+                subtopic: s,
+                subtopicLabel: subtopicDef?.label || s,
+                phrases: [],
+            };
+        }
+        subtopicClusters[key].phrases.push(p.phrase);
+    }
+
+    // Format user's vocab clusters for the prompt
+    let vocabContext = "No saved vocabulary yet.";
+    const clusterEntries = Object.values(subtopicClusters);
+    if (clusterEntries.length > 0) {
+        vocabContext = clusterEntries.map(c =>
+            `- ${c.topicLabel} > ${c.subtopicLabel}: ${c.phrases.slice(0, 5).map(p => `"${p}"`).join(', ')}${c.phrases.length > 5 ? ` (+${c.phrases.length - 5} more)` : ''}`
+        ).join('\n');
+    }
+
+    // Format available topics/subtopics
+    let topicList = "No defined topics yet.";
     if (existingTopics.length > 0) {
         topicList = existingTopics.map(topic =>
             topic.subtopics && topic.subtopics.length > 0
@@ -71,29 +115,40 @@ async function assignTopics(phrase: string, meaning: string, userId: string, use
     }
 
     try {
-        const prompt = `Categorize this English phrase into a topic and subtopic.
+        const prompt = `You are assigning topics for a vocabulary learning app that uses ASSOCIATION-BASED RECALL.
+Words in the same subtopic trigger each other during practice — so clustering related words together is critical.
 
-Phrase: "${phrase}"
-Meaning: ${meaning}
+RULES FOR TOPICS:
+1. Topics must be VERY GENERAL — think IELTS speaking test categories. Here are the ONLY acceptable broad topics (use these exact names or very close equivalents):
+   Technology, Health & Fitness, Education & Learning, Work & Career, Relationships & Social Life, Psychology & Mindset, Environment & Nature, Entertainment & Media, Travel & Culture, Food & Lifestyle, Money & Finance, Communication & Language, Science, Art & Creativity, Sports & Competition, Daily Life
+2. NEVER create a niche or specific topic. If something feels niche, it belongs as a SUBTOPIC under one of the broad topics above.
+3. Subtopics should be NICHE daily-life situations people actually encounter (e.g., "morning routines", "workplace feedback", "social media habits", "dealing with stress", "spending habits")
 
-EXISTING TOPICS (prefer these if they fit):
+ASSIGNMENT PRIORITY (follow this order strictly):
+1. REUSE an existing subtopic if the new phrase ASSOCIATES well with words already there (even loosely — they should trigger each other in memory)
+2. If no existing subtopic fits, ADD a new subtopic under an existing topic
+3. Only create an entirely new topic if nothing existing works at all
+
+USER'S CURRENT VOCAB BY SUBTOPIC:
+${vocabContext}
+
+AVAILABLE TOPICS & SUBTOPICS:
 ${topicList}
 
-Rules:
-1. If an existing topic/subtopic fits well, use it (provide the ID in parentheses)
-2. If no existing topic fits, you may suggest a NEW topic
-3. If a topic exists but needs a new subtopic, suggest it
-4. Keep topic names broad (e.g., "Psychology", "Science", "Entertainment")
-5. Keep subtopic names as common situations (e.g., "Giving Feedback", "Making Requests")
+NEW PHRASE: "${phrase}"
+MEANING: ${meaning}
+
+Which subtopic does this phrase best associate with? Think about what other words/phrases a learner would mentally connect with this one.
 
 Response format (JSON only):
 {
   "topic_id": "existing_or_new_id",
   "topic_label": "Display Name",
-  "subtopic_id": "existing_or_new_id", 
+  "subtopic_id": "existing_or_new_id",
   "subtopic_label": "Display Name",
   "is_new_topic": false,
-  "is_new_subtopic": false
+  "is_new_subtopic": false,
+  "reason": "brief explanation of why this subtopic fits"
 }`;
 
         const response = await fetch(XAI_URL, {
@@ -105,7 +160,7 @@ Response format (JSON only):
             body: JSON.stringify({
                 model: 'grok-4-1-fast-reasoning',
                 messages: [{ role: 'user', content: prompt }],
-                max_tokens: 200,
+                max_tokens: 300,
                 temperature: 0.3,
                 response_format: { type: 'json_object' },
             }),
@@ -130,9 +185,11 @@ Response format (JSON only):
 
         const text = data.choices?.[0]?.message?.content || '';
         const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-        const parseResult = safeParseAIJson<{ topic_id?: string; topic_label?: string; subtopic_id?: string; subtopic_label?: string; is_new_topic?: boolean; is_new_subtopic?: boolean }>(cleaned);
+        const parseResult = safeParseAIJson<{ topic_id?: string; topic_label?: string; subtopic_id?: string; subtopic_label?: string; is_new_topic?: boolean; is_new_subtopic?: boolean; reason?: string }>(cleaned);
         if (!parseResult.success) return { topic: 'daily_life' };
         const parsed = parseResult.data;
+
+        console.log(`[topic-assign] "${phrase}" → ${parsed.topic_label}/${parsed.subtopic_label} (${parsed.reason || 'no reason'})`);
 
         // Normalize IDs
         const topicId = normalizeTopicId(parsed.topic_id || parsed.topic_label || 'daily_life');
@@ -142,8 +199,6 @@ Response format (JSON only):
 
         // Check if topic exists
         const existingTopic = existingTopics.find(t => t.id === topicId);
-
-        const { setDocument, updateDocument, getDocument } = await import('@/lib/firestore-rest');
 
         if (!existingTopic && parsed.is_new_topic) {
             // Create new topic
@@ -185,6 +240,14 @@ Response format (JSON only):
         console.error('Topic assignment error:', error);
         return { topic: 'daily_life' };
     }
+}
+
+/** Recursively flatten nested arrays into a flat string[] — Firestore does not allow nested arrays */
+function flattenToStringArray(value: unknown): string[] {
+    if (!value) return [];
+    if (typeof value === 'string') return [value];
+    if (Array.isArray(value)) return value.flatMap(flattenToStringArray);
+    return [String(value)];
 }
 
 export async function POST(request: NextRequest) {
@@ -328,11 +391,13 @@ export async function POST(request: NextRequest) {
             baseForm: (baseForm || phrase).trim().toLowerCase(), // For duplicate matching
             meaning: meaning.trim(),
             context: context || '',
-            register: Array.isArray(register) ? register : [register || 'consultative'],
-            nuance: Array.isArray(nuance) ? nuance : [nuance || 'neutral'],
-            socialDistance: socialDistance || ['neutral'],
+            register: flattenToStringArray(register || 'consultative'),
+            nuance: flattenToStringArray(nuance || 'neutral'),
+            socialDistance: flattenToStringArray(socialDistance || 'neutral'),
             topic: assignedTopic,
             subtopic: assignedSubtopic,
+            topics: flattenToStringArray(topics && topics.length > 0 ? topics : (assignedTopic ? [assignedTopic] : [])),
+            subtopics: flattenToStringArray(subtopics && subtopics.length > 0 ? subtopics : (assignedSubtopic ? [assignedSubtopic] : [])),
             sourcePostId: null,
             usedForGeneration: false,
             usageCount: 0,
@@ -431,7 +496,8 @@ export async function POST(request: NextRequest) {
 
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error('Save phrase error:', errorMessage, error);
-        return NextResponse.json({ error: `Internal server error: ${errorMessage}` }, { status: 500 });
+        const errorStack = error instanceof Error ? error.stack : '';
+        console.error('Save phrase error:', errorMessage, errorStack, error);
+        return NextResponse.json({ error: `Internal server error: ${errorMessage}`, stack: errorStack }, { status: 500 });
     }
 }

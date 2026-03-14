@@ -52,13 +52,13 @@ export function TypeInInteraction({ question, onAnswer, hasAnswered, result }: I
                     disabled={hasAnswered}
                     placeholder="Type the missing word..."
                     className={cn(
-                        "w-full bg-neutral-900 border text-[14px] px-4 py-3 rounded-sm transition-all outline-none",
+                        "w-full bg-white border text-[14px] px-4 py-3 rounded-sm transition-all outline-none",
                         // Default
-                        !hasAnswered && "border-neutral-700 text-white placeholder-neutral-600 focus:border-amber-400 focus:bg-amber-400/5",
+                        !hasAnswered && "border-neutral-200 text-neutral-800 placeholder-neutral-400 focus:border-blue-400 focus:bg-blue-50/30",
                         // Correct
-                        hasAnswered && result === 'correct' && "border-emerald-400 bg-emerald-500/10 text-emerald-300",
+                        hasAnswered && result === 'correct' && "border-emerald-400 bg-emerald-50 text-emerald-700",
                         // Wrong
-                        hasAnswered && result === 'wrong' && "border-red-400/60 bg-red-500/10 text-red-300"
+                        hasAnswered && result === 'wrong' && "border-red-300 bg-red-50 text-red-700"
                     )}
                 />
 
@@ -67,7 +67,7 @@ export function TypeInInteraction({ question, onAnswer, hasAnswered, result }: I
                     <button
                         type="submit"
                         disabled={!inputValue.trim()}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-neutral-400 hover:text-amber-400 transition-colors disabled:opacity-30 disabled:hover:text-neutral-400"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-neutral-400 hover:text-neutral-800 transition-colors disabled:opacity-30 disabled:hover:text-neutral-400"
                     >
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <line x1="22" y1="2" x2="11" y2="13"></line>
@@ -83,7 +83,7 @@ export function TypeInInteraction({ question, onAnswer, hasAnswered, result }: I
                     <motion.p
                         initial={{ opacity: 0, y: -5 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="text-[12px] text-emerald-400 mt-2 ml-1"
+                        className="text-[12px] text-emerald-600 mt-2 ml-1"
                     >
                         Correct: <span className="font-medium">{correctAnswer}</span>
                     </motion.p>

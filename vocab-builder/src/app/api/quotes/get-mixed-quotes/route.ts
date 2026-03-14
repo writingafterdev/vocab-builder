@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getPersonalizedFeed } from '@/lib/db/quote-feed';
 import { queryCollection, runQuery } from '@/lib/firestore-rest';
 
-interface StoredQuote {
+interface QuoteResponse {
     id: string;
     text: string;
     postId: string;
     postTitle: string;
     author: string;
     source: string;
+    topic: string;
     highlightedPhrases: string[];
     sourceType?: 'article' | 'generated_session';
     sessionId?: string;
@@ -15,11 +17,9 @@ interface StoredQuote {
 
 export async function GET(request: NextRequest) {
     try {
-        // Secure authentication - verify Firebase ID token
+        // Secure authentication
         const { getAuthFromRequest } = await import('@/lib/firebase-admin');
         const authUser = await getAuthFromRequest(request);
-
-        // Fallback to header-based auth
         let userId = authUser?.userId;
 
         if (!userId) {
@@ -30,8 +30,41 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        // ─── 1. Fetch generated session quotes (top priority) ───
-        const generatedQuotes: StoredQuote[] = [];
+        // ─── Try personalized feed from quotes collection ───
+        const feed = await getPersonalizedFeed(userId);
+
+        // Check onboarding
+        if (feed.needsOnboarding) {
+            return NextResponse.json({
+                quotes: [],
+                needsOnboarding: true,
+            });
+        }
+
+        // If we have enough quotes in the bank, use them
+        if (feed.quotes.length >= 5) {
+            const quotes: QuoteResponse[] = feed.quotes.map(q => ({
+                id: q.id || `quote-${q.postId}-${Math.random().toString(36).slice(2, 8)}`,
+                text: q.text,
+                postId: q.postId,
+                postTitle: q.postTitle,
+                author: q.author,
+                source: q.source,
+                topic: q.topic,
+                highlightedPhrases: q.highlightedPhrases || [],
+                sourceType: q.sourceType,
+                sessionId: q.sessionId,
+            }));
+
+            return NextResponse.json({ quotes, needsOnboarding: false });
+        }
+
+        // ─── Fallback: legacy behavior (extract from posts) ───
+        // Used when quote bank is empty or too small
+        console.warn('[QuoteFeed] Quote bank too small, falling back to post extraction');
+
+        // Fetch generated session quotes (top priority)
+        const generatedQuotes: QuoteResponse[] = [];
         try {
             const genQuoteDocs = await runQuery(
                 'generatedQuotes',
@@ -50,6 +83,7 @@ export async function GET(request: NextRequest) {
                     postTitle: (doc.postTitle as string) || 'Practice Article',
                     author: 'VocabBuilder AI',
                     source: 'Practice Session',
+                    topic: 'general',
                     highlightedPhrases: (doc.highlightedPhrases as string[]) || [],
                     sourceType: 'generated_session',
                     sessionId: (doc.sessionId as string) || '',
@@ -59,25 +93,19 @@ export async function GET(request: NextRequest) {
             console.warn('Failed to fetch generated quotes (non-fatal):', genErr);
         }
 
-        // ─── 2. Fetch regular article quotes ───
+        // Fetch regular article quotes
         const allPosts = await queryCollection('posts');
-
-        // Filter to user's posts (include public + user's generated posts)
         const posts = allPosts.filter(post => {
-            // Show all non-AI posts (admin, user, rss)
             if (!post.generatedForUserId) return true;
-            // Show AI posts only if they belong to current user
             return post.generatedForUserId === userId;
         }).slice(0, 20);
 
-        const articleQuotes: StoredQuote[] = [];
+        const articleQuotes: QuoteResponse[] = [];
 
         for (const post of posts) {
-            // Prefer pre-extracted quotes from AI
             const extractedQuotes = post.extractedQuotes as string[] | undefined;
 
             if (extractedQuotes && extractedQuotes.length > 0) {
-                // Use AI-extracted quotes
                 for (const quoteText of extractedQuotes) {
                     articleQuotes.push({
                         id: `quote-${post.id}-${articleQuotes.length}`,
@@ -86,6 +114,7 @@ export async function GET(request: NextRequest) {
                         postTitle: (post.title as string) || 'Untitled',
                         author: (post.authorName as string) || 'Unknown',
                         source: (post.source as string) || 'Article',
+                        topic: (post.importTopic as string) || 'general',
                         highlightedPhrases: (post.highlightedPhrases as string[]) || [],
                         sourceType: 'article',
                     });
@@ -98,7 +127,6 @@ export async function GET(request: NextRequest) {
                     .replace(/&#\d+;/g, '')
                     .trim();
 
-                // Get first 2-3 sentences (up to 300 chars)
                 const sentences = cleanContent.match(/[^.!?]*[.!?]/g) || [];
                 let quoteText = '';
                 for (const sentence of sentences.slice(0, 2)) {
@@ -117,6 +145,7 @@ export async function GET(request: NextRequest) {
                         postTitle: (post.title as string) || 'Untitled',
                         author: (post.authorName as string) || 'Unknown',
                         source: (post.source as string) || 'Article',
+                        topic: (post.importTopic as string) || 'general',
                         highlightedPhrases: (post.highlightedPhrases as string[]) || [],
                         sourceType: 'article',
                     });
@@ -124,13 +153,10 @@ export async function GET(request: NextRequest) {
             }
         }
 
-        // Shuffle article quotes and limit
         const shuffledArticle = articleQuotes.sort(() => Math.random() - 0.5).slice(0, 12);
-
-        // Generated quotes go first, then shuffled article quotes
         const combined = [...generatedQuotes, ...shuffledArticle].slice(0, 15);
 
-        return NextResponse.json({ quotes: combined });
+        return NextResponse.json({ quotes: combined, needsOnboarding: false });
     } catch (error) {
         console.error('Error fetching quotes:', error);
         return NextResponse.json({ error: 'Failed to fetch quotes' }, { status: 500 });

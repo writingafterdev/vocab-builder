@@ -66,7 +66,7 @@ export function TapOrderInteraction({ question, onAnswer, hasAnswered, result }:
             {/* The assembled sentence area (blanks or words) */}
             <div className={cn(
                 "min-h-[44px] px-3 py-2 border-b-2 flex flex-wrap gap-1.5 items-center transition-colors",
-                !hasAnswered && "border-neutral-800",
+                !hasAnswered && "border-neutral-200",
                 hasAnswered && result === 'correct' && "border-emerald-400",
                 hasAnswered && result === 'wrong' && "border-red-400"
             )}>
@@ -79,9 +79,9 @@ export function TapOrderInteraction({ question, onAnswer, hasAnswered, result }:
                         key={`assembled-${chunkIdx}`}
                         layoutId={`chunk-${chunkIdx}`}
                         className={cn(
-                            "px-2 py-1 bg-neutral-800 rounded text-[13px] font-medium text-white",
-                            hasAnswered && result === 'correct' && "bg-emerald-500/20 text-emerald-300",
-                            hasAnswered && result === 'wrong' && "bg-red-500/20 text-red-300"
+                            "px-2 py-1 bg-neutral-100 rounded text-[13px] font-medium text-neutral-800",
+                            hasAnswered && result === 'correct' && "bg-emerald-50 text-emerald-700 border border-emerald-200",
+                            hasAnswered && result === 'wrong' && "bg-red-50 text-red-700 border border-red-200"
                         )}
                         onClick={() => handleTapChunk(chunkIdx)}
                     >
@@ -106,7 +106,7 @@ export function TapOrderInteraction({ question, onAnswer, hasAnswered, result }:
                                 exit={{ opacity: 0, scale: 0.9 }}
                                 disabled={hasAnswered}
                                 onClick={() => handleTapChunk(i)}
-                                className="px-3 py-1.5 bg-neutral-900 border border-neutral-700 rounded text-[13px] text-neutral-300 hover:border-amber-400 hover:text-amber-400 transition-colors"
+                                className="px-3 py-1.5 bg-white border border-neutral-200 rounded text-[13px] text-neutral-600 hover:border-neutral-800 hover:text-neutral-800 transition-colors"
                             >
                                 {word}
                             </motion.button>
@@ -120,7 +120,7 @@ export function TapOrderInteraction({ question, onAnswer, hasAnswered, result }:
                 <motion.p
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className="text-[12px] text-emerald-400"
+                    className="text-[12px] text-emerald-600"
                 >
                     Correct: <span className="font-medium">{correctAnswer}</span>
                 </motion.p>

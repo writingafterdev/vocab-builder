@@ -58,15 +58,15 @@ export function EmojiReactionInteraction({ question, onAnswer, hasAnswered }: In
                         className={cn(
                             "flex-1 flex flex-col items-center justify-center p-3 border transition-all duration-200 rounded-lg group max-w-[100px]",
                             // Default
-                            !showResult && !isSelected && "border-neutral-800 bg-neutral-900/50 hover:border-amber-400 hover:bg-neutral-900",
+                            !showResult && !isSelected && "border-neutral-200 bg-white hover:border-neutral-400 hover:bg-neutral-50",
                             // Selected but not answered
-                            !showResult && isSelected && "border-amber-400 bg-amber-400/10",
+                            !showResult && isSelected && "border-neutral-800 bg-neutral-100",
                             // Correct
-                            showResult && isCorrect && "border-emerald-400 bg-emerald-500/15",
+                            showResult && isCorrect && "border-emerald-400 bg-emerald-50",
                             // Wrong (selected)
-                            showResult && isSelected && !isCorrect && "border-red-400/60 bg-red-500/10",
+                            showResult && isSelected && !isCorrect && "border-red-300 bg-red-50",
                             // Unselected after answer
-                            showResult && !isSelected && !isCorrect && "border-neutral-900 bg-neutral-950 opacity-40",
+                            showResult && !isSelected && !isCorrect && "border-neutral-100 bg-white opacity-40",
                         )}
                     >
                         <span className={cn(
@@ -78,9 +78,9 @@ export function EmojiReactionInteraction({ question, onAnswer, hasAnswered }: In
                         </span>
                         <span className={cn(
                             "text-[10px] leading-tight text-center font-medium line-clamp-2 px-1",
-                            showResult && isCorrect ? "text-emerald-300" :
-                            showResult && isSelected && !isCorrect ? "text-red-300" :
-                            "text-neutral-400"
+                            showResult && isCorrect ? "text-emerald-700" :
+                            showResult && isSelected && !isCorrect ? "text-red-700" :
+                            "text-neutral-500"
                         )}>
                             {text}
                         </span>

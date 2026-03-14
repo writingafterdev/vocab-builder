@@ -3,14 +3,15 @@
  * Replaces Firebase SDK calls which don't work in Workers due to eval() restrictions
  */
 
-const FIREBASE_PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
-const FIREBASE_API_KEY = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
-const FIRESTORE_BASE_URL = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents`;
+function getFirebaseProjectId() { return process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID; }
+function getFirebaseApiKey() { return process.env.NEXT_PUBLIC_FIREBASE_API_KEY; }
+function getFirestoreBaseUrl() { return `https://firestore.googleapis.com/v1/projects/${getFirebaseProjectId()}/databases/(default)/documents`; }
 
 /** Append API key to a URL string for authenticated REST access */
 function withKey(url: string): string {
     const separator = url.includes('?') ? '&' : '?';
-    return FIREBASE_API_KEY ? `${url}${separator}key=${FIREBASE_API_KEY}` : url;
+    const apiKey = getFirebaseApiKey();
+    return apiKey ? `${url}${separator}key=${apiKey}` : url;
 }
 
 interface FirestoreValue {
@@ -113,7 +114,7 @@ export async function addDocument(
         fields[key] = toFirestoreValue(value);
     }
 
-    const response = await fetch(withKey(`${FIRESTORE_BASE_URL}/${collectionPath}`), {
+    const response = await fetch(withKey(`${getFirestoreBaseUrl()}/${collectionPath}`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fields }),
@@ -136,7 +137,7 @@ export async function getDocument(
     collectionPath: string,
     documentId: string
 ): Promise<(Record<string, unknown> & { id: string }) | null> {
-    const response = await fetch(withKey(`${FIRESTORE_BASE_URL}/${collectionPath}/${documentId}`));
+    const response = await fetch(withKey(`${getFirestoreBaseUrl()}/${collectionPath}/${documentId}`));
 
     if (response.status === 404) {
         return null;
@@ -174,7 +175,7 @@ export async function updateDocument(
         updateMask.push(key);
     }
 
-    const url = new URL(`${FIRESTORE_BASE_URL}/${collectionPath}/${documentId}`);
+    const url = new URL(`${getFirestoreBaseUrl()}/${collectionPath}/${documentId}`);
     updateMask.forEach(field => url.searchParams.append('updateMask.fieldPaths', field));
 
     const response = await fetch(withKey(url.toString()), {
@@ -203,7 +204,7 @@ export async function setDocument(
         fields[key] = toFirestoreValue(value);
     }
 
-    const response = await fetch(withKey(`${FIRESTORE_BASE_URL}/${collectionPath}/${documentId}`), {
+    const response = await fetch(withKey(`${getFirestoreBaseUrl()}/${collectionPath}/${documentId}`), {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fields }),
@@ -223,7 +224,7 @@ export async function deleteDocument(
     collectionPath: string,
     documentId: string
 ): Promise<void> {
-    const response = await fetch(withKey(`${FIRESTORE_BASE_URL}/${collectionPath}/${documentId}`), {
+    const response = await fetch(withKey(`${getFirestoreBaseUrl()}/${collectionPath}/${documentId}`), {
         method: 'DELETE',
     });
 
@@ -248,7 +249,7 @@ export async function queryCollection(
     // For simple queries, use REST API
     // Complex queries would need the runQuery endpoint
 
-    const url = new URL(`${FIRESTORE_BASE_URL}/${collectionPath}`);
+    const url = new URL(`${getFirestoreBaseUrl()}/${collectionPath}`);
     if (options?.limit) {
         url.searchParams.set('pageSize', options.limit.toString());
     }
@@ -316,8 +317,8 @@ export async function runQuery(
 
     // Build the URL - if there's a parent path, include it
     const baseUrl = parentPath
-        ? `${FIRESTORE_BASE_URL}/${parentPath}:runQuery`
-        : `${FIRESTORE_BASE_URL}:runQuery`;
+        ? `${getFirestoreBaseUrl()}/${parentPath}:runQuery`
+        : `${getFirestoreBaseUrl()}:runQuery`;
 
     const response = await fetch(withKey(baseUrl), {
         method: 'POST',

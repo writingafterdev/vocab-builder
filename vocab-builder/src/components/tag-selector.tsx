@@ -113,13 +113,8 @@ export function TagSelector({
                     <span className="text-[10px] text-slate-400 w-16 uppercase tracking-wider font-semibold">Topic:</span>
                     <div className="flex flex-wrap gap-1">
                         <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-indigo-100 text-indigo-700">
-                            {formatLabel(primaryTopic)}
+                            {formatLabel(primaryTopic)}{primarySubtopic ? ` / ${formatLabel(primarySubtopic)}` : ''}
                         </span>
-                        {primarySubtopic && (
-                            <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-violet-100 text-violet-700">
-                                {formatLabel(primarySubtopic)}
-                            </span>
-                        )}
                     </div>
                 </div>
 

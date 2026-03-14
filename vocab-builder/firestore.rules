@@ -186,6 +186,14 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    match /quotes/{quoteId} {
+      allow read, write: if true;
+    }
+
+    match /quote_feed_state/{stateId} {
+      allow read, write: if true;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

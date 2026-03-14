@@ -69,12 +69,12 @@ export function HighlightErrorInteraction({ question, onAnswer, hasAnswered, res
             {/* Phase 1: The Sentence with Tappable Words */}
             <div className={cn(
                 "p-4 border-2 rounded-lg transition-colors leading-[1.8]",
-                phase === 'select_error' ? "border-amber-400/50 bg-amber-400/5" : "border-neutral-800 bg-neutral-900/50",
-                hasAnswered && result === 'correct' && "border-emerald-400 bg-emerald-500/10",
-                hasAnswered && result === 'wrong' && "border-red-400 bg-red-500/10"
+                phase === 'select_error' ? "border-blue-300 bg-blue-50/50" : "border-neutral-200 bg-neutral-50",
+                hasAnswered && result === 'correct' && "border-emerald-400 bg-emerald-50",
+                hasAnswered && result === 'wrong' && "border-red-300 bg-red-50"
             )}>
                 {phase === 'select_error' && !hasAnswered && (
-                    <div className="text-[11px] text-amber-400 uppercase tracking-widest mb-3 font-semibold">
+                    <div className="text-[11px] text-blue-500 uppercase tracking-widest mb-3 font-semibold">
                         Tap the incorrect word/phrase:
                     </div>
                 )}
@@ -87,8 +87,8 @@ export function HighlightErrorInteraction({ question, onAnswer, hasAnswered, res
                             onClick={() => handleWordTap(i)}
                             className={cn(
                                 "px-1 rounded transition-colors text-[15px] font-serif",
-                                selectedWordIdx === i ? "bg-amber-400 text-neutral-950 font-medium scale-110 shadow-lg z-10" : 
-                                "hover:bg-neutral-800 hover:text-amber-400 text-neutral-300"
+                                selectedWordIdx === i ? "bg-blue-500 text-white font-medium scale-110 shadow-lg z-10" : 
+                                "hover:bg-neutral-100 hover:text-blue-500 text-neutral-700"
                             )}
                         >
                             {w}
@@ -104,7 +104,7 @@ export function HighlightErrorInteraction({ question, onAnswer, hasAnswered, res
                     animate={{ opacity: 1, y: 0 }}
                     className="flex flex-col gap-1.5"
                 >
-                    <div className="text-[11px] text-amber-400 uppercase tracking-widest mb-1 font-semibold text-center">
+                    <div className="text-[11px] text-blue-500 uppercase tracking-widest mb-1 font-semibold text-center">
                         Select the correct fix:
                     </div>
                     {options.map((option, i) => {
@@ -119,9 +119,9 @@ export function HighlightErrorInteraction({ question, onAnswer, hasAnswered, res
                                 disabled={hasAnswered}
                                 className={cn(
                                     "w-full text-left text-[13px] leading-snug px-4 py-2 border transition-all duration-200 rounded-sm",
-                                    !showResult && "border-neutral-700 text-neutral-300 hover:border-amber-400 hover:text-amber-400 hover:bg-neutral-900",
-                                    showResult && isCorrect && "border-emerald-400 bg-emerald-500/15 text-emerald-300",
-                                    showResult && !isCorrect && "border-red-400/60 bg-red-500/10 text-red-300 opacity-50",
+                                    !showResult && "border-neutral-200 text-neutral-700 hover:border-neutral-400 hover:text-neutral-800 hover:bg-neutral-50",
+                                    showResult && isCorrect && "border-emerald-400 bg-emerald-50 text-emerald-800",
+                                    showResult && !isCorrect && "border-red-300 bg-red-50 text-red-700 opacity-50",
                                 )}
                             >
                                 {option}

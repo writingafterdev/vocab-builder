@@ -224,6 +224,7 @@ export interface ExtractedPhrase {
     nuance?: Nuance; // Sentiment (new)
     topics?: string[];
     topic?: string; // Primary topic (for conditional highlighting)
+    subtopic?: string;
     isHighFrequency?: boolean; // True for generic high-freq words
     commonUsages?: CommonUsage[];
 }

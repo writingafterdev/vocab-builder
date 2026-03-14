@@ -40,6 +40,7 @@ interface VocabPopupState {
     contextTranslation?: string;
     pronunciation?: string;
     topic?: string | string[];
+    subtopic?: string;
     isHighFrequency?: boolean;
 }
 
@@ -266,6 +267,7 @@ export function ArticleReadingMode({
                 context: context || undefined,
                 pronunciation: undefined,
                 topic: levelVocab?.topic || phraseData?.topic || phraseData?.topics || vocabData?.topic,
+                subtopic: levelVocab?.subtopic || phraseData?.subtopic || vocabData?.subtopic,
                 isHighFrequency: levelVocab?.isHighFrequency || phraseData?.isHighFrequency,
             });
 
@@ -302,6 +304,7 @@ export function ArticleReadingMode({
                             contextTranslation: result.contextTranslation,
                             pronunciation: result.pronunciation,
                             topic: result.topic,
+                            subtopic: result.subtopic,
                             isHighFrequency: result.isHighFrequency,
                         }
                         : prev
@@ -332,6 +335,9 @@ export function ArticleReadingMode({
                     meaning: vocabPopup.meaning,
                     context: vocabPopup.context || '',
                     register: vocabPopup.register || 'consultative',
+                    nuance: vocabPopup.nuance,
+                    topics: vocabPopup.topic ? (Array.isArray(vocabPopup.topic) ? vocabPopup.topic : [vocabPopup.topic]) : [],
+                    subtopics: vocabPopup.subtopic ? (Array.isArray(vocabPopup.subtopic) ? vocabPopup.subtopic : [vocabPopup.subtopic]) : [],
                 }),
             });
 
@@ -520,6 +526,7 @@ export function ArticleReadingMode({
                         contextTranslation={vocabPopup.contextTranslation}
                         pronunciation={vocabPopup.pronunciation}
                         topic={vocabPopup.topic}
+                        subtopic={vocabPopup.subtopic}
                         isHighFrequency={vocabPopup.isHighFrequency}
                         bounceKey={bounceKey}
                         onSave={handleSavePhrase}

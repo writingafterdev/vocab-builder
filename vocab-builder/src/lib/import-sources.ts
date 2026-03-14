@@ -451,6 +451,24 @@ export async function processArticlePipeline(
         steps.audio = 'failed';
     }
 
+    // 6. Extract quotes (Grok) → extractedQuotes + standalone quotes collection
+    try {
+        const { extractAndSaveQuotes } = await import('@/lib/quote-extraction');
+        // Fetch post metadata for author/source/topic
+        const postDoc = await getDocument('posts', postId);
+        const postAuthor = (postDoc?.authorName as string) || 'Unknown';
+        const postSource = (postDoc?.source as string) || 'Article';
+        const postTopic = (postDoc?.importTopic as string) || detectedTopic?.toLowerCase() || 'general';
+
+        const quotes = await extractAndSaveQuotes(
+            postId, content, title, postTopic, postAuthor, postSource
+        );
+        steps.extractQuotes = quotes.length > 0 ? 'success' : 'failed';
+    } catch (extractErr) {
+        console.error(`[Pipeline] Quote extraction failed for ${postId}:`, extractErr);
+        steps.extractQuotes = 'failed';
+    }
+
     // Mark as completed
     await updateDocument('posts', postId, {
         processingStatus: 'completed',

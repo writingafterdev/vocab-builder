@@ -59,11 +59,11 @@ export function TimedMcqInteraction({ question, onAnswer, hasAnswered }: Interac
     return (
         <div className="mt-3 flex flex-col gap-1.5 relative">
             {/* Timer Bar */}
-            <div className="absolute -top-3 left-0 right-0 h-1 bg-neutral-900 overflow-hidden rounded-full">
+            <div className="absolute -top-3 left-0 right-0 h-1 bg-neutral-200 overflow-hidden rounded-full">
                 <motion.div 
                     className={cn(
                         "h-full",
-                        isUrgent ? "bg-red-500" : "bg-amber-400"
+                        isUrgent ? "bg-red-500" : "bg-blue-400"
                     )}
                     initial={{ width: '100%' }}
                     animate={{ width: `${progressPct}%` }}
@@ -85,15 +85,15 @@ export function TimedMcqInteraction({ question, onAnswer, hasAnswered }: Interac
                         className={cn(
                             "w-full text-left text-[13px] leading-snug px-4 py-2.5 border transition-all duration-200 rounded-sm relative overflow-hidden",
                             // Default
-                            !showResult && !isSelected && "border-neutral-700 text-neutral-300 hover:border-neutral-500 hover:bg-white/5",
+                            !showResult && !isSelected && "border-neutral-200 text-neutral-700 hover:border-neutral-400 hover:bg-neutral-50",
                             // Selected but not answered
-                            !showResult && isSelected && "border-amber-400 bg-amber-400/10 text-white",
+                            !showResult && isSelected && "border-neutral-800 bg-neutral-900 text-white",
                             // Correct
-                            showResult && isCorrect && "border-emerald-400 bg-emerald-500/15 text-emerald-300",
+                            showResult && isCorrect && "border-emerald-400 bg-emerald-50 text-emerald-800",
                             // Wrong (selected)
-                            showResult && isSelected && !isCorrect && "border-red-400/60 bg-red-500/10 text-red-300",
+                            showResult && isSelected && !isCorrect && "border-red-300 bg-red-50 text-red-700",
                             // Unselected after answer
-                            showResult && !isSelected && !isCorrect && "border-neutral-800 text-neutral-600",
+                            showResult && !isSelected && !isCorrect && "border-neutral-100 text-neutral-300",
                         )}
                     >
                         {option}

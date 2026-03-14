@@ -9,6 +9,7 @@ import { useVocabHighlighter } from '@/components/article/useVocabHighlighter';
 import { VocabPopupCard } from '@/components/article/VocabPopupCard';
 import { EditorialLoader } from '@/components/ui/editorial-loader';
 import { QuizCard } from '@/components/exercise/QuizCard';
+import { TopicPicker } from '@/components/quotes/TopicPicker';
 import { cn } from '@/lib/utils';
 import type { InlineQuestion } from '@/lib/db/types';
 
@@ -95,14 +96,20 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
     const [activeIndex, setActiveIndex] = useState(0);
     const [savedQuotes, setSavedQuotes] = useState<Set<string>>(new Set());
     const [phase, setPhase] = useState<'idle' | 'sending-to-back'>('idle');
+    const [needsOnboarding, setNeedsOnboarding] = useState(false);
     const isAnimating = useRef(false);
     const cardStackRef = useRef<HTMLDivElement>(null);
+
+    // View tracking: buffer IDs and flush every 5 swipes or on unmount
+    const viewedBufferRef = useRef<string[]>([]);
+    const FLUSH_EVERY = 5;
 
     // Smart Injection state
     const quizQueueRef = useRef<any[]>([]);
     const targetQuizSwipesRef = useRef<Set<number>>(new Set());
     const totalSwipesRef = useRef(0);
     const quizzesInjectedRef = useRef(false);
+    const vocabPopupPhraseRef = useRef<string | null>(null);
 
     // Vocab popup state
     const [vocabPopup, setVocabPopup] = useState<{
@@ -114,6 +121,7 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
         contextTranslation?: string;
         pronunciation?: string;
         topic?: string | string[];
+        subtopic?: string;
         isHighFrequency?: boolean;
     } | null>(null);
     const [bounceKey, setBounceKey] = useState(0);
@@ -126,6 +134,44 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
     // Drag tracking for the top card
     const dragX = useMotionValue(0);
     const dragRotate = useTransform(dragX, [-200, 0, 200], [-8, 0, 8]);
+
+    // Flush viewed buffer to API
+    const flushViewedBuffer = useCallback(async (topicBoost?: string) => {
+        const ids = [...viewedBufferRef.current];
+        if (ids.length === 0 && !topicBoost) return;
+        viewedBufferRef.current = [];
+
+        try {
+            const { initializeFirebase } = await import('@/lib/firebase');
+            const { auth } = await initializeFirebase();
+            const token = auth?.currentUser ? await auth.currentUser.getIdToken() : null;
+            await fetch('/api/quotes/mark-viewed', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+                    'x-user-id': userId,
+                },
+                body: JSON.stringify({
+                    quoteIds: ids,
+                    boostTopicName: topicBoost,
+                }),
+            });
+        } catch (err) {
+            console.error('[ViewTracking] Flush failed:', err);
+            // Put IDs back in buffer
+            viewedBufferRef.current = [...ids, ...viewedBufferRef.current];
+        }
+    }, [userId]);
+
+    // Flush on unmount
+    useEffect(() => {
+        return () => {
+            if (viewedBufferRef.current.length > 0) {
+                flushViewedBuffer();
+            }
+        };
+    }, [flushViewedBuffer]);
 
     useEffect(() => {
         let cancelled = false;
@@ -149,6 +195,14 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
                 if (!cancelled) {
                     if (quotesRes.ok) {
                         const data = await quotesRes.json();
+
+                        // Handle onboarding
+                        if (data.needsOnboarding) {
+                            setNeedsOnboarding(true);
+                            setLoading(false);
+                            return;
+                        }
+
                         const fetchedQuotes = data.quotes || [];
                         setDeck(fetchedQuotes.map((q: any) => ({
                             id: q.id,
@@ -208,6 +262,16 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
     const sendToBack = () => {
         if (isAnimating.current || deck.length <= 1) return;
         isAnimating.current = true;
+
+        // Track viewed quote
+        const currentItem = deck[activeIndex];
+        if (currentItem?.type === 'quote' && currentItem.id) {
+            viewedBufferRef.current.push(currentItem.id);
+            // Flush every N swipes
+            if (viewedBufferRef.current.length >= FLUSH_EVERY) {
+                flushViewedBuffer();
+            }
+        }
 
         // Reset drag position
         animate(dragX, 0, { duration: 0.1 });
@@ -300,7 +364,13 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
                 body: JSON.stringify({ quote: quoteToSave }),
             });
 
-            if (!res.ok) {
+            if (res.ok) {
+                // Boost topic on save (❤️ = "more like this")
+                const quoteTopic = (quote as any).topic;
+                if (quoteTopic) {
+                    flushViewedBuffer(quoteTopic);
+                }
+            } else {
                 const data = await res.json();
                 import('sonner').then(({ toast }) => toast.error(data.error || 'Failed to save quote'));
                 // Revert state
@@ -431,6 +501,7 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
                         contextTranslation: result.contextTranslation,
                         pronunciation: result.pronunciation,
                         topic: result.topic,
+                        subtopic: result.subtopic,
                         isHighFrequency: result.isHighFrequency,
                     };
                 });
@@ -450,6 +521,9 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
                     meaning: vocabPopup.meaning,
                     context: vocabPopup.context || '',
                     register: vocabPopup.register || 'consultative',
+                    nuance: vocabPopup.nuance,
+                    topics: vocabPopup.topic ? (Array.isArray(vocabPopup.topic) ? vocabPopup.topic : [vocabPopup.topic]) : undefined,
+                    subtopics: vocabPopup.subtopic ? [vocabPopup.subtopic] : undefined,
                 }),
             });
             if (res.ok) {
@@ -471,6 +545,21 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
             <div className="w-full py-20 flex items-center justify-center">
                 <EditorialLoader size="sm" />
             </div>
+        );
+    }
+
+    // Show topic picker onboarding if needed
+    if (needsOnboarding) {
+        return (
+            <TopicPicker
+                userId={userId}
+                onComplete={() => {
+                    setNeedsOnboarding(false);
+                    setLoading(true);
+                    // Re-fetch quotes with the new preferences
+                    window.location.reload();
+                }}
+            />
         );
     }
 
@@ -649,6 +738,7 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
                         contextTranslation={vocabPopup.contextTranslation}
                         pronunciation={vocabPopup.pronunciation}
                         topic={vocabPopup.topic}
+                        subtopic={vocabPopup.subtopic}
                         isHighFrequency={vocabPopup.isHighFrequency}
                         bounceKey={bounceKey}
                         onSave={handleSavePhrase}

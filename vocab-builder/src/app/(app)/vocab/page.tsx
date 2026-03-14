@@ -65,6 +65,7 @@ interface Phrase {
     retired: boolean;
     topics?: TopicValue[];
     topic?: string;
+    subtopics?: string[];
     subtopic?: string;
     children?: ChildExpression[];
     register?: 'casual' | 'consultative' | 'formal';
@@ -81,9 +82,19 @@ function getStatus(showCount: number): 'new' | 'reviewing' | 'mastered' {
     return 'reviewing';
 }
 
-function formatTopicLabel(topic: string): string {
-    const labels: Record<string, string> = { daily_life: 'Daily Life' };
-    return labels[topic] || topic.charAt(0).toUpperCase() + topic.slice(1).replace(/_/g, ' ');
+function formatTopicLabel(topic: string | string[], subtopic?: string | string[]): string {
+    const labels: Record<string, string> = { daily_life: 'Daily Life', high_frequency: 'High Frequency', pending_ai: 'Pending AI Analysis' };
+    const topicStr = Array.isArray(topic) ? topic[0] : topic;
+    const formattedTopic = topicStr ? (labels[topicStr] || topicStr.charAt(0).toUpperCase() + topicStr.slice(1).replace(/_/g, ' ')) : '';
+    
+    if (subtopic && topicStr !== 'pending_ai') {
+        const subStr = Array.isArray(subtopic) ? subtopic[0] : subtopic;
+        if (subStr) {
+            const formattedSubtopic = labels[subStr] || subStr.charAt(0).toUpperCase() + subStr.slice(1).replace(/_/g, ' ');
+            return `${formattedTopic} / ${formattedSubtopic}`;
+        }
+    }
+    return formattedTopic;
 }
 
 function getTopicColor(topic: string): string {
@@ -168,20 +179,33 @@ function VocabCard({
                     </button>
                 </div>
 
-                {/* Badges: topic + register + status */}
                 <div className="flex items-center gap-2 mb-4 flex-wrap">
-                    {primaryTopic && (
-                        <span className={`px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] font-bold text-white ${getTopicColor(primaryTopic)}`}>
-                            {formatTopicLabel(primaryTopic)}
-                        </span>
-                    )}
-                    {phrase.register && (
-                        (Array.isArray(phrase.register) ? phrase.register : [phrase.register]).filter(Boolean).map(r => (
-                            <span key={r} className={`px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] font-bold text-white ${r === 'casual' ? 'bg-green-600' : r === 'formal' ? 'bg-violet-600' : 'bg-blue-600'}`}>
-                                {r}
-                            </span>
-                        ))
-                    )}
+                    {(() => {
+                        const allTopics = phrase.topics?.length ? phrase.topics : (phrase.topic ? [phrase.topic] : []);
+                        const primaryTopic = allTopics[0];
+                        const extraTopicCount = allTopics.length - 1;
+                        const allRegisters = phrase.register ? (Array.isArray(phrase.register) ? phrase.register : [phrase.register]).filter(Boolean) : [];
+                        const primaryRegister = allRegisters[0];
+                        return (
+                            <>
+                                {primaryTopic && (
+                                    <span className={`px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] font-bold text-white ${getTopicColor(primaryTopic)}`}>
+                                        {formatTopicLabel(primaryTopic, phrase.subtopics?.[0] || (primaryTopic === phrase.topic ? phrase.subtopic : undefined))}
+                                    </span>
+                                )}
+                                {extraTopicCount > 0 && (
+                                    <span className="px-1.5 py-0.5 text-[10px] tracking-[0.05em] font-medium text-neutral-400 bg-neutral-100 rounded">
+                                        +{extraTopicCount}
+                                    </span>
+                                )}
+                                {primaryRegister && (
+                                    <span className={`px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] font-bold text-white ${primaryRegister === 'casual' ? 'bg-green-600' : primaryRegister === 'formal' ? 'bg-violet-600' : 'bg-blue-600'}`}>
+                                        {primaryRegister}
+                                    </span>
+                                )}
+                            </>
+                        );
+                    })()}
                     <span className={`px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] font-bold ${getStatusStyle(status)}`}>
                         {status === 'mastered' ? 'Mastered' : status === 'reviewing' ? 'Reviewing' : 'New'}
                     </span>
@@ -327,13 +351,7 @@ function DetailModal({
                                     )}
                                     <SpeakButton text={phrase.phrase} />
                                 </div>
-                                {/* Badges */}
                                 <div className="flex items-center gap-2 mt-2">
-                                    {(phrase.topics?.length ? phrase.topics : (phrase.topic ? [phrase.topic] : [])).map(t => (
-                                        <span key={t} className={`px-2 py-0.5 text-[9px] uppercase tracking-[0.1em] font-bold text-white ${getTopicColor(t)}`}>
-                                            {formatTopicLabel(t)}
-                                        </span>
-                                    ))}
                                     <span className={`px-2 py-0.5 text-[9px] uppercase tracking-[0.1em] font-bold ${getStatusStyle(status)}`}>
                                         {status === 'mastered' ? 'Mastered' : status === 'reviewing' ? 'Reviewing' : 'New'}
                                     </span>
@@ -371,7 +389,7 @@ function DetailModal({
                                         rows={3}
                                     />
                                 ) : (
-                                    <p className="text-[15px] text-neutral-600 leading-relaxed italic" style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}>
+                                    <p className="text-[15px] text-neutral-800 leading-relaxed bg-amber-50/60 px-4 py-3 border-l-[3px] border-amber-300/70 rounded-r" style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}>
                                         {phrase.meaning}
                                     </p>
                                 )}
@@ -470,9 +488,9 @@ function DetailModal({
                                     </div>
                                 ) : (
                                     <div className="flex flex-wrap gap-1.5">
-                                        {(phrase.topics?.length ? phrase.topics : (phrase.topic ? [phrase.topic] : [])).length > 0 ? (phrase.topics?.length ? phrase.topics : [phrase.topic!]).map(t => (
+                                        {(phrase.topics?.length ? phrase.topics : (phrase.topic ? [phrase.topic] : [])).length > 0 ? (phrase.topics?.length ? phrase.topics : [phrase.topic!]).map((t, idx) => (
                                             <span key={t} className={`px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] font-bold text-white ${getTopicColor(t)}`}>
-                                                {formatTopicLabel(t)}
+                                                {formatTopicLabel(t, phrase.subtopics?.[idx] || (t === phrase.topic ? phrase.subtopic : undefined))}
                                             </span>
                                         )) : <span className="text-sm text-neutral-400 italic">No topics</span>}
                                     </div>
@@ -483,7 +501,7 @@ function DetailModal({
                             {phrase.context && (
                                 <div>
                                     <label className="text-[10px] uppercase tracking-[0.15em] text-neutral-400 font-bold block mb-2">Context</label>
-                                    <p className="text-sm text-neutral-500 italic leading-relaxed border-l-2 border-neutral-200 pl-4">
+                                    <p className="text-[13px] text-neutral-400 italic leading-relaxed border-l-2 border-neutral-200 pl-4">
                                         &ldquo;{phrase.context}&rdquo;
                                     </p>
                                 </div>
@@ -580,6 +598,8 @@ export default function VocabBankPage() {
                     retired: (sp.usageCount || 0) >= 6,
                     topics: (sp.topics as TopicValue[] | undefined)?.length ? sp.topics as TopicValue[] : ((sp as any).topic ? [(sp as any).topic] : undefined),
                     topic: (sp as any).topic,
+                    subtopics: (sp as any).subtopics || ((sp as any).subtopic ? [(sp as any).subtopic] : undefined),
+                    subtopic: (sp as any).subtopic,
                     children: (sp as { children?: ChildExpression[] }).children,
                     register: (sp as any).register ||
                         ((sp as any).usage === 'spoken' ? 'casual' :

@@ -13,6 +13,7 @@ interface VocabPopupCardProps {
     contextTranslation?: string;
     pronunciation?: string;
     topic?: string | string[];
+    subtopic?: string | string[];
     isHighFrequency?: boolean;
     bounceKey?: number;
     onSave: () => void;
@@ -45,6 +46,7 @@ export function VocabPopupCard({
     context,
     pronunciation,
     topic,
+    subtopic,
     isHighFrequency,
     bounceKey = 0,
     onSave,
@@ -58,6 +60,8 @@ export function VocabPopupCard({
     const registers = toArray(register);
     const nuances = toArray(nuance);
     const topics = toArray(topic);
+    const subtopics = toArray(subtopic);
+    const primarySubtopic = subtopics[0];
     const hasDetails = context || registers.length > 0 || nuances.length > 0 || topics.length > 0;
 
     // Reset expanded state when phrase changes
@@ -143,7 +147,7 @@ export function VocabPopupCard({
                                     <div className="px-5 py-2 flex flex-wrap gap-1.5">
                                         {registers.map(r => (
                                             <span key={r} className="text-[9px] uppercase tracking-wider font-bold text-neutral-600 bg-neutral-100 px-2 py-0.5">
-                                                REG. {r.toUpperCase()}
+                                                REG. {typeof r === 'string' ? r.toUpperCase() : ''}
                                             </span>
                                         ))}
                                         {nuances.map(n => (
@@ -172,9 +176,21 @@ export function VocabPopupCard({
                                 {/* Topics */}
                                 {topics.length > 0 && (
                                     <div className="px-5 py-2 flex flex-wrap gap-1.5">
-                                        {topics.map(t => (
-                                            <span key={t} className="text-[9px] uppercase tracking-wider font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5">{t}</span>
-                                        ))}
+                                        {topics.map((t, idx) => {
+                                            if (typeof t !== 'string') return null;
+                                            if (t === 'pending_ai') {
+                                                return (
+                                                    <span key={idx} className="text-[9px] uppercase tracking-wider font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5">
+                                                        PENDING AI ANALYSIS
+                                                    </span>
+                                                );
+                                            }
+                                            return (
+                                                <span key={idx} className="text-[9px] uppercase tracking-wider font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5">
+                                                    {t.toUpperCase()}{idx === 0 && primarySubtopic && typeof primarySubtopic === 'string' ? ` / ${primarySubtopic.toUpperCase()}` : ''}
+                                                </span>
+                                            );
+                                        })}
                                     </div>
                                 )}
                             </motion.div>

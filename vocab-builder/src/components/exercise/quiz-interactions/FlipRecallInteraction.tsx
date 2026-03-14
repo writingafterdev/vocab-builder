@@ -54,12 +54,12 @@ export function FlipRecallInteraction({ question, onAnswer, hasAnswered }: Inter
                         exit={{ rotateX: 90, opacity: 0 }}
                         transition={{ duration: 0.3 }}
                         onClick={() => setIsFlipped(true)}
-                        className="w-full h-full border border-neutral-700 bg-neutral-900 rounded-md flex flex-col items-center justify-center gap-3 hover:border-amber-400 hover:bg-white/5 transition-all group"
+                        className="w-full h-full border border-neutral-200 bg-white rounded-md flex flex-col items-center justify-center gap-3 hover:border-neutral-400 hover:bg-neutral-50 transition-all group"
                     >
-                        <span className="text-xl font-medium text-white px-6 text-center" style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}>
+                        <span className="text-xl font-medium text-neutral-800 px-6 text-center" style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}>
                             {question.phrase}
                         </span>
-                        <span className="text-[11px] text-neutral-500 uppercase tracking-widest group-hover:text-amber-400/70 transition-colors">
+                        <span className="text-[11px] text-neutral-400 uppercase tracking-widest group-hover:text-neutral-600 transition-colors">
                             Tap to reveal meaning
                         </span>
                     </motion.button>
@@ -69,23 +69,23 @@ export function FlipRecallInteraction({ question, onAnswer, hasAnswered }: Inter
                         initial={{ rotateX: -90, opacity: 0 }}
                         animate={{ rotateX: 0, opacity: 1 }}
                         transition={{ duration: 0.3 }}
-                        className="w-full h-full border border-neutral-800 bg-neutral-900/50 rounded-md flex flex-col"
+                        className="w-full h-full border border-neutral-200 bg-neutral-50 rounded-md flex flex-col"
                     >
                         {/* Meaning Area */}
-                        <div className="flex-1 flex items-center justify-center px-6 text-center border-b border-neutral-800">
-                            <p className="text-[14px] text-neutral-300 leading-relaxed">
+                        <div className="flex-1 flex items-center justify-center px-6 text-center border-b border-neutral-200">
+                            <p className="text-[14px] text-neutral-600 leading-relaxed">
                                 {meaning}
                             </p>
                         </div>
                         
                         {/* Self-Rating Buttons */}
-                        <div className="h-[48px] flex divide-x divide-neutral-800">
+                        <div className="h-[48px] flex divide-x divide-neutral-200">
                             <button
                                 disabled={hasAnswered}
                                 onClick={() => handleRate('clueless')}
                                 className={cn(
                                     "flex-1 text-[12px] font-medium transition-colors duration-200",
-                                    !hasAnswered ? "text-neutral-500 hover:text-red-400 hover:bg-red-500/10" : "text-neutral-600 opacity-50"
+                                    !hasAnswered ? "text-neutral-400 hover:text-red-500 hover:bg-red-50" : "text-neutral-300 opacity-50"
                                 )}
                             >
                                 No Clue
@@ -95,7 +95,7 @@ export function FlipRecallInteraction({ question, onAnswer, hasAnswered }: Inter
                                 onClick={() => handleRate('fuzzy')}
                                 className={cn(
                                     "flex-1 text-[12px] font-medium transition-colors duration-200",
-                                    !hasAnswered ? "text-neutral-500 hover:text-amber-400 hover:bg-amber-400/10" : "text-neutral-600 opacity-50"
+                                    !hasAnswered ? "text-neutral-400 hover:text-amber-500 hover:bg-amber-50" : "text-neutral-300 opacity-50"
                                 )}
                             >
                                 Fuzzy
@@ -105,7 +105,7 @@ export function FlipRecallInteraction({ question, onAnswer, hasAnswered }: Inter
                                 onClick={() => handleRate('perfect')}
                                 className={cn(
                                     "flex-1 text-[12px] font-medium transition-colors duration-200",
-                                    !hasAnswered ? "text-neutral-500 hover:text-emerald-400 hover:bg-emerald-500/10" : "text-neutral-600 opacity-50"
+                                    !hasAnswered ? "text-neutral-400 hover:text-emerald-500 hover:bg-emerald-50" : "text-neutral-300 opacity-50"
                                 )}
                             >
                                 Knew It
