@@ -11,6 +11,7 @@ import {
 import { EditorialLoader } from '@/components/ui/editorial-loader';
 import { toast } from 'sonner';
 import Link from 'next/link';
+import { AudioSection } from '@/components/exercise/ListeningArticle';
 
 // ─── Types ────────────────────────────────────────────
 
@@ -41,6 +42,8 @@ interface GeneratedSession {
     totalPhrases: number;
     status: 'generated' | 'in_progress' | 'completed';
     createdAt: string;
+    isListeningDay?: boolean;
+    reviewDayIndex?: number;
 }
 
 // ─── Question Card (non-skippable) ────────────────────
@@ -435,6 +438,29 @@ export default function SessionPage() {
         }
     }, [session, completedQuestionIds, sessionId, user?.uid, firstAttemptCorrect]);
 
+    const handleListeningComplete = useCallback(async () => {
+        if (!session) return;
+        setIsCompleted(true);
+
+        try {
+            await fetch('/api/practice/complete-session', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-user-id': user?.uid || '',
+                },
+                body: JSON.stringify({
+                    sessionId,
+                    phraseIds: session.phraseIds,
+                    correctCount: session.questions.length, // Full credit for now
+                    totalQuestions: session.questions.length,
+                }),
+            });
+        } catch (e) {
+            console.error('Failed to complete session:', e);
+        }
+    }, [session, sessionId, user?.uid]);
+
     // Highlight vocab phrases in section content
     const highlightPhrases = useCallback((content: string, phrases: string[]) => {
         if (!phrases || phrases.length === 0) return content;
@@ -516,101 +542,112 @@ export default function SessionPage() {
             {/* Article content */}
             <div className="max-w-[900px] mx-auto py-12 md:py-20 px-4 md:px-6 pb-32">
                 <article className="bg-white shadow-[0_4px_50px_rgba(0,0,0,0.12)] min-h-[80vh] px-10 md:px-20 py-14 md:py-20">
-                    {/* Title */}
-                    <header className="text-center mb-10">
-                        <div className="inline-block px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] font-bold text-white bg-violet-600 rounded-sm mb-4">
-                            Practice Session
-                        </div>
-                        <h1
-                            className="text-3xl md:text-[44px] md:leading-[1.15] font-normal text-neutral-900 tracking-tight mb-4"
-                            style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
-                        >
-                            {session.title}
-                        </h1>
-                        <p
-                            className="text-sm md:text-base text-neutral-500 italic max-w-[500px] mx-auto"
-                            style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
-                        >
-                            {session.subtitle}
-                        </p>
-                        <div className="mt-6 flex items-center justify-center gap-4 text-xs text-neutral-400 font-sans">
-                            <span>{session.sections.length} sections</span>
-                            <span className="w-1 h-1 rounded-full bg-neutral-300" />
-                            <span>{session.questions.length} questions</span>
-                            <span className="w-1 h-1 rounded-full bg-neutral-300" />
-                            <span>{session.totalPhrases} vocab phrases</span>
-                        </div>
-                    </header>
+                        {/* Title */}
+                        <header className="text-center mb-10">
+                            <div className="inline-block px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] font-bold text-white bg-violet-600 rounded-sm mb-4">
+                                Practice Session
+                            </div>
+                            <h1
+                                className="text-3xl md:text-[44px] md:leading-[1.15] font-normal text-neutral-900 tracking-tight mb-4"
+                                style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
+                            >
+                                {session.title}
+                            </h1>
+                            <p
+                                className="text-sm md:text-base text-neutral-500 italic max-w-[500px] mx-auto"
+                                style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
+                            >
+                                {session.subtitle}
+                            </p>
+                            <div className="mt-6 flex items-center justify-center gap-4 text-xs text-neutral-400 font-sans">
+                                <span>{session.sections.length} sections</span>
+                                <span className="w-1 h-1 rounded-full bg-neutral-300" />
+                                <span>{session.questions.length} questions</span>
+                                <span className="w-1 h-1 rounded-full bg-neutral-300" />
+                                <span>{session.totalPhrases} vocab phrases</span>
+                            </div>
+                        </header>
 
-                    {/* Divider */}
-                    <div className="w-full border-t border-neutral-200 mb-10" />
+                        {/* Divider */}
+                        <div className="w-full border-t border-neutral-200 mb-10" />
 
-                    {/* Reading flow */}
-                    <div className="prose prose-neutral max-w-none leading-[1.9] text-[17px] text-neutral-800 prose-headings:font-sans prose-headings:font-bold prose-p:mb-6" style={{ fontFamily: 'Georgia, serif' }}>
-                        {readingFlow.map((item, index) => {
-                            const isBeyondGate = firstUnansweredIndex >= 0 && index > firstUnansweredIndex;
+                        {/* Reading flow */}
+                        <div className="prose prose-neutral max-w-none leading-[1.9] text-[17px] text-neutral-800 prose-headings:font-sans prose-headings:font-bold prose-p:mb-6" style={{ fontFamily: 'Georgia, serif' }}>
+                            {readingFlow.map((item, index) => {
+                                const isBeyondGate = firstUnansweredIndex >= 0 && index > firstUnansweredIndex;
 
-                            if (item.type === 'section') {
-                                return (
-                                    <div key={item.data.id} className="relative">
-                                        <div
-                                            className={`transition-all duration-500 ${
-                                                isBeyondGate ? 'blur-sm select-none pointer-events-none opacity-50' : ''
-                                            }`}
-                                            style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
-                                            dangerouslySetInnerHTML={{
-                                                __html: highlightPhrases(
-                                                    // Convert newlines to paragraphs
-                                                    item.data.content
-                                                        .split('\n\n')
-                                                        .filter(p => p.trim())
-                                                        .map(p => `<p>${p.trim()}</p>`)
-                                                        .join(''),
-                                                    item.data.vocabPhrases
-                                                ),
-                                            }}
-                                        />
-                                        {/* Blur overlay message */}
-                                        {isBeyondGate && index === firstUnansweredIndex + 1 && (
-                                            <div className="absolute inset-0 flex items-center justify-center">
-                                                <div className="bg-white/80 backdrop-blur-sm border border-neutral-200 rounded-xl px-6 py-4 shadow-lg text-center" style={{ fontFamily: 'ui-sans-serif, system-ui, sans-serif' }}>
-                                                    <Lock className="w-5 h-5 text-neutral-400 mx-auto mb-2" />
-                                                    <p className="text-sm font-semibold text-neutral-700">
-                                                        Answer the question above to continue reading
-                                                    </p>
+                                if (item.type === 'section') {
+                                    if (session.isListeningDay) {
+                                        return (
+                                            <AudioSection 
+                                                key={item.data.id}
+                                                section={item.data}
+                                                isBeyondGate={isBeyondGate}
+                                                isPassed={firstUnansweredIndex >= 0 ? index < firstUnansweredIndex : true}
+                                                isActive={firstUnansweredIndex >= 0 ? index === firstUnansweredIndex || index === firstUnansweredIndex - 1 : true}
+                                            />
+                                        )
+                                    }
+
+                                    return (
+                                        <div key={item.data.id} className="relative">
+                                            <div
+                                                className={`transition-all duration-500 ${
+                                                    isBeyondGate ? 'blur-sm select-none pointer-events-none opacity-50' : ''
+                                                }`}
+                                                style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
+                                                dangerouslySetInnerHTML={{
+                                                    __html: highlightPhrases(
+                                                        // Convert newlines to paragraphs
+                                                        item.data.content
+                                                            .split('\n\n')
+                                                            .filter(p => p.trim())
+                                                            .map(p => `<p>${p.trim()}</p>`)
+                                                            .join(''),
+                                                        item.data.vocabPhrases
+                                                    ),
+                                                }}
+                                            />
+                                            {/* Blur overlay message */}
+                                            {isBeyondGate && index === firstUnansweredIndex + 1 && (
+                                                <div className="absolute inset-0 flex items-center justify-center">
+                                                    <div className="bg-white/80 backdrop-blur-sm border border-neutral-200 rounded-xl px-6 py-4 shadow-lg text-center" style={{ fontFamily: 'ui-sans-serif, system-ui, sans-serif' }}>
+                                                        <Lock className="w-5 h-5 text-neutral-400 mx-auto mb-2" />
+                                                        <p className="text-sm font-semibold text-neutral-700">
+                                                            {session.isListeningDay ? 'Answer the question above to continue listening' : 'Answer the question above to continue reading'}
+                                                        </p>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            }
+                                            )}
+                                        </div>
+                                    );
+                                }
 
-                            if (item.type === 'question') {
-                                return (
-                                    <div className="font-sans">
-                                        <QuestionGate
-                                            key={item.data.id}
-                                            question={item.data}
-                                            isCompleted={completedQuestionIds.has(item.data.id)}
-                                            onCorrect={() => handleQuestionCorrect(item.data.id)}
-                                        />
-                                    </div>
-                                );
-                            }
+                                if (item.type === 'question') {
+                                    return (
+                                        <div className="font-sans" key={item.data.id}>
+                                            <QuestionGate
+                                                question={item.data}
+                                                isCompleted={completedQuestionIds.has(item.data.id)}
+                                                onCorrect={() => handleQuestionCorrect(item.data.id)}
+                                            />
+                                        </div>
+                                    );
+                                }
 
-                            return null;
-                        })}
-                    </div>
+                                return null;
+                            })}
+                        </div>
 
-                {/* Open-production writing prompt — shown when all questions are answered */}
-                {firstUnansweredIndex === -1 && !isCompleted && session && (
-                    <WritingPromptCard
-                        phrases={session.sections.flatMap(s => s.vocabPhrases).filter((v, i, a) => a.indexOf(v) === i).slice(0, 4)}
-                        userId={user?.uid || ''}
-                    />
-                )}
-                </article>
-            </div>
+                    {/* Open-production writing prompt — shown when all questions are answered */}
+                    {firstUnansweredIndex === -1 && !isCompleted && session && (
+                        <WritingPromptCard
+                            phrases={session.sections.flatMap(s => s.vocabPhrases).filter((v, i, a) => a.indexOf(v) === i).slice(0, 4)}
+                            userId={user?.uid || ''}
+                        />
+                    )}
+                    </article>
+                </div>
         </div>
     );
 }

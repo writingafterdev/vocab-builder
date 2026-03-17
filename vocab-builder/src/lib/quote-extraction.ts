@@ -9,8 +9,8 @@
 import { logTokenUsage } from '@/lib/db/token-tracking';
 import { addQuotesToBank } from '@/lib/db/quote-feed';
 import { updateDocument } from '@/lib/firestore-rest';
+import { getGrokKey } from '@/lib/grok-client';
 
-function getXaiApiKey() { return process.env.XAI_API_KEY; }
 const XAI_URL = 'https://api.x.ai/v1/chat/completions';
 
 /**
@@ -25,9 +25,9 @@ export async function extractQuotes(
     userId?: string,
     userEmail?: string
 ): Promise<string[]> {
-    const apiKey = getXaiApiKey();
+    const apiKey = getGrokKey('articles');
     if (!apiKey) {
-        console.warn('XAI_API_KEY not set, skipping quote extraction');
+        console.warn('No Grok API key configured for articles, skipping quote extraction');
         return [];
     }
 
@@ -67,7 +67,7 @@ Return ONLY a JSON array of quote strings, e.g.:
                 'Authorization': `Bearer ${apiKey}`,
             },
             body: JSON.stringify({
-                model: 'grok-4-1-fast-reasoning',
+                model: 'grok-4-1-fast-non-reasoning',
                 messages: [{ role: 'user', content: prompt }],
                 max_tokens: 500,
                 temperature: 0.3,
@@ -88,7 +88,7 @@ Return ONLY a JSON array of quote strings, e.g.:
                 userId,
                 userEmail: userEmail || '',
                 endpoint: 'extract-quotes',
-                model: 'grok-4-1-fast-reasoning',
+                model: 'grok-4-1-fast-non-reasoning',
                 promptTokens: data.usage.prompt_tokens || 0,
                 completionTokens: data.usage.completion_tokens || 0,
                 totalTokens: data.usage.total_tokens || 0,

@@ -1,16 +1,11 @@
-/**
- * xAI Grok Batch API Client (REST-based, no SDK dependency)
- *
- * Flow: createBatch → addRequests → poll status → getResults
- * Docs: https://docs.x.ai/docs/guides/batch-api
- */
+import { getGrokKey } from './grok-client';
 
 const XAI_BASE_URL = 'https://api.x.ai/v1';
-const DEFAULT_MODEL = 'grok-4-1-fast-reasoning';
+const DEFAULT_MODEL = 'grok-4-1-fast-non-reasoning';
 
 function getApiKey(): string {
-    const key = process.env.XAI_API_KEY;
-    if (!key) throw new Error('XAI_API_KEY environment variable not set');
+    const key = getGrokKey('articles');
+    if (!key) throw new Error('No Grok API key configured for articles. Set GROK_KEY_ARTICLES or XAI_API_KEY.');
     return key;
 }
 

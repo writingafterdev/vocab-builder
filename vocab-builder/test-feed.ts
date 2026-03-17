@@ -3,7 +3,6 @@ config({ path: '.env.local' });
 
 // We need to mock Next.js headers/request stuff
 import * as quoteFeed from './src/lib/db/quote-feed';
-import { initializeFirebase } from './src/lib/firebase-admin';
 import { adminDb } from './src/lib/firebase-admin';
 
 async function runTests() {

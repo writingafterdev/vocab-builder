@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { safeParseAIJson } from '@/lib/ai-utils';
 import { logTokenUsage } from '@/lib/db/token-tracking';
 import { buildPhraseDetectionPrompt } from '@/lib/prompts/system-design-prompts';
+import { getGrokKey } from '@/lib/grok-client';
 
-const XAI_API_KEY = process.env.XAI_API_KEY;
+const XAI_API_KEY = getGrokKey('exercises');
 const XAI_URL = 'https://api.x.ai/v1/chat/completions';
 
 /**
@@ -60,7 +61,7 @@ export async function POST(request: NextRequest) {
                 'Authorization': `Bearer ${XAI_API_KEY}`,
             },
             body: JSON.stringify({
-                model: 'grok-4-1-fast-reasoning',
+                model: 'grok-4-1-fast-non-reasoning',
                 messages: [
                     {
                         role: 'system',
@@ -88,7 +89,7 @@ export async function POST(request: NextRequest) {
                 userId,
                 userEmail: request.headers.get('x-user-email') || 'anonymous',
                 endpoint: 'evaluate-production',
-                model: 'grok-4-1-fast-reasoning',
+                model: 'grok-4-1-fast-non-reasoning',
                 promptTokens: data.usage.prompt_tokens || 0,
                 completionTokens: data.usage.completion_tokens || 0,
                 totalTokens: data.usage.total_tokens || 0,

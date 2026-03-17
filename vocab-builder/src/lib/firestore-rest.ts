@@ -165,7 +165,8 @@ export async function getDocument(
 export async function updateDocument(
     collectionPath: string,
     documentId: string,
-    data: Record<string, unknown>
+    data: Record<string, unknown>,
+    idToken?: string
 ): Promise<void> {
     const fields: Record<string, FirestoreValue> = {};
     const updateMask: string[] = [];
@@ -178,9 +179,14 @@ export async function updateDocument(
     const url = new URL(`${getFirestoreBaseUrl()}/${collectionPath}/${documentId}`);
     updateMask.forEach(field => url.searchParams.append('updateMask.fieldPaths', field));
 
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (idToken) {
+        headers['Authorization'] = `Bearer ${idToken}`;
+    }
+
     const response = await fetch(withKey(url.toString()), {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ fields }),
     });
 

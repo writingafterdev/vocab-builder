@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { runQuery } from '@/lib/firestore-rest';
 import { safeParseAIJson } from '@/lib/ai-utils';
 import { logTokenUsage } from '@/lib/db/token-tracking';
+import { getGrokKey } from '@/lib/grok-client';
 import { DEFAULT_PRACTICE_CONFIG } from '@/lib/db/practice-types';
 import { pickDrillWeaknesses, type WeaknessEntry } from '@/lib/db/user-weaknesses';
 import type { SavedPhrase, InlineQuestion, ExerciseQuestionType } from '@/lib/db/types';
 
-const XAI_API_KEY = process.env.XAI_API_KEY;
+const XAI_API_KEY = getGrokKey('exercises');
 const XAI_URL = 'https://api.x.ai/v1/chat/completions';
 
 /**
@@ -198,7 +199,7 @@ Return a JSON object { "questions": [...] } with one entry per item:
                 'Authorization': `Bearer ${XAI_API_KEY}`,
             },
             body: JSON.stringify({
-                model: 'grok-4-1-fast-reasoning',
+                model: 'grok-4-1-fast-non-reasoning',
                 messages: [
                     { role: 'system', content: 'You are a master educator, expert linguist, and witty screenwriter. You create emotionally vivid fill-in-the-blank vocabulary exercises. Every sentence you write feels ripped from a movie script, a heated group chat, or a devastating breakup text. Return valid JSON only.' },
                     { role: 'user', content: prompt },
@@ -224,7 +225,7 @@ Return a JSON object { "questions": [...] } with one entry per item:
                 userId,
                 userEmail: request.headers.get('x-user-email') || 'anonymous',
                 endpoint: 'pre-generate-feed-quizzes',
-                model: 'grok-4-1-fast-reasoning',
+                model: 'grok-4-1-fast-non-reasoning',
                 promptTokens: data.usage.prompt_tokens || 0,
                 completionTokens: data.usage.completion_tokens || 0,
                 totalTokens: data.usage.total_tokens || 0,

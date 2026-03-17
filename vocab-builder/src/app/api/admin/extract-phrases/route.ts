@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logTokenUsage } from '@/lib/db/token-tracking';
+import { getGrokKey } from '@/lib/grok-client';
 
 /**
  * Extract phrases from content using DeepSeek
  * Admin-only endpoint
  */
 
-const XAI_API_KEY = process.env.XAI_API_KEY;
+const XAI_API_KEY = getGrokKey('articles');
 const XAI_URL = 'https://api.x.ai/v1/chat/completions';
 
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase());
@@ -89,7 +90,7 @@ Example: ["break the ice", "get one's act together", "it goes without saying", "
                 'Authorization': `Bearer ${XAI_API_KEY}`,
             },
             body: JSON.stringify({
-                model: 'grok-4-1-fast-reasoning',
+                model: 'grok-4-1-fast-non-reasoning',
                 messages: [
                     { role: 'system', content: 'You are a linguistics expert specializing in English language learning. Always respond with valid JSON.' },
                     { role: 'user', content: prompt },
@@ -118,7 +119,7 @@ Example: ["break the ice", "get one's act together", "it goes without saying", "
                 userId: 'admin',
                 userEmail: email || 'admin',
                 endpoint: 'admin-extract-phrases',
-                model: 'grok-4-1-fast-reasoning',
+                model: 'grok-4-1-fast-non-reasoning',
                 promptTokens: data.usage.prompt_tokens || 0,
                 completionTokens: data.usage.completion_tokens || 0,
                 totalTokens: data.usage.total_tokens || 0,

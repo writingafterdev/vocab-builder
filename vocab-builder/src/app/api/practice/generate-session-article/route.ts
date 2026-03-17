@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { runQuery, addDocument, serverTimestamp, setDocument } from '@/lib/firestore-rest';
+import { runQuery, addDocument, serverTimestamp, setDocument, getDocument, updateDocument } from '@/lib/firestore-rest';
 import { safeParseAIJson } from '@/lib/ai-utils';
 import { logTokenUsage } from '@/lib/db/token-tracking';
+import { getGrokKey } from '@/lib/grok-client';
 import type { SavedPhrase } from '@/lib/db/types';
 
-const XAI_API_KEY = process.env.XAI_API_KEY;
+const XAI_API_KEY = getGrokKey('exercises');
 const XAI_URL = 'https://api.x.ai/v1/chat/completions';
 
 // ─── Types ────────────────────────────────────────────
@@ -54,6 +55,8 @@ interface GeneratedSession {
     totalPhrases: number;
     status: 'generated' | 'in_progress' | 'completed';
     createdAt: string;
+    isListeningDay: boolean;
+    reviewDayIndex: number;
 }
 
 // ─── Main Handler ─────────────────────────────────────
@@ -63,6 +66,9 @@ export async function POST(request: NextRequest) {
         const { getAuthFromRequest } = await import('@/lib/firebase-admin');
         const authUser = await getAuthFromRequest(request);
         const userId = authUser?.userId || request.headers.get('x-user-id');
+        
+        const authHeader = request.headers.get('Authorization');
+        const idToken = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : (authHeader || undefined);
 
         if (!userId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -75,7 +81,13 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Step 1: Get due phrases
+        // Step 1: Get user stats to determine Reading vs. Listening Day
+        const userDoc = (await getDocument('users', userId)) as { stats?: { reviewDayCount?: number } } | null;
+        const currentCount = userDoc?.stats?.reviewDayCount || 0;
+        const reviewDayIndex = currentCount + 1;
+        const isListeningDay = reviewDayIndex % 2 !== 0; // Odd days = listening, Even days = reading
+
+        // Step 2: Get due phrases
         const duePhrases = await fetchDuePhrases(userId);
 
         if (duePhrases.length === 0) {
@@ -85,7 +97,7 @@ export async function POST(request: NextRequest) {
             }, { status: 400 });
         }
 
-        // Step 2: Cluster the due phrases
+        // Step 3: Cluster the due phrases
         const clusters = clusterPhrasesByTopic(duePhrases);
 
         // Step 3: Generate merged article from all clusters
@@ -110,12 +122,23 @@ export async function POST(request: NextRequest) {
             totalPhrases: duePhrases.length,
             status: 'generated',
             createdAt: serverTimestamp(),
+            isListeningDay,
+            reviewDayIndex,
         };
 
         const docId = `session_${userId}_${Date.now()}`;
         await setDocument('generatedSessions', docId, session);
 
-        // Step 5: Store extracted quotes for the feed
+        // Update the user's reviewDayCount using authenticated REST call
+        if (idToken) {
+            await updateDocument('users', userId, {
+                'stats.reviewDayCount': reviewDayIndex,
+            }, idToken);
+        } else {
+            console.warn('No ID token provided, skipping reviewDayCount update');
+        }
+
+        // Step 6: Store extracted quotes for the feed
         for (const quote of articleResult.quotes) {
             await addDocument('generatedQuotes', {
                 userId,
@@ -138,6 +161,8 @@ export async function POST(request: NextRequest) {
             questionCount: articleResult.questions.length,
             quoteCount: articleResult.quotes.length,
             phraseCount: duePhrases.length,
+            isListeningDay,
+            reviewDayIndex,
         });
 
     } catch (error) {
@@ -349,7 +374,7 @@ RESPOND IN JSON:
                 'Authorization': `Bearer ${XAI_API_KEY}`,
             },
             body: JSON.stringify({
-                model: 'grok-4-1-fast-reasoning',
+                model: 'grok-4-1-fast-non-reasoning',
                 messages: [
                     {
                         role: 'system',
@@ -377,7 +402,7 @@ RESPOND IN JSON:
                 userId,
                 userEmail: request.headers.get('x-user-email') || 'anonymous',
                 endpoint: 'generate-session-article',
-                model: 'grok-4-1-fast-reasoning',
+                model: 'grok-4-1-fast-non-reasoning',
                 promptTokens: data.usage.prompt_tokens || 0,
                 completionTokens: data.usage.completion_tokens || 0,
                 totalTokens: data.usage.total_tokens || 0,

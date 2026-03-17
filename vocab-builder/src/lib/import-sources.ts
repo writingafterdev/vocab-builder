@@ -394,25 +394,15 @@ export async function processArticlePipeline(
         steps.extractPhrases = 'failed';
     }
 
-    // 2. Process article (Gemini) → phraseData, detectedTopic
-    const processResult = await callInternalAPI('/api/admin/process-article', { content, title });
-    if (processResult.ok && processResult.data?.phrases) {
-        await updateDocument('posts', postId, {
-            phraseData: processResult.data.phrases,
-            detectedTopic: processResult.data.detectedTopic,
-        });
-        steps.processArticle = 'success';
-    } else {
-        steps.processArticle = 'failed';
-    }
-
-    // 3. Topic vocab + lexile (Gemini) → topicVocab, lexileLevel
-    const detectedTopic = processResult.data?.detectedTopic || 'General';
+    // 2. Topic vocab + lexile (Gemini) → topicVocab, lexileLevel
     const vocabResult = await callInternalAPI('/api/admin/extract-topic-vocab', {
-        content, title, detectedTopic,
+        content, title,
     });
     if (vocabResult.ok && vocabResult.data?.topicVocab) {
         const updates: Record<string, unknown> = { topicVocab: vocabResult.data.topicVocab };
+        if (vocabResult.data.detectedTopic) {
+            updates.detectedTopic = vocabResult.data.detectedTopic;
+        }
         if (vocabResult.data.lexile) {
             updates.lexileLevel = vocabResult.data.lexile.level;
             updates.lexileScore = vocabResult.data.lexile.score;
@@ -423,7 +413,7 @@ export async function processArticlePipeline(
         steps.topicVocab = 'failed';
     }
 
-    // 4. Generate sections (Gemini) → sections, subtitle
+    // 3. Generate sections (Gemini) → sections, subtitle
     const sectionsResult = await callInternalAPI('/api/admin/generate-sections', {
         postId, title, content,
     });
@@ -434,7 +424,7 @@ export async function processArticlePipeline(
         steps.sections = 'failed';
     }
 
-    // 5. Generate audio (Gemini TTS) → audioUrl
+    // 4. Generate audio (Gemini TTS) → audioUrl
     const audioResult = await callInternalAPI('/api/admin/generate-article-audio', {
         content, title,
     });
@@ -451,14 +441,14 @@ export async function processArticlePipeline(
         steps.audio = 'failed';
     }
 
-    // 6. Extract quotes (Grok) → extractedQuotes + standalone quotes collection
+    // 5. Extract quotes (Grok) → extractedQuotes + standalone quotes collection
     try {
         const { extractAndSaveQuotes } = await import('@/lib/quote-extraction');
         // Fetch post metadata for author/source/topic
         const postDoc = await getDocument('posts', postId);
         const postAuthor = (postDoc?.authorName as string) || 'Unknown';
         const postSource = (postDoc?.source as string) || 'Article';
-        const postTopic = (postDoc?.importTopic as string) || detectedTopic?.toLowerCase() || 'general';
+        const postTopic = (postDoc?.importTopic as string) || (postDoc?.detectedTopic as string)?.toLowerCase() || 'general';
 
         const quotes = await extractAndSaveQuotes(
             postId, content, title, postTopic, postAuthor, postSource

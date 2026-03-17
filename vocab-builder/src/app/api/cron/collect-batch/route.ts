@@ -137,7 +137,6 @@ export async function POST(request: NextRequest) {
 async function processArticleResults(
     results: { batch_request_id: string; response?: { content: string } }[]
 ) {
-    const validTypes = ['collocation', 'phrasal_verb', 'idiom', 'expression'];
     const validPOS = ['noun', 'verb', 'adjective', 'adverb', 'phrase'];
     const validFreq = ['common', 'intermediate', 'advanced'];
     const validLevels = ['easy', 'medium', 'hard'];
@@ -158,22 +157,6 @@ async function processArticleResults(
             // Validate & clean data
             const highlightedPhrases: string[] = (parsed.highlightedPhrases || [])
                 .filter((p: string) => typeof p === 'string' && p.length > 0);
-
-            const phraseData = (parsed.phraseData || []).map((p: any) => ({
-                phrase: p.phrase,
-                meaning: p.meaning,
-                example: p.example || '',
-                mode: p.mode || 'neutral',
-                topics: Array.isArray(p.topics) ? p.topics : [],
-                commonUsages: (p.commonUsages || []).slice(0, 3).map((u: any) => ({
-                    phrase: u.phrase,
-                    meaning: u.meaning,
-                    example: u.example || '',
-                    type: validTypes.includes(u.type) ? u.type : 'expression',
-                    mode: u.mode || 'neutral',
-                    topics: Array.isArray(u.topics) ? u.topics : [],
-                })),
-            }));
 
             const topicVocab = (parsed.topicVocab || [])
                 .filter((v: any) => v.word && v.meaning)
@@ -202,7 +185,6 @@ async function processArticleResults(
             // Save to Firestore
             await updateDocument('posts', postId, {
                 highlightedPhrases,
-                phraseData,
                 detectedTopic: parsed.detectedTopic || 'General',
                 topicVocab,
                 lexileLevel: lexile.level,
@@ -361,20 +343,17 @@ async function processFeedQuizResults(
 
             const questions = rawItems.map((q: any, i: number) => ({
                 id: `feedquiz_${dateStr}_${userId}_${i}_${Math.random().toString(36).slice(2, 6)}`,
-                phraseId: q.phraseId || `unknown_${i}`, // This assumes phraseId was mapped back, but grok output doesn't have it explicitly unless ordered. We rely on order if missing.
+                phraseId: q.phraseId || `unknown_${i}`,
                 phrase: q.phrase || '',
                 surface: 'quote_swiper',
                 phase: 'recognition',
-                questionType: q.questionType || 'situation_phrase_matching',
-                format: q.format || 'fill_blank',
+                questionType: q.questionType || q.format || 'situation_phrase_matching',
                 emotion: q.emotion || 'neutral',
                 scenario: q.scenario || 'What does this mean?',
                 options: Array.isArray(q.options) ? q.options : [],
                 correctIndex: typeof q.correctIndex === 'number' ? q.correctIndex : 0,
                 explanation: q.explanation || '',
                 xpReward: 10,
-                // we recover actual phrase IDs from the order generated in the daily import route
-                // but since the model only returns "phraseIndex", we'll just trust what the frontend gets.
                 phraseIndex: q.phraseIndex, 
             }));
 

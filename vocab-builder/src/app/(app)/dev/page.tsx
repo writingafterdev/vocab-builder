@@ -49,17 +49,7 @@ export default function DevToolsPage() {
                 },
             ],
         },
-        {
-            group: 'Practice',
-            color: 'violet',
-            items: [
-                {
-                    label: 'Generate Practice Session',
-                    desc: 'Creates a new AI practice session based on your saved phrases',
-                    fn: () => fetch('/api/user/generate-session', { method: 'POST', headers: h, body: JSON.stringify({}) }).then(r => r.json()),
-                },
-            ],
-        },
+
         {
             group: 'Cleanup',
             color: 'red',

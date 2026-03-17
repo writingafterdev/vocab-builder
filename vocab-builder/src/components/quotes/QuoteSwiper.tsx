@@ -11,6 +11,7 @@ import { EditorialLoader } from '@/components/ui/editorial-loader';
 import { QuizCard } from '@/components/exercise/QuizCard';
 import { TopicPicker } from '@/components/quotes/TopicPicker';
 import { cn } from '@/lib/utils';
+import { useTTS } from '@/hooks/use-tts';
 import type { InlineQuestion } from '@/lib/db/types';
 
 interface DeckItem {
@@ -111,6 +112,8 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
     const quizzesInjectedRef = useRef(false);
     const vocabPopupPhraseRef = useRef<string | null>(null);
 
+    const { stop: stopAudio } = useTTS();
+
     // Vocab popup state
     const [vocabPopup, setVocabPopup] = useState<{
         phrase: string;
@@ -126,8 +129,6 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
     } | null>(null);
     const [bounceKey, setBounceKey] = useState(0);
     const [savedPhrases, setSavedPhrases] = useState<Set<string>>(new Set());
-    const vocabPopupPhraseRef = useRef<string | null>(null);
-
     // Apply rough-notation highlights when active card changes (only for quotes)
     useVocabHighlighter(cardStackRef, [activeIndex, deck]);
 
@@ -262,6 +263,9 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
     const sendToBack = () => {
         if (isAnimating.current || deck.length <= 1) return;
         isAnimating.current = true;
+        
+        // Stop any currently playing audio from quiz cards
+        stopAudio();
 
         // Track viewed quote
         const currentItem = deck[activeIndex];
@@ -394,10 +398,12 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
 
     const goPrevious = () => {
         if (isAnimating.current || deck.length <= 1) return;
+        stopAudio();
         setActiveIndex(prev => (prev === 0 ? deck.length - 1 : prev - 1));
     };
 
     const goToArticle = () => {
+        stopAudio();
         const item = deck[activeIndex];
         if (!item || item.type !== 'quote') return;
         const quote = item.data as Quote;

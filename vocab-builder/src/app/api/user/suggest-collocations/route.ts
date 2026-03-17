@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logTokenUsage } from '@/lib/db/token-tracking';
 import { safeParseAIJson } from '@/lib/ai-utils';
+import { getGrokKey } from '@/lib/grok-client';
 
 /**
  * Layered vocabulary generation - generates immediate children only (1 layer)
@@ -16,7 +17,7 @@ import { safeParseAIJson } from '@/lib/ai-utils';
  * with their own tags (Register, Connotation, Topic, etc.) and SRS schedule.
  */
 
-const XAI_API_KEY = process.env.XAI_API_KEY;
+const XAI_API_KEY = getGrokKey('phrases');
 const XAI_URL = 'https://api.x.ai/v1/chat/completions';
 
 interface SuggestCollocationsRequest {
@@ -110,7 +111,7 @@ Return JSON:
                 'Authorization': `Bearer ${XAI_API_KEY}`,
             },
             body: JSON.stringify({
-                model: 'grok-4-1-fast-reasoning',
+                model: 'grok-4-1-fast-non-reasoning',
                 messages: [{ role: 'user', content: prompt }],
                 max_tokens: 600,
                 temperature: 0.3,
@@ -133,7 +134,7 @@ Return JSON:
                 userId,
                 userEmail,
                 endpoint: 'suggest-collocations',
-                model: 'grok-4-1-fast-reasoning',
+                model: 'grok-4-1-fast-non-reasoning',
                 promptTokens: data.usage.prompt_tokens || 0,
                 completionTokens: data.usage.completion_tokens || 0,
                 totalTokens: data.usage.total_tokens || 0,

@@ -44,10 +44,10 @@ async function runTests() {
     await quoteFeed.saveTopicPickerChoices(testUserId, chosenTopics);
     
     // Check state after onboarding
-    const stateDoc = await getDocument('quote_feed_state', testUserId);
+    const stateDoc = await getDocument('quote_feed_state', testUserId) as Record<string, any>;
     console.log("Feed State after onboarding:", stateDoc);
     if (!stateDoc?.hasCompletedOnboarding) throw new Error("Expected hasCompletedOnboarding to be true");
-    if (stateDoc.topicScores['technology'] !== 5) throw new Error("Expected technology score to be 5");
+    if ((stateDoc.topicScores as Record<string, number>)['technology'] !== 5) throw new Error("Expected technology score to be 5");
     console.log("✅ Passed: Onboarding state saved correctly");
 
     // 3. Generate Feed (Should now work and prioritize chosen topics)
@@ -65,14 +65,14 @@ async function runTests() {
     await quoteFeed.markQuotesViewed(testUserId, testQuoteIds);
     await quoteFeed.boostTopic(testUserId, 'technology');
 
-    const stateAfter = await getDocument('quote_feed_state', testUserId);
+    const stateAfter = await getDocument('quote_feed_state', testUserId) as Record<string, any>;
     
     console.log("Feed State after viewing and boosting:");
     console.log("- viewedQuoteIds length:", (stateAfter.viewedQuoteIds as string[] || []).length);
-    console.log("- technology score:", stateAfter.topicScores['technology']);
+    console.log("- technology score:", (stateAfter.topicScores as Record<string, number>)['technology']);
     
     if ((stateAfter.viewedQuoteIds as string[] || []).length !== 3) throw new Error("Expected 3 viewed quotes");
-    if (stateAfter.topicScores['technology'] !== 6) throw new Error("Expected technology score to be 6 (5 + 1 boost)");
+    if ((stateAfter.topicScores as Record<string, number>)['technology'] !== 6) throw new Error("Expected technology score to be 6 (5 + 1 boost)");
     console.log("✅ Passed: View tracking and topic boost working");
 
     console.log("\n🎉 ALL TESTS PASSED");

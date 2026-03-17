@@ -3,8 +3,9 @@ import { getDocument, setDocument, updateDocument, serverTimestamp } from '@/lib
 import { GlobalPhraseData, CommonUsage, PhraseVariant, Register, Nuance, SocialDistance } from '@/lib/db/types';
 import { normalizePhraseKey } from '@/lib/db/practice-types';
 import { safeParseAIJson } from '@/lib/ai-utils';
+import { getGrokKey } from '@/lib/grok-client';
 
-const XAI_API_KEY = process.env.XAI_API_KEY;
+const XAI_API_KEY = getGrokKey('phrases');
 const DEEPSEEK_API_URL = 'https://api.x.ai/v1/chat/completions';
 
 interface LookupRequest {
@@ -194,7 +195,7 @@ Rules:
                 'Authorization': `Bearer ${XAI_API_KEY}`,
             },
             body: JSON.stringify({
-                model: 'grok-4-1-fast-reasoning',
+                model: 'grok-4-1-fast-non-reasoning',
                 messages: [
                     {
                         role: 'system',

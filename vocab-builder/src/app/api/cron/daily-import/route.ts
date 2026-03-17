@@ -13,8 +13,9 @@ import {
     serverTimestamp,
 } from '@/lib/firestore-rest';
 import { createBatch, addBatchRequests } from '@/lib/grok-batch';
-import { buildArticleBatchRequest, buildUserExerciseBatchRequest, buildFeedQuizBatchRequest, type FeedQuizSpec } from '@/lib/batch-prompts';
+import { buildArticleBatchRequest, buildUserExerciseBatchRequest, buildFeedQuizBatchRequest, FEED_PHASE_TYPES, getPhaseForStep, type FeedQuizSpec } from '@/lib/batch-prompts';
 import { getUserWeaknesses } from '@/lib/db/user-weaknesses';
+import { hasGrokKey } from '@/lib/grok-client';
 
 const CRON_SECRET = process.env.CRON_SECRET;
 
@@ -104,9 +105,9 @@ export async function POST(request: NextRequest) {
         // ═══ PHASE 2: SUBMIT ARTICLE BATCH ═══
 
         let articleBatchId: string | null = null;
-        const hasGrokKey = !!process.env.XAI_API_KEY;
+        const hasKey = hasGrokKey('articles');
 
-        if (hasGrokKey) {
+        if (hasKey) {
             try {
                 // Get ALL pending posts (including previously imported ones)
                 const pendingPosts = await queryCollection('posts', {
@@ -157,7 +158,7 @@ export async function POST(request: NextRequest) {
                 // Continue — don't fail the whole import
             }
         } else {
-            console.log('[DailyImport] Phase 2: skipped (XAI_API_KEY not set)');
+            console.log('[DailyImport] Phase 2: skipped (no Grok articles key set)');
         }
 
         // ═══ PHASE 3: SUBMIT EXERCISE BATCH ═══
@@ -166,7 +167,7 @@ export async function POST(request: NextRequest) {
         let exerciseBatchId: string | null = null;
         let exerciseRequestCount = 0;
 
-        if (hasGrokKey) {
+        if (hasKey) {
             try {
                 const users = await queryCollection('users', { limit: 100 });
 
@@ -247,19 +248,16 @@ export async function POST(request: NextRequest) {
                                 allExerciseRequests.push(exerciseReq);
                                 userPhraseMap[userId] = todayDue.map(p => p.id as string);
 
-                                // Construct Feed Quiz Specs for all due phrases + max 2 weaknesses
-                                const FEED_QUESTION_TYPES = [
-                                    'situation_phrase_matching',
-                                    'tone_interpretation',
-                                    'appropriateness_judgment',
-                                    'fill_gap_mcq',
-                                    'why_did_they_say',
-                                ];
-                                
+                                // Construct Feed Quiz Specs — use SRS phase to pick from 15 feed-friendly types
                                 const feedQuizSpecs: FeedQuizSpec[] = todayDue.map(p => {
+                                    const learningStep = (p.learningStep as number) || 1;
+                                    const phase = getPhaseForStep(learningStep);
+                                    const phaseTypes = FEED_PHASE_TYPES[phase] || FEED_PHASE_TYPES.recognition;
+
                                     const completedFormats = (p.completedFormats || []) as string[];
-                                    const unused = FEED_QUESTION_TYPES.filter(t => !completedFormats.includes(t));
-                                    const questionType = (unused.length > 0 ? unused : FEED_QUESTION_TYPES)[Math.floor(Math.random() * (unused.length > 0 ? unused : FEED_QUESTION_TYPES).length)];
+                                    const unused = phaseTypes.filter(t => !completedFormats.includes(t));
+                                    const pool = unused.length > 0 ? unused : phaseTypes;
+                                    const questionType = pool[Math.floor(Math.random() * pool.length)];
 
                                     return {
                                         phraseId: p.id as string,
@@ -271,12 +269,14 @@ export async function POST(request: NextRequest) {
                                     };
                                 });
 
+                                // Drills — pick from comprehension types suited for error-focused learning
+                                const DRILL_TYPES = ['error_detection', 'sentence_correction', 'appropriateness_judgment', 'fill_gap_mcq'];
                                 const drillSpecs: FeedQuizSpec[] = weaknesses.slice(0, 2).map(w => ({
                                     phraseId: w.id,
                                     phrase: w.specific,
                                     meaning: w.explanation,
                                     register: 'neutral',
-                                    questionType: 'appropriateness_judgment',
+                                    questionType: DRILL_TYPES[Math.floor(Math.random() * DRILL_TYPES.length)],
                                     source: 'drill' as const,
                                     weaknessCategory: w.category,
                                     example: w.examples[0] || '',
@@ -334,7 +334,7 @@ export async function POST(request: NextRequest) {
                 console.error('[DailyImport] Phase 3 (exercise batch) failed:', error);
             }
         } else {
-            console.log('[DailyImport] Phase 3: skipped (XAI_API_KEY not set)');
+            console.log('[DailyImport] Phase 3: skipped (no Grok articles key set)');
         }
 
         return NextResponse.json({

@@ -33,7 +33,7 @@ export interface WeaknessForBatch {
 }
 
 // Phase determination (matches question-prompts.ts getPhase)
-function getPhaseForStep(step: number): 'recognition' | 'comprehension' | 'guided_production' | 'mastery' {
+export function getPhaseForStep(step: number): 'recognition' | 'comprehension' | 'guided_production' | 'mastery' {
   if (step <= 2) return 'recognition';
   if (step <= 4) return 'comprehension';
   if (step <= 6) return 'guided_production';
@@ -41,7 +41,7 @@ function getPhaseForStep(step: number): 'recognition' | 'comprehension' | 'guide
 }
 
 // Question types per phase
-const PHASE_QUESTION_TYPES: Record<string, string[]> = {
+export const PHASE_QUESTION_TYPES: Record<string, string[]> = {
   recognition: [
     'social_consequence_prediction',
     'situation_phrase_matching',
@@ -71,6 +71,25 @@ const PHASE_QUESTION_TYPES: Record<string, string[]> = {
   ],
 };
 
+// 15 feed-friendly types (fit in 280px QuizCard) + 3 listening types
+export const FEED_FRIENDLY_TYPES: string[] = [
+  ...PHASE_QUESTION_TYPES.recognition,
+  ...PHASE_QUESTION_TYPES.comprehension,
+  ...PHASE_QUESTION_TYPES.guided_production,
+  'listen_and_identify',
+  'tone_by_voice',
+  'dictation'
+];
+
+// Feed-friendly types per phase (for phase-aware selection)
+export const FEED_PHASE_TYPES: Record<string, string[]> = {
+  recognition: PHASE_QUESTION_TYPES.recognition,
+  comprehension: PHASE_QUESTION_TYPES.comprehension,
+  guided_production: PHASE_QUESTION_TYPES.guided_production,
+  // mastery phrases fall back to comprehension on feed (full production in /practice)
+  mastery: PHASE_QUESTION_TYPES.comprehension,
+};
+
 // ═══════════════════════════════════════════════════════════════════════════
 // ARTICLE PROCESSING PROMPT (unchanged)
 // ═══════════════════════════════════════════════════════════════════════════
@@ -98,17 +117,7 @@ Extract 15-25 phrases that are useful for English learners:
 - Topic-specific vocabulary phrases (2+ words)
 Return as a flat string array called "highlightedPhrases".
 
-━━━ TASK 2: PHRASE DATA ━━━
-For the SAME phrases, generate detailed data:
-- phrase: exact phrase
-- meaning: clear, concise definition
-- example: natural usage example
-- mode: "spoken" | "written" | "neutral"
-- topics: 1-2 relevant topic tags
-- commonUsages: up to 3 related collocations/expressions (empty array if none):
-  - { phrase, meaning, example, type: "collocation"|"phrasal_verb"|"idiom"|"expression", mode, topics }
-
-━━━ TASK 3: TOPIC VOCABULARY + LEXILE ━━━
+━━━ TASK 2: TOPIC VOCABULARY + LEXILE ━━━
 Extract 10-20 vocabulary items (single words AND phrases):
 - Domain-specific terms (B2-C2 level)
 - Include partOfSpeech: "noun"|"verb"|"adjective"|"adverb"|"phrase"
@@ -120,7 +129,7 @@ Also assess reading difficulty:
 - score: 400-1600 Lexile score
 - reasoning: brief explanation
 
-━━━ TASK 4: READING SECTIONS ━━━
+━━━ TASK 3: READING SECTIONS ━━━
 Divide the article into 3-8 logical sections for a card-based swipe reading interface:
 - Each section ~100-250 words
 - Split at natural breakpoints (not mid-sentence)
@@ -128,14 +137,13 @@ Divide the article into 3-8 logical sections for a card-based swipe reading inte
 - Extract 2-5 notable vocab phrases per section
 - Generate a one-line subtitle/caption for the article
 
-━━━ TASK 5: TOPIC DETECTION ━━━
+━━━ TASK 4: TOPIC DETECTION ━━━
 Identify the article's main topic (1-2 words, e.g., "Technology", "Climate Science").
 
 Return ONLY this JSON structure:
 {
   "detectedTopic": "Topic Name",
   "highlightedPhrases": ["phrase1", "phrase2"],
-  "phraseData": [{ "phrase": "", "meaning": "", "example": "", "mode": "", "topics": [], "commonUsages": [] }],
   "topicVocab": [{ "word": "", "meaning": "", "partOfSpeech": "", "topic": "", "frequency": "", "example": "" }],
   "lexile": { "level": "", "score": 0, "reasoning": "" },
   "subtitle": "",
@@ -343,7 +351,8 @@ export interface FeedQuizSpec {
 }
 
 /**
- * Builds a batch request to generate feed quizzes (the 8 interactive formats).
+ * Builds a batch request to generate feed quizzes using 15 question types.
+ * Each item specifies its questionType so the AI generates the right kind of content.
  * This runs daily to pre-generate swipeable quizzes based on due phrases & weaknesses.
  */
 export function buildFeedQuizBatchRequest(
@@ -355,11 +364,11 @@ export function buildFeedQuizBatchRequest(
   const drillSpecs = specs.filter(s => s.source === 'drill');
 
   const phraseLines = phraseSpecs.map((s, i) => 
-      `${i + 1}. PHRASE: "${s.phrase}" (meaning: ${s.meaning}, register: ${s.register}, type: ${s.questionType})`
+      `${i + 1}. PHRASE: "${s.phrase}" | meaning: ${s.meaning} | register: ${s.register} | questionType: ${s.questionType}`
   );
   
   const drillLines = drillSpecs.map((s, i) => 
-      `${phraseSpecs.length + i + 1}. DRILL: weakness in ${s.weaknessCategory} — wrong: "${s.example}", correct: "${s.correction}", explanation: ${s.meaning}`
+      `${phraseSpecs.length + i + 1}. DRILL: weakness in ${s.weaknessCategory} — wrong: "${s.example}", correct: "${s.correction}" | questionType: ${s.questionType} | explanation: ${s.meaning}`
   );
 
   const prompt = `You are a master educator, expert linguist, and witty screenwriter. Generate ${specs.length} vocabulary exercises for a social media-style feed.
@@ -371,46 +380,53 @@ CORE RULES:
 - Use authentic, modern phrasing matched to the register (casual roommate argument vs. corporate meeting vs. late-night DM).
 - Show, don't tell: instead of "she was angry," describe her slamming a laptop shut.
 - Wrong options should be TEMPTINGLY plausible — the kind of mistake a smart learner would make.
-- IMPORTANT: Vary the format across questions! Do NOT use the same format for every question.
+- Keep scenarios SHORT (max 50 words) — these are mobile cards, not essays.
 
 Items:
 ${[...phraseLines, ...drillLines].join('\n')}
 
-AVAILABLE FORMATS (mix them — use at least 3 different formats across all questions):
+Each item specifies a "questionType". Generate the question matching that type:
 
-1. "fill_blank" — Fill in the blank
-   Scenario has a ___ where the target phrase goes. Options are 3 possible words.
-   Example: "She slammed her laptop, turned to her co-founder, and said: 'I think it's time to ___ this whole strategy.'"
-   Options: ["pivot", "abandon", "rethink"]
+== MCQ TYPES (3 options, one correct) ==
+- "social_consequence_prediction": Scene using the phrase → "What happens next?" (3 outcomes)
+- "situation_phrase_matching": Describe a situation → "Which phrase fits best?" (3 phrases)
+- "fill_gap_mcq": Sentence with ___ → 3 word choices to fill the gap
+- "why_did_they_say": Quote using the phrase → "Why did they say this?" (3 motivations)
+- "appropriateness_judgment": Sentence using the phrase → "Is this usage appropriate here?" (3 judgments)
+- "reading_comprehension": Short passage with the phrase → inference question (3 answers)
+- "sentence_correction": Sentence with subtle error → "Pick the correct version" (3 rewrites)
 
-2. "tone_read" — Read the tone
-   Paint a vivid scene using the phrase naturally (no blank). Ask what the speaker's TONE or INTENT is.
-   Example: "Your manager replies 'Per my last email' after you ask the same question twice."
-   Options: ["Genuinely helpful reminder", "Barely concealed frustration", "Casual follow-up"]
+== SPECIAL INTERACTION TYPES ==
+- "tone_interpretation": Scene using the phrase naturally → "What tone is the speaker using?" — provide 3 emotion labels as options (e.g. "Sarcastic", "Sincere", "Passive-aggressive")
+- "error_detection": Sentence with the phrase MISUSED → "What's wrong?" — option[0] = the wrong word/phrase, option[1] = the correction, option[2] = brief explanation. Set correctIndex to 1.
+- "contrast_exposure": Two similar phrases that differ in nuance → option[0] = phrase A, option[1] = phrase B, option[2] = the key difference. Scenario asks "What's the difference?"
+- "register_sorting": Give 3 versions of the same idea at different registers → options = [casual, neutral, formal] in SCRAMBLED order. correctIndex = index of the correct casual→formal ordering (0 if already sorted, or whichever represents correct order).
 
-3. "spot_error" — Spot the misuse
-   Use the target phrase INCORRECTLY in a scenario. Ask which version fixes it.
-   Example: "He said 'I could care less about the deadline' to show his indifference."
-   Options: ["Correct as written", "'couldn't care less'", "'could not care'"]
+== TYPE-IN TYPES (user types a short answer) ==
+For these, the user will TYPE their answer (not select). Still provide options[] with the ideal answer at correctIndex so the system can check:
+- "constrained_production": Sentence with ___ → user types the missing word. options = [correct_word, wrong_word_1, wrong_word_2], correctIndex = 0.
+- "transformation_exercise": Show a formal sentence → "Rewrite casually" (or vice versa). options = [ideal_rewrite, alt_1, alt_2], correctIndex = 0.
+- "dialogue_completion_open": Dialogue with last line missing → user types reply. options = [ideal_reply, alt_1, alt_2], correctIndex = 0.
+- "text_completion": Paragraph with one ___ → user types the word. options = [correct, wrong_1, wrong_2], correctIndex = 0.
 
-4. "best_response" — Best response
-   Set up a social situation. Ask which reply uses the phrase most naturally.
-   Example: "Your friend just got promoted but seems weirdly unhappy about it. You say:"
-   Options: ["'That's bittersweet, huh?'", "'So you hate it?'", "'Congrats, period.'"]
+== LISTENING EXERCISES (Grok TTS) ==
+For these types, the 'scenario' MUST include Grok TTS speech tags combining ONLY these exactly:
+Inline: [pause], [long-pause], [hum-tune], [laugh], [chuckle], [giggle], [cry], [tsk], [tongue-click], [lip-smack], [breath], [inhale], [exhale], [sigh]
+Wrapping: <soft>, <whisper>, <loud>, <build-intensity>, <decrease-intensity>, <higher-pitch>, <lower-pitch>, <slow>, <fast>, <sing-song>, <singing>, <laugh-speak>, <emphasis>
+Example scenario: "[sigh] <slow><lower-pitch>I really can't believe he said that.</lower-pitch></slow>"
 
-5. "true_false" — Usage judgment
-   Present a sentence using the phrase. Ask if the usage is natural.
-   Example: "A CEO tells investors: 'We need to PIVOT our approach to the Asian market.'"
-   Options: ["Perfectly natural", "Wrong register — too casual", "Wrong meaning entirely"]
+- "listen_and_identify": Scenario uses the phrase with heavy emotion tags. options = ["The phrase used", "Distractor 1", "Distractor 2"], correctIndex = 0. Identify the target phrase heard.
+- "tone_by_voice": Scenario uses the phrase with heavy emotion tags. options = ["Sarcasm", "Joy", "Panic"], correctIndex = 0. Identify the tone of voice.
+- "dictation": Scenario uses the phrase. The user types what they hear. options = ["The exact phrase", "Wrong", "Wrong"], correctIndex = 0.
 
 Return a JSON object { "questions": [...] } with one entry per item in the exact order requested:
 {
   "questions": [
     {
       "phraseIndex": 0,
-      "format": "fill_blank",
+      "questionType": "fill_gap_mcq",
       "emotion": "one-word emotion tag, e.g. sarcasm, panic, tenderness",
-      "scenario": "Vivid micro-story (2-3 sentences, max 50 words). For fill_blank: include ___. For others: use the phrase naturally.",
+      "scenario": "Vivid micro-story (2-3 sentences, max 50 words).",
       "options": ["Option A", "Option B", "Option C"],
       "correctIndex": 0,
       "explanation": "Quick, warm debrief — like a friend explaining it over coffee (1 sentence)"
@@ -423,7 +439,7 @@ Return a JSON object { "questions": [...] } with one entry per item in the exact
     messages: [
       { 
         role: 'system', 
-        content: 'You are a master educator, expert linguist, and witty screenwriter. You create emotionally vivid fill-in-the-blank vocabulary exercises. Every sentence you write feels ripped from a movie script, a heated group chat, or a devastating breakup text. Return valid JSON only.' 
+        content: 'You are a master educator, expert linguist, and witty screenwriter. You create emotionally vivid vocabulary exercises for a social media-style card feed. Each exercise must match the specified questionType exactly. Return valid JSON only.' 
       },
       { role: 'user', content: prompt }
     ],

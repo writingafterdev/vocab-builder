@@ -41,7 +41,7 @@ async function runBackfill() {
           console.error("  Error checking for existing quotes", e);
       }
 
-      const textToProcess = post.content || post.description || '';
+      const textToProcess = (post.content as string) || (post.description as string) || '';
       const topic = post.importTopic as string || 'General';
 
       if (post.extractedQuotes && Array.isArray(post.extractedQuotes) && post.extractedQuotes.length > 0) {

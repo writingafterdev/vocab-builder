@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { runQuery, updateDocument } from '@/lib/firestore-rest';
 import { safeParseAIJson } from '@/lib/ai-utils';
 import { logTokenUsage } from '@/lib/db/token-tracking';
+import { getGrokKey } from '@/lib/grok-client';
 import type { SavedPhrase, ExerciseSurface, InlineQuestion, LearningPhase, ExerciseQuestionType } from '@/lib/db/types';
 import { DEFAULT_PRACTICE_CONFIG } from '@/lib/db/practice-types';
 
-const XAI_API_KEY = process.env.XAI_API_KEY;
+const XAI_API_KEY = getGrokKey('exercises');
 const XAI_URL = 'https://api.x.ai/v1/chat/completions';
 
 /**
@@ -223,7 +224,7 @@ Return JSON:
                 'Authorization': `Bearer ${XAI_API_KEY}`,
             },
             body: JSON.stringify({
-                model: 'grok-4-1-fast-reasoning',
+                model: 'grok-4-1-fast-non-reasoning',
                 messages: [
                     {
                         role: 'system',
@@ -251,7 +252,7 @@ Return JSON:
                 userId: userId || 'anonymous',
                 userEmail: request.headers.get('x-user-email') || 'anonymous',
                 endpoint: 'content-quiz',
-                model: 'grok-4-1-fast-reasoning',
+                model: 'grok-4-1-fast-non-reasoning',
                 promptTokens: data.usage.prompt_tokens || 0,
                 completionTokens: data.usage.completion_tokens || 0,
                 totalTokens: data.usage.total_tokens || 0,

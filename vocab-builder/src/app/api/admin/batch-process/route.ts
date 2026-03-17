@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logTokenUsage } from '@/lib/db/token-tracking';
 import { updateDocument } from '@/lib/firestore-rest';
+import { getGrokKey } from '@/lib/grok-client';
 
 /**
  * Batch Process Article — Single Grok (xAI) call that does everything:
@@ -14,7 +15,7 @@ import { updateDocument } from '@/lib/firestore-rest';
  * Audio TTS remains separate (different API/model).
  */
 
-const XAI_API_KEY = process.env.XAI_API_KEY;
+const XAI_API_KEY = getGrokKey('articles');
 const XAI_API_URL = 'https://api.x.ai/v1/chat/completions';
 
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase());
@@ -64,17 +65,7 @@ Extract 15-25 phrases that are useful for English learners:
 - Topic-specific vocabulary phrases (2+ words)
 Return as a flat string array called "highlightedPhrases".
 
-━━━ TASK 2: PHRASE DATA ━━━
-For the SAME phrases, generate detailed data:
-- phrase: exact phrase
-- meaning: clear, concise definition
-- example: natural usage example
-- mode: "spoken" | "written" | "neutral"
-- topics: 1-2 relevant topic tags
-- commonUsages: up to 3 related collocations/expressions (empty array if none):
-  - { phrase, meaning, example, type: "collocation"|"phrasal_verb"|"idiom"|"expression", mode, topics }
-
-━━━ TASK 3: TOPIC VOCABULARY + LEXILE ━━━
+━━━ TASK 2: TOPIC VOCABULARY + LEXILE ━━━
 Extract 10-20 vocabulary items (single words AND phrases):
 - Domain-specific terms (B2-C2 level)
 - Include partOfSpeech: "noun"|"verb"|"adjective"|"adverb"|"phrase"
@@ -86,7 +77,7 @@ Also assess reading difficulty:
 - score: 400-1600 Lexile score
 - reasoning: brief explanation
 
-━━━ TASK 4: READING SECTIONS ━━━
+━━━ TASK 3: READING SECTIONS ━━━
 Divide the article into 3-8 logical sections for a card-based swipe reading interface:
 - Each section ~100-250 words
 - Split at natural breakpoints (not mid-sentence)
@@ -94,23 +85,13 @@ Divide the article into 3-8 logical sections for a card-based swipe reading inte
 - Extract 2-5 notable vocab phrases per section
 - Generate a one-line subtitle/caption for the article
 
-━━━ TASK 5: TOPIC DETECTION ━━━
+━━━ TASK 4: TOPIC DETECTION ━━━
 Identify the article's main topic (1-2 words, e.g., "Technology", "Climate Science").
 
 Return ONLY valid JSON with this structure:
 {
   "detectedTopic": "Topic Name",
   "highlightedPhrases": ["phrase1", "phrase2"],
-  "phraseData": [
-    {
-      "phrase": "drive economic growth",
-      "meaning": "To be the main cause of economic development",
-      "example": "Technology continues to drive economic growth.",
-      "mode": "written",
-      "topics": ["economics"],
-      "commonUsages": []
-    }
-  ],
   "topicVocab": [
     {
       "word": "sustainability",
@@ -143,7 +124,7 @@ Return ONLY valid JSON with this structure:
                 'Authorization': `Bearer ${XAI_API_KEY}`,
             },
             body: JSON.stringify({
-                model: 'grok-4-1-fast-reasoning',
+                model: 'grok-4-1-fast-non-reasoning',
                 messages: [
                     {
                         role: 'system',
@@ -172,7 +153,7 @@ Return ONLY valid JSON with this structure:
                 userId: 'admin',
                 userEmail: email || 'cron',
                 endpoint: 'admin-batch-process',
-                model: 'grok-4-1-fast-reasoning',
+                model: 'grok-4-1-fast-non-reasoning',
                 promptTokens: data.usage.prompt_tokens || 0,
                 completionTokens: data.usage.completion_tokens || 0,
                 totalTokens: data.usage.total_tokens || 0,
@@ -191,29 +172,12 @@ Return ONLY valid JSON with this structure:
 
         // ═══ Validate & clean data ═══
 
-        const validTypes = ['collocation', 'phrasal_verb', 'idiom', 'expression'];
         const validPOS = ['noun', 'verb', 'adjective', 'adverb', 'phrase'];
         const validFreq = ['common', 'intermediate', 'advanced'];
         const validLevels = ['easy', 'medium', 'hard'];
 
         const highlightedPhrases: string[] = (parsed.highlightedPhrases || [])
             .filter((p: any) => typeof p === 'string' && p.length > 0);
-
-        const phraseData = (parsed.phraseData || []).map((p: any) => ({
-            phrase: p.phrase,
-            meaning: p.meaning,
-            example: p.example || '',
-            mode: p.mode || 'neutral',
-            topics: Array.isArray(p.topics) ? p.topics : [],
-            commonUsages: (p.commonUsages || []).slice(0, 3).map((u: any) => ({
-                phrase: u.phrase,
-                meaning: u.meaning,
-                example: u.example || '',
-                type: validTypes.includes(u.type) ? u.type : 'expression',
-                mode: u.mode || 'neutral',
-                topics: Array.isArray(u.topics) ? u.topics : [],
-            })),
-        }));
 
         const topicVocab = (parsed.topicVocab || [])
             .filter((v: any) => v.word && v.meaning)
@@ -243,7 +207,6 @@ Return ONLY valid JSON with this structure:
 
         const updateData: Record<string, unknown> = {
             highlightedPhrases,
-            phraseData,
             detectedTopic: parsed.detectedTopic || 'General',
             topicVocab,
             lexileLevel: lexile.level,
@@ -262,7 +225,6 @@ Return ONLY valid JSON with this structure:
             postId,
             detectedTopic: parsed.detectedTopic,
             phraseCount: highlightedPhrases.length,
-            phraseDataCount: phraseData.length,
             vocabCount: topicVocab.length,
             sectionCount: sections.length,
             lexile,
