@@ -181,10 +181,16 @@ export async function POST(request: NextRequest) {
                 const docId = `session_${userId}_${Date.now()}`;
                 await setDocument('generatedSessions', docId, session);
 
-                // Update the user's reviewDayCount so manual session generation won't offset it unexpectedly
-                await updateDocument('users', userId, {
-                    'stats.reviewDayCount': tomorrowCount,
-                });
+                // Try to update the user's reviewDayCount — this may fail with 403
+                // since cron jobs don't have a user auth token. The count will be
+                // updated when the user opens the session via generate-session-article.
+                try {
+                    await updateDocument('users', userId, {
+                        'stats.reviewDayCount': tomorrowCount,
+                    });
+                } catch (err) {
+                    console.warn(`[Cron] Could not update reviewDayCount for ${userId}, will sync on next session open`);
+                }
 
                 totalGenerated++;
                 results.push({ userId, status: `generated_listening_session`, count: listeningPhrases.length });

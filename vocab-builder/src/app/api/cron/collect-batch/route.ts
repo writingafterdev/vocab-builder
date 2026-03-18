@@ -78,8 +78,6 @@ export async function POST(request: NextRequest) {
 
                 if (jobType === 'article_processing') {
                     await processArticleResults(succeeded);
-                } else if (jobType === 'exercise_generation') {
-                    await processExerciseResults(succeeded);
                 } else if (jobType === 'feed_quiz_generation') {
                     await processFeedQuizResults(succeeded);
                 }
@@ -203,110 +201,6 @@ async function processArticleResults(
                 processingStatus: 'failed',
                 processingError: error instanceof Error ? error.message : 'Parse error',
             });
-        }
-    }
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// EXERCISE RESULT PROCESSING
-// ═══════════════════════════════════════════════════════════════════════════
-
-async function processExerciseResults(
-    results: { batch_request_id: string; response?: { content: string } }[]
-) {
-    const dateStr = new Date().toISOString().split('T')[0];
-
-    for (const result of results) {
-        // batch_request_id format: "exercises_{userId}"
-        const match = result.batch_request_id.match(/^exercises_(.+)$/);
-        if (!match) {
-            console.error(`[CollectBatch] Invalid exercise request ID: ${result.batch_request_id}`);
-            continue;
-        }
-
-        const userId = match[1];
-        const content = result.response?.content;
-        if (!content) {
-            console.error(`[CollectBatch] No content for user ${userId}`);
-            continue;
-        }
-
-        try {
-            const parsed = JSON.parse(content);
-            const docId = `${dateStr}_${userId}`;
-
-            // Validate and clean questions
-            const questions = Array.isArray(parsed.questions)
-                ? parsed.questions.map((q: any, i: number) => ({
-                    id: `q_${dateStr}_${userId}_${i}`,
-                    type: q.type || 'situation_phrase_matching',
-                    content: q.content || {},
-                    targetPhraseIds: Array.isArray(q.targetPhraseIds) ? q.targetPhraseIds : [],
-                    contextPhraseIds: [],
-                    xpReward: q.xpReward || 15,
-                }))
-                : [];
-
-            // Validate and clean drills
-            const drills = Array.isArray(parsed.drills)
-                ? parsed.drills.map((d: any, i: number) => ({
-                    id: `drill_${dateStr}_${userId}_${i}`,
-                    type: d.type || 'grammar_fix',
-                    weaknessId: d.weaknessId || '',
-                    weaknessCategory: d.weaknessCategory || '',
-                    instruction: d.instruction || '',
-                    prompt: d.prompt || '',
-                    options: Array.isArray(d.options) ? d.options : [],
-                    correctAnswer: d.correctAnswer || '',
-                    explanation: d.explanation || '',
-                }))
-                : [];
-
-            // Validate immersive session
-            const immersiveSession = parsed.immersiveSession && typeof parsed.immersiveSession === 'object'
-                ? {
-                    reading: parsed.immersiveSession.reading ? {
-                        title: parsed.immersiveSession.reading.title || '',
-                        content: parsed.immersiveSession.reading.content || '',
-                        questions: Array.isArray(parsed.immersiveSession.reading.questions) ? parsed.immersiveSession.reading.questions : [],
-                        phrases: Array.isArray(parsed.immersiveSession.reading.phrases) ? parsed.immersiveSession.reading.phrases : [],
-                    } : null,
-                    listening: parsed.immersiveSession.listening ? {
-                        title: parsed.immersiveSession.listening.title || '',
-                        content: parsed.immersiveSession.listening.content || '',
-                        questions: Array.isArray(parsed.immersiveSession.listening.questions) ? parsed.immersiveSession.listening.questions : [],
-                        phrases: Array.isArray(parsed.immersiveSession.listening.phrases) ? parsed.immersiveSession.listening.phrases : [],
-                    } : null,
-                }
-                : null;
-
-            // Validate bundle
-            const bundle = parsed.bundle && typeof parsed.bundle === 'object'
-                ? {
-                    theme: parsed.bundle.theme || 'Practice Session',
-                    question: parsed.bundle.question || '',
-                    phrases: Array.isArray(parsed.bundle.phrases) ? parsed.bundle.phrases : [],
-                    hints: Array.isArray(parsed.bundle.hints) ? parsed.bundle.hints : [],
-                }
-                : null;
-
-            const exerciseData = {
-                userId,
-                date: dateStr,
-                questions,
-                drills,
-                immersiveSession,
-                bundle,
-                phraseCount: questions.length,
-                drillCount: drills.length,
-                generatedAt: new Date().toISOString(),
-                used: false,
-            };
-
-            await setDocument('preGeneratedExercises', docId, exerciseData);
-            console.log(`[CollectBatch] ✓ User ${userId}: ${questions.length} questions, ${drills.length} drills, immersive=${!!immersiveSession}, bundle=${!!bundle}`);
-        } catch (error) {
-            console.error(`[CollectBatch] Failed to parse exercises for ${userId}:`, error);
         }
     }
 }

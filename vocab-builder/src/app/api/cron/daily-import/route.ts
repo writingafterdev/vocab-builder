@@ -13,7 +13,7 @@ import {
     serverTimestamp,
 } from '@/lib/firestore-rest';
 import { createBatch, addBatchRequests } from '@/lib/grok-batch';
-import { buildArticleBatchRequest, buildUserExerciseBatchRequest, buildFeedQuizBatchRequest, FEED_PHASE_TYPES, getPhaseForStep, type FeedQuizSpec } from '@/lib/batch-prompts';
+import { buildArticleBatchRequest, buildFeedQuizBatchRequest, FEED_PHASE_TYPES, getPhaseForStep, type FeedQuizSpec } from '@/lib/batch-prompts';
 import { getUserWeaknesses } from '@/lib/db/user-weaknesses';
 import { hasGrokKey } from '@/lib/grok-client';
 
@@ -161,11 +161,11 @@ export async function POST(request: NextRequest) {
             console.log('[DailyImport] Phase 2: skipped (no Grok articles key set)');
         }
 
-        // ═══ PHASE 3: SUBMIT EXERCISE BATCH ═══
-        // One comprehensive request per user: quick practice + drill + immersive + bundle
+        // ═══ PHASE 3: SUBMIT FEED QUIZ BATCH ═══
+        // Generate feed quizzes (21 question types + daily drills) for each user's due phrases
 
-        let exerciseBatchId: string | null = null;
-        let exerciseRequestCount = 0;
+        let feedQuizBatchId: string | null = null;
+        let feedQuizRequestCount = 0;
 
         if (hasKey) {
             try {
@@ -175,9 +175,7 @@ export async function POST(request: NextRequest) {
                     const todayEnd = new Date();
                     todayEnd.setHours(23, 59, 59, 999);
                     const dateStr = new Date().toISOString().split('T')[0];
-                    const allExerciseRequests: ReturnType<typeof buildUserExerciseBatchRequest>[] = [];
                     const allFeedQuizRequests: ReturnType<typeof buildFeedQuizBatchRequest>[] = [];
-                    const userPhraseMap: Record<string, string[]> = {};
 
                     for (const user of users) {
                         const userId = user.id as string;
@@ -230,92 +228,55 @@ export async function POST(request: NextRequest) {
                                 console.error(`[DailyImport] Weakness fetch failed for ${userId}:`, e);
                             }
 
-                                // One comprehensive request per user
-                                const exerciseReq = buildUserExerciseBatchRequest(
-                                    userId,
-                                    todayDue.map(p => ({
-                                        id: p.id as string,
-                                        phrase: p.phrase as string,
-                                        meaning: p.meaning as string | undefined,
-                                        register: p.register as string | undefined,
-                                        nuance: p.nuance as string | undefined,
-                                        context: p.context as string | undefined,
-                                        topics: p.topics as string[] | undefined,
-                                        learningStep: (p.learningStep as number) || 1,
-                                    })),
-                                    weaknesses,
-                                );
-                                allExerciseRequests.push(exerciseReq);
-                                userPhraseMap[userId] = todayDue.map(p => p.id as string);
+                            // Construct Feed Quiz Specs — use SRS phase to pick from feed-friendly types
+                            const feedQuizSpecs: FeedQuizSpec[] = todayDue.map(p => {
+                                const learningStep = (p.learningStep as number) || 1;
+                                const phase = getPhaseForStep(learningStep);
+                                const phaseTypes = FEED_PHASE_TYPES[phase] || FEED_PHASE_TYPES.recognition;
 
-                                // Construct Feed Quiz Specs — use SRS phase to pick from 15 feed-friendly types
-                                const feedQuizSpecs: FeedQuizSpec[] = todayDue.map(p => {
-                                    const learningStep = (p.learningStep as number) || 1;
-                                    const phase = getPhaseForStep(learningStep);
-                                    const phaseTypes = FEED_PHASE_TYPES[phase] || FEED_PHASE_TYPES.recognition;
+                                const completedFormats = (p.completedFormats || []) as string[];
+                                const unused = phaseTypes.filter(t => !completedFormats.includes(t));
+                                const pool = unused.length > 0 ? unused : phaseTypes;
+                                const questionType = pool[Math.floor(Math.random() * pool.length)];
 
-                                    const completedFormats = (p.completedFormats || []) as string[];
-                                    const unused = phaseTypes.filter(t => !completedFormats.includes(t));
-                                    const pool = unused.length > 0 ? unused : phaseTypes;
-                                    const questionType = pool[Math.floor(Math.random() * pool.length)];
+                                return {
+                                    phraseId: p.id as string,
+                                    phrase: p.phrase as string,
+                                    meaning: (p.meaning as string) || '',
+                                    register: (p.register as string) || 'neutral',
+                                    questionType,
+                                    source: 'phrase' as const,
+                                };
+                            });
 
-                                    return {
-                                        phraseId: p.id as string,
-                                        phrase: p.phrase as string,
-                                        meaning: (p.meaning as string) || '',
-                                        register: (p.register as string) || 'neutral',
-                                        questionType,
-                                        source: 'phrase' as const,
-                                    };
-                                });
+                            // Drills — pick from comprehension types suited for error-focused learning
+                            const DRILL_TYPES = ['error_detection', 'sentence_correction', 'appropriateness_judgment', 'fill_gap_mcq'];
+                            const drillSpecs: FeedQuizSpec[] = weaknesses.slice(0, 2).map(w => ({
+                                phraseId: w.id,
+                                phrase: w.specific,
+                                meaning: w.explanation,
+                                register: 'neutral',
+                                questionType: DRILL_TYPES[Math.floor(Math.random() * DRILL_TYPES.length)],
+                                source: 'drill' as const,
+                                weaknessCategory: w.category,
+                                example: w.examples[0] || '',
+                                correction: w.correction,
+                            }));
 
-                                // Drills — pick from comprehension types suited for error-focused learning
-                                const DRILL_TYPES = ['error_detection', 'sentence_correction', 'appropriateness_judgment', 'fill_gap_mcq'];
-                                const drillSpecs: FeedQuizSpec[] = weaknesses.slice(0, 2).map(w => ({
-                                    phraseId: w.id,
-                                    phrase: w.specific,
-                                    meaning: w.explanation,
-                                    register: 'neutral',
-                                    questionType: DRILL_TYPES[Math.floor(Math.random() * DRILL_TYPES.length)],
-                                    source: 'drill' as const,
-                                    weaknessCategory: w.category,
-                                    example: w.examples[0] || '',
-                                    correction: w.correction,
-                                }));
+                            const feedReq = buildFeedQuizBatchRequest(userId, [...feedQuizSpecs, ...drillSpecs]);
+                            allFeedQuizRequests.push(feedReq);
 
-                                const feedReq = buildFeedQuizBatchRequest(userId, [...feedQuizSpecs, ...drillSpecs]);
-                                allFeedQuizRequests.push(feedReq);
-
-                            } catch (err) {
-                            console.error(`[DailyImport] Exercise query failed for user ${userId}:`, err);
+                        } catch (err) {
+                            console.error(`[DailyImport] Feed quiz query failed for user ${userId}:`, err);
                         }
-                    }
-
-                    if (allExerciseRequests.length > 0) {
-                        exerciseBatchId = await createBatch(`exercises_${dateStr}`);
-                        await addBatchRequests(exerciseBatchId, allExerciseRequests);
-                        exerciseRequestCount = allExerciseRequests.length;
-
-                        await addDocument('batchJobs', {
-                            batchId: exerciseBatchId,
-                            name: `exercises_${dateStr}`,
-                            provider: 'grok',
-                            type: 'exercise_generation',
-                            status: 'submitted',
-                            userPhraseMap,
-                            requestCount: allExerciseRequests.length,
-                            submittedAt: new Date().toISOString(),
-                        });
-
-                        console.log(`[DailyImport] Phase 3: submitted ${allExerciseRequests.length} user exercise requests to Grok batch ${exerciseBatchId}`);
-                    } else {
-                        console.log('[DailyImport] Phase 3: no due phrases found for any user');
                     }
 
                     // Feed Quizzes Batch Submission
                     if (allFeedQuizRequests.length > 0) {
-                        const feedQuizBatchId = await createBatch(`feed_quizzes_${dateStr}`);
+                        const dateStr = new Date().toISOString().split('T')[0];
+                        feedQuizBatchId = await createBatch(`feed_quizzes_${dateStr}`);
                         await addBatchRequests(feedQuizBatchId, allFeedQuizRequests);
+                        feedQuizRequestCount = allFeedQuizRequests.length;
 
                         await addDocument('batchJobs', {
                             batchId: feedQuizBatchId,
@@ -328,10 +289,12 @@ export async function POST(request: NextRequest) {
                         });
 
                         console.log(`[DailyImport] Phase 3: submitted ${allFeedQuizRequests.length} feed quiz requests to Grok batch ${feedQuizBatchId}`);
+                    } else {
+                        console.log('[DailyImport] Phase 3: no due phrases found for any user');
                     }
                 }
             } catch (error) {
-                console.error('[DailyImport] Phase 3 (exercise batch) failed:', error);
+                console.error('[DailyImport] Phase 3 (feed quiz batch) failed:', error);
             }
         } else {
             console.log('[DailyImport] Phase 3: skipped (no Grok articles key set)');
@@ -348,7 +311,7 @@ export async function POST(request: NextRequest) {
             })),
             batch: {
                 articles: articleBatchId ? { batchId: articleBatchId, count: allImported.length } : null,
-                exercises: exerciseBatchId ? { batchId: exerciseBatchId, count: exerciseRequestCount } : null,
+                feedQuizzes: feedQuizBatchId ? { batchId: feedQuizBatchId, count: feedQuizRequestCount } : null,
             },
         });
     } catch (error) {
