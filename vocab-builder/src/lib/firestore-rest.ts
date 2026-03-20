@@ -107,16 +107,22 @@ function documentToObject(doc: FirestoreDocument): Record<string, unknown> & { i
  */
 export async function addDocument(
     collectionPath: string,
-    data: Record<string, unknown>
+    data: Record<string, unknown>,
+    idToken?: string
 ): Promise<string> {
     const fields: Record<string, FirestoreValue> = {};
     for (const [key, value] of Object.entries(data)) {
         fields[key] = toFirestoreValue(value);
     }
 
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (idToken) {
+        headers['Authorization'] = `Bearer ${idToken}`;
+    }
+
     const response = await fetch(withKey(`${getFirestoreBaseUrl()}/${collectionPath}`), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ fields }),
     });
 
@@ -135,9 +141,17 @@ export async function addDocument(
  */
 export async function getDocument(
     collectionPath: string,
-    documentId: string
+    documentId: string,
+    idToken?: string
 ): Promise<(Record<string, unknown> & { id: string }) | null> {
-    const response = await fetch(withKey(`${getFirestoreBaseUrl()}/${collectionPath}/${documentId}`));
+    const headers: Record<string, string> = {};
+    if (idToken) {
+        headers['Authorization'] = `Bearer ${idToken}`;
+    }
+
+    const response = await fetch(withKey(`${getFirestoreBaseUrl()}/${collectionPath}/${documentId}`), {
+        headers
+    });
 
     if (response.status === 404) {
         return null;
@@ -203,16 +217,22 @@ export async function updateDocument(
 export async function setDocument(
     collectionPath: string,
     documentId: string,
-    data: Record<string, unknown>
+    data: Record<string, unknown>,
+    idToken?: string
 ): Promise<void> {
     const fields: Record<string, FirestoreValue> = {};
     for (const [key, value] of Object.entries(data)) {
         fields[key] = toFirestoreValue(value);
     }
 
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (idToken) {
+        headers['Authorization'] = `Bearer ${idToken}`;
+    }
+
     const response = await fetch(withKey(`${getFirestoreBaseUrl()}/${collectionPath}/${documentId}`), {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ fields }),
     });
 
@@ -250,7 +270,8 @@ export async function queryCollection(
         where?: { field: string; op: '==' | '<' | '<=' | '>' | '>=' | '!='; value: unknown }[];
         orderBy?: { field: string; direction?: 'asc' | 'desc' }[];
         limit?: number;
-    }
+    },
+    idToken?: string
 ): Promise<Array<Record<string, unknown> & { id: string }>> {
     // For simple queries, use REST API
     // Complex queries would need the runQuery endpoint
@@ -260,7 +281,17 @@ export async function queryCollection(
         url.searchParams.set('pageSize', options.limit.toString());
     }
 
-    const response = await fetch(withKey(url.toString()));
+    const headers: Record<string, string> = {};
+    if (idToken) {
+        headers['Authorization'] = `Bearer ${idToken}`;
+    }
+
+    const response = await fetch(withKey(url.toString()), { headers });
+
+    // REST API returns 404 for empty collections
+    if (response.status === 404) {
+        return [];
+    }
 
     if (!response.ok) {
         const error = await response.text();

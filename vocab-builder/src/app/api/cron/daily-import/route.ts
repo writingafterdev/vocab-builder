@@ -11,6 +11,7 @@ import {
 } from '@/lib/import-sources';
 import {
     queryCollection,
+    runQuery,
     updateDocument,
     addDocument,
     serverTimestamp,
@@ -134,10 +135,9 @@ export async function POST(request: NextRequest) {
         if (hasKey) {
             try {
                 // Get ALL pending posts (including previously imported ones)
-                const pendingPosts = await queryCollection('posts', {
-                    where: [{ field: 'processingStatus', op: '==', value: 'pending' }],
-                    limit: 50,
-                });
+                const pendingPosts = await runQuery('posts', [
+                    { field: 'processingStatus', op: 'EQUAL', value: 'pending' }
+                ], 50);
 
                 if (pendingPosts.length > 0) {
                     const dateStr = new Date().toISOString().split('T')[0];
@@ -206,12 +206,9 @@ export async function POST(request: NextRequest) {
 
                         try {
                             // Query due phrases for this user
-                            const duePhrases = await queryCollection('savedPhrases', {
-                                where: [
-                                    { field: 'userId', op: '==', value: userId },
-                                ],
-                                limit: 50,
-                            });
+                            const duePhrases = await runQuery('savedPhrases', [
+                                { field: 'userId', op: 'EQUAL', value: userId }
+                            ], 50);
 
                             // Filter for due today
                             const todayDue = duePhrases.filter(p => {
@@ -360,10 +357,9 @@ export async function POST(request: NextRequest) {
 
                     try {
                         // Get phrases due tomorrow for this user
-                        const allPhrases = await queryCollection('savedPhrases', {
-                            where: [{ field: 'userId', op: '==', value: userId }],
-                            limit: 50,
-                        });
+                        const allPhrases = await runQuery('savedPhrases', [
+                            { field: 'userId', op: 'EQUAL', value: userId }
+                        ], 50);
 
                         const tomorrowDue = allPhrases.filter(p => {
                             const nrd = p.nextReviewDate;

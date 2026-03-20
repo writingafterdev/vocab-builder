@@ -21,6 +21,9 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
+        const authHeader = request.headers.get('Authorization');
+        const idToken = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : undefined;
+
         const body = await request.json();
         const { quoteIds, boostTopicName } = body as {
             quoteIds?: string[];
@@ -29,12 +32,12 @@ export async function POST(request: NextRequest) {
 
         // Mark quotes as viewed
         if (quoteIds && quoteIds.length > 0) {
-            await markQuotesViewed(userId, quoteIds);
+            await markQuotesViewed(userId, quoteIds, idToken);
         }
 
         // Boost topic if provided (triggered by ❤️ save)
         if (boostTopicName) {
-            await boostTopic(userId, boostTopicName);
+            await boostTopic(userId, boostTopicName, idToken);
         }
 
         return NextResponse.json({ success: true });

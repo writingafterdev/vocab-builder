@@ -109,8 +109,8 @@ export async function getAllQuotes(): Promise<QuoteBankEntry[]> {
 /**
  * Get the user's feed state (viewed IDs + topic scores + onboarding status)
  */
-export async function getQuoteFeedState(userId: string): Promise<QuoteFeedState> {
-    const doc = await getDocument('quote_feed_state', userId);
+export async function getQuoteFeedState(userId: string, idToken?: string): Promise<QuoteFeedState> {
+    const doc = await getDocument('quote_feed_state', userId, idToken);
     
     if (!doc) {
         return {
@@ -135,8 +135,8 @@ export async function getQuoteFeedState(userId: string): Promise<QuoteFeedState>
  * Mark quotes as viewed (FIFO capped at VIEWED_CAP)
  * Appends new IDs and trims oldest if over cap
  */
-export async function markQuotesViewed(userId: string, quoteIds: string[]): Promise<void> {
-    const state = await getQuoteFeedState(userId);
+export async function markQuotesViewed(userId: string, quoteIds: string[], idToken?: string): Promise<void> {
+    const state = await getQuoteFeedState(userId, idToken);
     
     // Append new IDs (deduplicate)
     const existingSet = new Set(state.viewedQuoteIds);
@@ -153,7 +153,7 @@ export async function markQuotesViewed(userId: string, quoteIds: string[]): Prom
         topicScores: state.topicScores,
         hasCompletedOnboarding: state.hasCompletedOnboarding,
         updatedAt: serverTimestamp(),
-    });
+    }, idToken);
 }
 
 // ─── Topic Preferences ───────────────────────────────────────────────
@@ -161,8 +161,8 @@ export async function markQuotesViewed(userId: string, quoteIds: string[]): Prom
 /**
  * Boost a topic score by 1 (called when user saves/❤️ a quote)
  */
-export async function boostTopic(userId: string, topic: string): Promise<void> {
-    const state = await getQuoteFeedState(userId);
+export async function boostTopic(userId: string, topic: string, idToken?: string): Promise<void> {
+    const state = await getQuoteFeedState(userId, idToken);
     const currentScore = state.topicScores[topic] || 0;
     
     await setDocument('quote_feed_state', userId, {
@@ -172,7 +172,7 @@ export async function boostTopic(userId: string, topic: string): Promise<void> {
             [topic]: currentScore + 1,
         },
         updatedAt: serverTimestamp(),
-    });
+    }, idToken);
 }
 
 /**
