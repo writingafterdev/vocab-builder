@@ -259,7 +259,9 @@ function CompletionScreen({
     totalQuestions: number;
 }) {
     const router = useRouter();
+    const { user } = useAuth();
     const accuracy = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0;
+    const isOwner = user?.uid === session.userId;
 
     return (
         <motion.div
@@ -284,9 +286,15 @@ function CompletionScreen({
                     Session Complete
                 </h2>
 
-                <p className="text-neutral-500 mb-10 tracking-wide font-medium">
-                    You reviewed {session.totalPhrases} phrases with {accuracy}% accuracy.
-                </p>
+                {isOwner ? (
+                    <p className="text-neutral-500 mb-10 tracking-wide font-medium">
+                        You reviewed {session.totalPhrases} phrases with {accuracy}% accuracy.
+                    </p>
+                ) : (
+                    <p className="text-emerald-600 mb-10 tracking-wide font-medium text-sm">
+                        You helped verify a community article with {accuracy}% accuracy!
+                    </p>
+                )}
 
                 {/* Stats */}
                 <div className="grid grid-cols-3 gap-4 mb-10">

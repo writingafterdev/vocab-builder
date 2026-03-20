@@ -26,10 +26,9 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: 'Session not found' }, { status: 404 });
         }
 
-        // Verify ownership
-        if (session.userId !== userId) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
-        }
+        // Extension C: Public Verification
+        // Sessions are now public to the community, so we do not enforce ownership reading
+        // We will handle ownership logic differently when they complete the quiz.
 
         return NextResponse.json({ session });
 

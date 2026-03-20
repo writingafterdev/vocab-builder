@@ -378,7 +378,8 @@ async function callInternalAPI(
 export async function processArticlePipeline(
     postId: string,
     title: string,
-    content: string
+    content: string,
+    targetPhrases?: string[]
 ): Promise<PipelineResult> {
     const steps: Record<string, 'success' | 'failed' | 'skipped'> = {};
 
@@ -451,7 +452,7 @@ export async function processArticlePipeline(
         const postTopic = (postDoc?.importTopic as string) || (postDoc?.detectedTopic as string)?.toLowerCase() || 'general';
 
         const quotes = await extractAndSaveQuotes(
-            postId, content, title, postTopic, postAuthor, postSource
+            postId, content, title, postTopic, postAuthor, postSource, undefined, targetPhrases
         );
         steps.extractQuotes = quotes.length > 0 ? 'success' : 'failed';
     } catch (extractErr) {

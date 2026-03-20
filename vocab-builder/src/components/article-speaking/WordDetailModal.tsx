@@ -104,12 +104,10 @@ export function WordDetailModal({
             });
 
             if (response.ok) {
-                const blob = await response.blob();
-                const url = URL.createObjectURL(blob);
-                const audio = new Audio(url);
+                const data = await response.json();
+                const audio = new Audio(data.url);
                 audio.onended = () => {
                     setIsPlaying(false);
-                    URL.revokeObjectURL(url);
                 };
                 audio.play();
             } else {

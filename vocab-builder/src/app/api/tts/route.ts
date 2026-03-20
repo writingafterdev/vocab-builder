@@ -58,21 +58,51 @@ export async function POST(request: NextRequest) {
     }
 }
 
+import crypto from 'crypto';
+import { getDocument, setDocument } from '@/lib/firestore-rest';
+import { uploadToFirebaseStorage } from '@/lib/firebase-storage';
+
 async function generateSingleTTS(req: TTSRequest): Promise<NextResponse> {
     const voiceId = VOICE_MAP[req.voice || 'default'] || VOICE_MAP.default;
+    const text = req.text.trim();
 
-    const result = await callGrokTTS(req.text, { voiceId });
+    // 1. Create a unique hash for this exact text and voice
+    const hashId = crypto.createHash('sha256').update(`${voiceId}:${text}`).digest('hex');
 
-    console.log('[Grok TTS] Generated MP3, size:', result.audio.length);
+    // 2. Check if we already generated this audio (Global Cache)
+    try {
+        const cachedDoc = await getDocument('audioCache', hashId);
+        if (cachedDoc && cachedDoc.url) {
+            console.log(`[TTS] Cache HIT for hash: ${hashId.substring(0, 8)}...`);
+            return NextResponse.json({ url: cachedDoc.url, cached: true });
+        }
+    } catch (e) {
+        // Document doesn't exist, proceed to generate
+    }
 
-    // Convert to Uint8Array for NextResponse compatibility
-    const audioArray = new Uint8Array(result.audio);
+    // 3. Generate new audio via Grok
+    console.log(`[TTS] Cache MISS. Generating new TTS for hash: ${hashId.substring(0, 8)}...`);
+    const result = await callGrokTTS(text, { voiceId });
+    const extension = result.mimeType === 'audio/mpeg' ? 'mp3' : 'wav';
+    
+    // 4. Upload to Firebase Storage
+    const storagePath = `audio/cache/${hashId}.${extension}`;
+    const downloadUrl = await uploadToFirebaseStorage(result.audio, storagePath, result.mimeType);
 
-    return new NextResponse(audioArray, {
-        headers: {
-            'Content-Type': 'audio/mpeg',
-        },
+    if (!downloadUrl) {
+         throw new Error('Failed to upload audio to storage');
+    }
+
+    // 5. Save URL to Global Cache
+    await setDocument('audioCache', hashId, {
+        text,
+        voice: voiceId,
+        url: downloadUrl,
+        createdAt: new Date().toISOString()
     });
+
+    console.log(`[TTS] Successfully cached new audio at: ${storagePath}`);
+    return NextResponse.json({ url: downloadUrl, cached: false });
 }
 
 async function generateConversationTTS(req: ConversationTTSRequest): Promise<NextResponse> {

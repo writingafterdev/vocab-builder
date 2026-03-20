@@ -191,20 +191,25 @@ export async function getBatchResults(
         })
         .map((r: any) => {
             const actualResponse = r.response || r.batch_result?.response?.chat_get_completion || r.batch_result?.response;
+            // The content might be in actualResponse.content (OpenAI compat)
+            // or actualResponse.body.choices[0].message.content (xAI native)
+            const content = actualResponse?.content
+                || actualResponse?.choices?.[0]?.message?.content
+                || actualResponse?.body?.choices?.[0]?.message?.content
+                || '';
+                
+            const usage = actualResponse?.usage
+                || actualResponse?.body?.usage
+                || { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
+                
+            const finish_reason = actualResponse?.finish_reason
+                || actualResponse?.choices?.[0]?.finish_reason
+                || actualResponse?.body?.choices?.[0]?.finish_reason
+                || 'unknown';
+
             return {
                 batch_request_id: r.batch_request_id,
-                response: {
-                    content: actualResponse?.content
-                        || actualResponse?.choices?.[0]?.message?.content
-                        || actualResponse?.body?.choices?.[0]?.message?.content
-                        || '',
-                    usage: actualResponse?.usage
-                        || actualResponse?.body?.usage
-                        || { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
-                    finish_reason: actualResponse?.finish_reason
-                        || actualResponse?.choices?.[0]?.finish_reason
-                        || 'unknown',
-                },
+                response: { content, usage, finish_reason },
             };
         });
 

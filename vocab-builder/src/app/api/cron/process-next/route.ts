@@ -26,6 +26,27 @@ export async function POST(request: NextRequest) {
         const results: { postId: string; title: string; steps: Record<string, string> }[] = [];
         let remaining = 0;
 
+        // Extension A: Community Targeted Extraction
+        // Fetch up to 1000 active saved phrases to find community targets
+        let communityTargetPhrases: string[] = [];
+        try {
+            const allSaved = await queryCollection('savedPhrases', { limit: 1000 });
+            const counts: Record<string, number> = {};
+            for (const doc of allSaved) {
+                const phrase = (doc.phrase as string)?.toLowerCase().trim();
+                if (phrase && doc.isActive !== false) {
+                    counts[phrase] = (counts[phrase] || 0) + 1;
+                }
+            }
+            communityTargetPhrases = Object.entries(counts)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 50)
+                .map(e => e[0]);
+            console.log(`[ProcessNext] Loaded ${communityTargetPhrases.length} community target phrases.`);
+        } catch (e) {
+            console.error('[ProcessNext] Failed to fetch community targets', e);
+        }
+
         while (true) {
             // Check time budget
             const elapsed = Date.now() - startTime;
@@ -53,7 +74,7 @@ export async function POST(request: NextRequest) {
             console.log(`[ProcessNext] Processing: "${title.slice(0, 60)}..." (${postId})`);
 
             // Run AI pipeline
-            const result = await processArticlePipeline(postId, title, content);
+            const result = await processArticlePipeline(postId, title, content, communityTargetPhrases);
 
             const successCount = Object.values(result.steps).filter(s => s === 'success').length;
             const failCount = Object.values(result.steps).filter(s => s === 'failed').length;

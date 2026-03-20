@@ -1,26 +1,33 @@
+// Vercel Hobby plan: max 60s for serverless functions
+export const maxDuration = 60;
+
 import { NextRequest, NextResponse } from 'next/server';
 import {
     queryCollection,
     updateDocument,
     setDocument,
+    serverTimestamp,
 } from '@/lib/firestore-rest';
 import {
     getBatchStatus,
     getAllBatchResults,
     isBatchComplete,
 } from '@/lib/grok-batch';
+import { safeParseAIJson } from '@/lib/ai-utils';
 
 const CRON_SECRET = process.env.CRON_SECRET;
 
 /**
- * Collect batch results from Grok.
- * Polls active batch jobs, parses results, saves to Firestore.
+ * Collect batch results from Grok + run TTS (merged cron 2+3).
+ * 1. Polls active batch jobs, parses results, saves to Firestore
+ * 2. Runs TTS for practice articles and listening feed quizzes
  *
- * Handles two batch types:
+ * Handles three batch types:
  * - article_processing → saves phrases, vocab, sections to posts
- * - exercise_generation → saves pre-generated exercises
+ * - feed_quiz_generation → saves feed quizzes (flags isListening for TTS)
+ * - practice_article_generation → saves to generatedSessions
  *
- * Called by Vercel Cron daily at 6:00 AM ICT (1 hour after submit).
+ * Called by Vercel Cron daily at 10 PM UTC (1 hour after submit).
  */
 export async function POST(request: NextRequest) {
     try {
@@ -80,6 +87,8 @@ export async function POST(request: NextRequest) {
                     await processArticleResults(succeeded);
                 } else if (jobType === 'feed_quiz_generation') {
                     await processFeedQuizResults(succeeded);
+                } else if (jobType === 'practice_article_generation') {
+                    await processPracticeArticleResults(succeeded, job);
                 }
 
                 // Mark batch job as completed
@@ -114,10 +123,14 @@ export async function POST(request: NextRequest) {
 
         console.log(`[CollectBatch] Done. Processed ${results.length} batch jobs.`);
 
+        // Phase 2: TTS Audio is now handled lazily on-demand by the frontend.
+        const ttsResults = { practiceArticles: 'lazy', listeningQuizzes: 'lazy' };
+
         return NextResponse.json({
             success: true,
             processed: results.length,
             results,
+            tts: ttsResults,
         });
     } catch (error) {
         console.error('[CollectBatch] Fatal error:', error);
@@ -248,7 +261,8 @@ async function processFeedQuizResults(
                 correctIndex: typeof q.correctIndex === 'number' ? q.correctIndex : 0,
                 explanation: q.explanation || '',
                 xpReward: 10,
-                phraseIndex: q.phraseIndex, 
+                phraseIndex: q.phraseIndex,
+                isListening: q.isListening || false,
             }));
 
             const feedQuizData = {
@@ -259,17 +273,107 @@ async function processFeedQuizResults(
             };
 
             await setDocument('feedQuizzes', docId, feedQuizData);
-            console.log(`[CollectBatch] ✓ User ${userId} feed quizzes: ${questions.length} generated.`);
+            console.log(`[CollectBatch] ✓ User ${userId} feed quizzes: ${questions.length} generated (${questions.filter((q: any) => q.isListening).length} listening).`);
         } catch (error) {
             console.error(`[CollectBatch] Failed to parse feed quizzes for ${userId}:`, error);
         }
     }
 }
 
-// GET for health check
-export async function GET() {
-    return NextResponse.json({
-        status: 'ok',
-        description: 'Collect batch results from Grok. POST to trigger.',
-    });
+// ═══════════════════════════════════════════════════════════════════════════
+// PRACTICE ARTICLE RESULT PROCESSING
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function processPracticeArticleResults(
+    results: { batch_request_id: string; response?: { content: string } }[],
+    job: Record<string, unknown>
+) {
+    const userPhraseMap = (job.userPhraseMap || {}) as Record<string, string[]>;
+
+    for (const result of results) {
+        // batch_request_id format: "practice_article_{userId}"
+        const match = result.batch_request_id.match(/^practice_article_(.+)$/);
+        if (!match) {
+            console.error(`[CollectBatch] Invalid practice article request ID: ${result.batch_request_id}`);
+            continue;
+        }
+
+        const userId = match[1];
+        const content = result.response?.content;
+        if (!content) {
+            console.error(`[CollectBatch] No content for user ${userId} practice article`);
+            continue;
+        }
+
+        try {
+            const parseResult = safeParseAIJson<{
+                title: string;
+                subtitle: string;
+                sections: { id: string; content: string; vocabPhrases: string[] }[];
+                questions: { id: string; afterSectionId: string; question: string; options: string[]; correctIndex: number; targetPhrase: string; explanation: string }[];
+                quotes: { text: string; highlightedPhrases: string[] }[];
+            }>(content);
+
+            if (!parseResult.success) {
+                console.error(`[CollectBatch] Failed to parse practice article for ${userId}`);
+                continue;
+            }
+
+            const article = parseResult.data;
+
+            // Normalize sections
+            article.sections = (article.sections || []).map((s, i) => ({
+                ...s,
+                id: s.id || `section_${i + 1}`,
+                vocabPhrases: s.vocabPhrases || [],
+            }));
+
+            // Normalize questions
+            article.questions = (article.questions || []).map((q, i) => ({
+                ...q,
+                id: q.id || `q_${i + 1}`,
+                afterSectionId: q.afterSectionId || article.sections[Math.min(i, article.sections.length - 1)]?.id || 'section_1',
+            }));
+
+            article.quotes = (article.quotes || []).slice(0, 3);
+
+            // Get user stats for reviewDayIndex
+            let reviewDayIndex = 1;
+            try {
+                const users = await queryCollection('users', {
+                    where: [{ field: '__name__', op: '==', value: userId }],
+                    limit: 1,
+                });
+                if (users.length > 0) {
+                    const stats = (users[0].stats || {}) as { reviewDayCount?: number };
+                    reviewDayIndex = (stats.reviewDayCount || 0) + 1;
+                }
+            } catch { /* ignore */ }
+
+            const docId = `session_${userId}_${Date.now()}`;
+            await setDocument('generatedSessions', docId, {
+                userId,
+                title: article.title,
+                subtitle: article.subtitle,
+                sections: article.sections,
+                questions: article.questions,
+                quotes: article.quotes,
+                phraseIds: userPhraseMap[userId] || [],
+                totalPhrases: (userPhraseMap[userId] || []).length,
+                status: 'audio_ready', // Audio is generated lazily on-demand
+                createdAt: serverTimestamp(),
+                isListeningDay: true,
+                reviewDayIndex,
+            });
+
+            console.log(`[CollectBatch] ✓ Practice article for ${userId}: "${article.title}" (${article.sections.length} sections, ${article.questions.length} questions, ${article.quotes.length} quotes)`);
+        } catch (error) {
+            console.error(`[CollectBatch] Failed to parse practice article for ${userId}:`, error);
+        }
+    }
+}
+
+// GET handler — Vercel crons send GET requests
+export async function GET(request: NextRequest) {
+    return POST(request);
 }

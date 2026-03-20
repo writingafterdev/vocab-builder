@@ -16,7 +16,7 @@ interface AudioSectionProps {
 }
 
 export function AudioSection({ section, isBeyondGate, isPassed, isActive }: AudioSectionProps) {
-    const { playFromUrl, stop, isPlaying } = useTTS();
+    const { play, playFromUrl, stop, isPlaying } = useTTS();
     const [hasPlayed, setHasPlayed] = useState(false);
     const [showTranscript, setShowTranscript] = useState(false);
 
@@ -29,9 +29,12 @@ export function AudioSection({ section, isBeyondGate, isPassed, isActive }: Audi
     }, [isActive, stop]);
 
     const handlePlay = async () => {
-        if (!section.audioUrl) return;
         setHasPlayed(true);
-        await playFromUrl(section.audioUrl);
+        if (section.audioUrl) {
+            await playFromUrl(section.audioUrl);
+        } else {
+            await play(section.content);
+        }
     };
 
     // Auto-reveal transcript when passed

@@ -99,7 +99,8 @@ export function QuizCard({
     const emotion = (question as any).emotion || '';
     const questionType = (question as any).questionType || (question as any).format || 'fill_gap_mcq';
 
-    const isListeningType = questionType === 'listen_and_identify' || questionType === 'tone_by_voice' || questionType === 'dictation';
+    const isListeningType = (question as any).isListening === true || questionType === 'listen_and_identify' || questionType === 'tone_by_voice' || questionType === 'dictation';
+    const preGeneratedAudioUrl = (question as any).audioUrl as string | undefined;
     const [audioPlayedState, setAudioPlayedState] = useState(false);
     // Auto-play trigger flag so we only auto-play once when the card mounts
     const [hasAutoPlayed, setHasAutoPlayed] = useState(false);
@@ -113,12 +114,29 @@ export function QuizCard({
         if (isListeningType && !hasAutoPlayed) {
             setHasAutoPlayed(true);
             const playAudio = async () => {
-                const completed = await play(question.scenario, 'eve');
-                if (completed) setAudioPlayedState(true);
+                if (preGeneratedAudioUrl) {
+                    // Play pre-generated audio from URL
+                    try {
+                        const audio = new Audio(preGeneratedAudioUrl);
+                        audio.onended = () => setAudioPlayedState(true);
+                        audio.onerror = async () => {
+                            // Fallback to live TTS if pre-generated fails
+                            const completed = await play(question.scenario, 'eve');
+                            if (completed) setAudioPlayedState(true);
+                        };
+                        await audio.play();
+                    } catch {
+                        const completed = await play(question.scenario, 'eve');
+                        if (completed) setAudioPlayedState(true);
+                    }
+                } else {
+                    const completed = await play(question.scenario, 'eve');
+                    if (completed) setAudioPlayedState(true);
+                }
             };
             playAudio();
         }
-    }, [isListeningType, hasAutoPlayed, play, question.scenario]);
+    }, [isListeningType, hasAutoPlayed, play, question.scenario, preGeneratedAudioUrl]);
 
     const interactionType = useMemo<InteractionType>(() => {
         // Map questionType to base interaction
@@ -182,8 +200,19 @@ export function QuizCard({
                     <div className="flex flex-col items-center justify-center h-full gap-4">
                         <button
                             onClick={async () => {
-                                const completed = await play(question.scenario, 'eve');
-                                if (completed) setAudioPlayedState(true);
+                                if (preGeneratedAudioUrl) {
+                                    try {
+                                        const audio = new Audio(preGeneratedAudioUrl);
+                                        audio.onended = () => setAudioPlayedState(true);
+                                        await audio.play();
+                                    } catch {
+                                        const completed = await play(question.scenario, 'eve');
+                                        if (completed) setAudioPlayedState(true);
+                                    }
+                                } else {
+                                    const completed = await play(question.scenario, 'eve');
+                                    if (completed) setAudioPlayedState(true);
+                                }
                             }}
                             disabled={isLoading || isPlaying}
                             className={cn(

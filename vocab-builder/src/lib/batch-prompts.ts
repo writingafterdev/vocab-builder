@@ -3,7 +3,8 @@
  *
  * Generates prompts for:
  * - Article processing (phrase extraction, vocab, sections, lexile)
- * - Comprehensive exercise generation (quick practice, drill, immersive, bundles)
+ * - Practice article generation (Substack-style articles with inline questions)
+ * - Feed quiz generation (21 question types for swipeable cards)
  */
 
 import type { BatchRequest } from './grok-batch';
@@ -71,7 +72,7 @@ export const PHASE_QUESTION_TYPES: Record<string, string[]> = {
   ],
 };
 
-// 15 feed-friendly types (fit in 280px QuizCard) + 3 listening types
+// 18 non-listening feed types + 3 dedicated listening types
 export const FEED_FRIENDLY_TYPES: string[] = [
   ...PHASE_QUESTION_TYPES.recognition,
   ...PHASE_QUESTION_TYPES.comprehension,
@@ -79,6 +80,19 @@ export const FEED_FRIENDLY_TYPES: string[] = [
   'listen_and_identify',
   'tone_by_voice',
   'dictation'
+];
+
+// 8 non-listening types that also work well as listening-mode cards
+// (scenario can be meaningfully understood through audio alone)
+export const LISTENING_COMPATIBLE_TYPES: string[] = [
+  'social_consequence_prediction',
+  'situation_phrase_matching',
+  'tone_interpretation',
+  'fill_gap_mcq',
+  'why_did_they_say',
+  'appropriateness_judgment',
+  'reading_comprehension',
+  'sentence_correction',
 ];
 
 // Feed-friendly types per phase (for phase-aware selection)
@@ -91,7 +105,52 @@ export const FEED_PHASE_TYPES: Record<string, string[]> = {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
-// ARTICLE PROCESSING PROMPT (unchanged)
+// TOPIC CLUSTERING UTILITY
+// ═══════════════════════════════════════════════════════════════════════════
+
+export interface SimpleCluster {
+  topic: string;
+  register: string;
+  phrases: PhraseForBatch[];
+}
+
+/**
+ * Group phrases by topic + register for article generation.
+ * Phrases that don't form a group of ≥2 get lumped into a "mixed" cluster.
+ */
+export function clusterPhrasesByTopic(phrases: PhraseForBatch[]): SimpleCluster[] {
+  const groups = new Map<string, PhraseForBatch[]>();
+
+  for (const phrase of phrases) {
+    const topic = phrase.topics?.[0] || 'general';
+    const register = phrase.register || 'consultative';
+    const key = `${topic}__${register}`;
+
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(phrase);
+  }
+
+  const clusters: SimpleCluster[] = [];
+  const mixed: PhraseForBatch[] = [];
+
+  for (const [key, groupPhrases] of groups) {
+    const [topic, register] = key.split('__');
+    if (groupPhrases.length >= 2) {
+      clusters.push({ topic, register, phrases: groupPhrases });
+    } else {
+      mixed.push(...groupPhrases);
+    }
+  }
+
+  if (mixed.length > 0) {
+    clusters.push({ topic: 'mixed', register: 'consultative', phrases: mixed });
+  }
+
+  return clusters;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ARTICLE PROCESSING PROMPT
 // ═══════════════════════════════════════════════════════════════════════════
 
 export function buildArticleBatchRequest(
@@ -162,176 +221,96 @@ Return ONLY this JSON structure:
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// COMPREHENSIVE EXERCISE GENERATION PROMPT
+// PRACTICE ARTICLE GENERATION PROMPT (Substack-style)
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
- * Build a comprehensive exercise batch request for one user.
- * Generates ALL exercise content for a day in one request:
- * A) Quick Practice questions (phase-matched to learningStep)
- * B) Daily Drill (weakness-based, if weaknesses provided)
- * C) Immersive Session (reading + listening, if Step 3+ phrases ≥ 3)
- * D) Exercise Bundle (themed writing prompt)
+ * Build a batch request to generate a Substack-style practice article
+ * that weaves in all of a user's due vocabulary phrases.
+ * Used by cron 1 (daily-import) for listening-day sessions.
+ * Results are collected by cron 2 and saved to generatedSessions.
  */
-export function buildUserExerciseBatchRequest(
+export function buildPracticeArticleBatchRequest(
   userId: string,
   phrases: PhraseForBatch[],
-  weaknesses: WeaknessForBatch[] = [],
+  clusters: SimpleCluster[],
 ): BatchRequest {
-  // Group phrases by SRS phase
-  const phrasesByPhase = new Map<string, PhraseForBatch[]>();
-  for (const p of phrases) {
-    const phase = getPhaseForStep(p.learningStep || 1);
-    const group = phrasesByPhase.get(phase) || [];
-    group.push(p);
-    phrasesByPhase.set(phase, group);
-  }
+  const phraseInventory = phrases.map(p =>
+    `- "${p.phrase}" (${p.meaning || 'contextual'}${p.register ? `, register: ${p.register}` : ''})`
+  ).join('\n');
 
-  // Build phrase list with phase info
-  const phraseListByPhase = Array.from(phrasesByPhase.entries())
-    .map(([phase, pList]) => {
-      const types = PHASE_QUESTION_TYPES[phase];
-      return `
-### ${phase.toUpperCase()} PHASE (Steps ${phase === 'recognition' ? '1-2' : phase === 'comprehension' ? '3-4' : phase === 'guided_production' ? '5-6' : '7+'}):
-Allowed question types: ${types.join(', ')}
-Phrases:
-${pList.map(p => `- id="${p.id}" phrase="${p.phrase}" meaning="${p.meaning || ''}" register="${p.register || 'neutral'}" step=${p.learningStep || 1}`).join('\n')}`;
-    })
-    .join('\n');
+  const clusterDescriptions = clusters.map((c, i) =>
+    `Group ${i + 1} [${c.topic}/${c.register}]: ${c.phrases.map(p => `"${p.phrase}"`).join(', ')}`
+  ).join('\n');
 
-  // Step 3+ phrases for immersive
-  const step3Plus = phrases.filter(p => (p.learningStep || 0) >= 3);
-  const hasImmersive = step3Plus.length >= 3;
+  const phraseCount = phrases.length;
+  const wordTarget = phraseCount <= 5 ? '400-600' :
+                     phraseCount <= 10 ? '600-900' :
+                     phraseCount <= 15 ? '900-1200' : '1200-1500';
 
-  // Weakness list for drill
-  const weaknessList = weaknesses.length > 0
-    ? weaknesses.map(w =>
-      `- id="${w.id}" category="${w.category}" specific="${w.specific}" example="${w.examples[0]}" correction="${w.correction}"`
-    ).join('\n')
-    : '';
+  const questionsTarget = Math.min(Math.ceil(phraseCount * 0.6), 8);
 
-  const prompt = `You are an expert English language teacher. Generate a COMPLETE daily exercise package for this learner.
+  const prompt = `You are a Substack-style writer creating a compelling, immersive article. Your articles get readers hooked from the first line, tell stories that linger, and teach vocabulary through CONTEXT — never through definitions.
 
-═══ USER'S DUE PHRASES BY SRS PHASE ═══
-${phraseListByPhase}
+PHRASES TO WEAVE IN:
+${phraseInventory}
 
-═══ SECTION A: QUICK PRACTICE QUESTIONS ═══
+THEMATIC GROUPS:
+${clusterDescriptions}
 
-For EACH phrase, generate 2-3 questions using ONLY the question types allowed for its phase.
-Match each question to the correct interface:
+YOUR TASK: Write ONE cohesive article that naturally incorporates ALL the phrases above. The article should feel like a real Substack post — engaging, opinionated, with a strong narrative voice.
 
-**RECOGNITION types (Steps 1-2):**
-- "social_consequence_prediction": { "storyExcerpt": "2-3 sentence story using phrase", "options": ["outcome1", "outcome2", "outcome3", "outcome4"], "correctIndex": 0-3, "explanation": "" }
-- "situation_phrase_matching": { "context": "situation description", "prompt": "what was said", "options": ["phrase1", "phrase2", "phrase3", "phrase4"], "correctIndex": 0-3, "explanation": "" }
-- "tone_interpretation": { "context": "situation", "dialogue": "speaker uses phrase", "question": "How does speaker feel?", "options": ["emotion1", "emotion2", "emotion3", "emotion4"], "correctIndex": 0-3, "explanation": "" }
-- "contrast_exposure": { "phrase1": "", "phrase2": "", "context": "situation", "scenario1": "outcome with phrase1", "scenario2": "outcome with phrase2", "question": "", "explanation": "" }
+CRITICAL RULES:
 
-**COMPREHENSION types (Steps 3-4):**
-- "fill_gap_mcq": { "dialogue": [{"speaker":"","text":"","isBlank":false},...], "options": ["","","",""], "correctIndex": 0-3, "explanation": "" }
-- "why_did_they_say": { "question": "", "options": ["","","",""], "correctIndex": 0-3, "explanation": "" }
-- "error_detection": { "sentence": "sentence with mistake", "wrongWord": "", "options": ["correct1","correct2","correct3","correct4"], "correctIndex": 0-3, "explanation": "" }
-- "appropriateness_judgment": { "phrase": "", "question": "When would you use this?", "options": ["situation1","situation2","situation3","situation4"], "correctIndex": 0-3, "explanation": "" }
-- "register_sorting": { "phrases": ["p1","p2","p3"], "categories": ["Casual","Neutral","Formal"], "correctAssignment": {"p1":"Casual",...}, "explanation": "" }
-- "reading_comprehension": { "passage": "short paragraph using phrase", "question": "", "options": ["","","",""], "correctIndex": 0-3, "explanation": "" }
-- "sentence_correction": { "sentence": "sentence with subtle error", "options": ["fixed1","fixed2","fixed3","fixed4"], "correctIndex": 0-3, "explanation": "" }
+1. **STRUCTURE**: The article must flow through the thematic groups NATURALLY. Don't abruptly jump topics.
+2. **CONTEXT LAYERING** (for each phrase): BEFORE, PHRASE, AFTER.
+3. **TONE**: Write like a real person, not a textbook.
+4. **LENGTH**: ${wordTarget} words, divided into 3-6 sections. Use the 'sections' array in the JSON response to break up the article into logical parts. Each section will be synthesized into a separate snippet of audio. Keep them reasonably short.
+5. **COMPREHENSION QUESTIONS** (${questionsTarget} total): Test understanding of a specific phrase through story comprehension.
+6. **EXTRACTABLE QUOTES**: Include 2-3 sentences that work as standalone quotes.
 
-**GUIDED PRODUCTION types (Steps 5-6):**
-- "constrained_production": { "targetPhrase": "", "prompt": "Write a sentence using...", "hint": "", "context": "" }
-- "transformation_exercise": { "originalPhrase": "", "originalRegister": "casual"|"formal", "targetRegister": "formal"|"casual", "prompt": "Make this more formal/casual", "hint": "" }
-- "dialogue_completion_open": { "context": "", "dialogueBefore": "", "targetPhrase": "", "hint": "" }
-- "text_completion": { "passage": "paragraph with 2-3 blanks", "blanks": [{"position":0,"hint":"","targetPhrase":""}], "explanation": "" }
-
-**MASTERY types (Steps 7+):**
-- "scenario_production": { "scenario": "full scenario description", "targetPhrase": "" }
-- "explain_to_friend": { "targetPhrase": "", "prompt": "Explain when and how to use this phrase", "context": "" }
-- "multiple_response_generation": { "context": "situation", "targetPhrase": "", "requiredCount": 2, "hint": "" }
-- "creative_context_use": { "targetPhrase": "", "prompt": "Create your own situation", "constraints": "" }
-
-Output format for each question:
-{ "type": "question_type", "content": { ...matching interface above }, "targetPhraseIds": ["phrase_id"], "xpReward": 10-25 }
-
-RULES:
-- Never put correctIndex at the same position for all questions
-- Make distractors plausible, not obviously wrong
-- Each phrase MUST get 2-3 questions from its phase's allowed types
-- Recognition: 1 clearly wrong + 2 plausible + 1 correct
-- Comprehension: all options plausible, correct requires nuance
-- Production: prompts should feel like real conversations, not school assignments
-
-${weaknesses.length > 0 ? `
-═══ SECTION B: DAILY DRILL ═══
-
-Generate 2-3 drill exercises for these weaknesses:
-${weaknessList}
-
-Drill types by category:
-- grammar → "grammar_fix": { "instruction": "", "prompt": "sentence with error", "options": ["fix1","fix2","fix3"], "correctAnswer": "", "explanation": "" }
-- register → "register_choice": { "instruction": "", "prompt": "scenario", "options": ["response1","response2","response3"], "correctAnswer": "", "explanation": "" }
-- nuance/pragmatics → "nuance_match": { "instruction": "", "prompt": "situation", "options": ["phrase1","phrase2","phrase3"], "correctAnswer": "", "explanation": "" }
-- collocation → "collocation_fill": { "instruction": "", "prompt": "sentence with blank", "options": ["word1","word2","word3"], "correctAnswer": "", "explanation": "" }
-` : ''}
-${hasImmersive ? `
-═══ SECTION C: IMMERSIVE SESSION ═══
-
-Using these Step 3+ phrases:
-${step3Plus.slice(0, 5).map(p => `- "${p.phrase}" (${p.meaning || ''})`).join('\n')}
-
-Generate TWO pieces of content:
-1. READING: A short article (150-250 words) naturally incorporating ALL phrases + 4 comprehension questions
-2. LISTENING: A dialogue between 2 people (150-250 words) naturally incorporating ALL phrases + 4 comprehension questions
-
-Each question: { "question": "", "options": ["A","B","C","D"], "correctAnswer": "A", "explanation": "" }
-` : ''}
-═══ SECTION D: EXERCISE BUNDLE ═══
-
-Create ONE themed writing prompt that naturally calls for using ALL due phrases.
-- Open-ended, 50-150 word expected response
-- Feel like something a friend would ask
-- Match the register of the majority of phrases
-
-═══ FINAL OUTPUT ═══
-
-Return ONLY this JSON:
+RESPOND IN JSON:
 {
-  "questions": [
-    { "type": "question_type", "content": { ... }, "targetPhraseIds": ["id"], "xpReward": 15 }
+  "title": "A catchy, Substack-worthy title",
+  "subtitle": "A compelling one-line hook",
+  "sections": [
+    {
+      "id": "section_1",
+      "content": "The full text of this section (multiple paragraphs OK)",
+      "vocabPhrases": ["phrase1", "phrase2"]
+    }
   ],
-  ${weaknesses.length > 0 ? `"drills": [
-    { "type": "drill_type", "weaknessId": "id", "weaknessCategory": "", "instruction": "", "prompt": "", "options": [], "correctAnswer": "", "explanation": "" }
-  ],` : '"drills": [],'}
-  ${hasImmersive ? `"immersiveSession": {
-    "reading": { "title": "", "content": "", "questions": [...], "phrases": [{"phrase":"","meaning":"","id":""}] },
-    "listening": { "title": "", "content": "", "questions": [...], "phrases": [{"phrase":"","meaning":"","id":""}] }
-  },` : '"immersiveSession": null,'}
-  "bundle": {
-    "theme": "Short topic (2-4 words)",
-    "question": "The writing prompt",
-    "phrases": ["phrase1", "phrase2"],
-    "hints": ["meaning1", "meaning2"]
-  }
+  "questions": [
+    {
+      "id": "q_1",
+      "afterSectionId": "section_2",
+      "question": "Story-based comprehension question",
+      "options": ["A", "B", "C", "D"],
+      "correctIndex": 1,
+      "targetPhrase": "the phrase being tested",
+      "explanation": "Brief explanation"
+    }
+  ],
+  "quotes": [
+    {
+      "text": "A vivid sentence",
+      "highlightedPhrases": ["phrase that appears"]
+    }
+  ]
 }`;
 
   return {
-    batch_request_id: `exercises_${userId}`,
+    batch_request_id: `practice_article_${userId}`,
     messages: [
       {
         role: 'system',
-        content: 'You are an expert English language teacher creating personalized daily exercises. Return valid JSON only. Every question must be engaging, authentic, and test real communicative competence — not textbook knowledge.',
+        content: 'You are an award-winning Substack writer who teaches vocabulary through immersive storytelling. You respond ONLY in valid JSON. Your writing is vivid, opinionated, and emotionally engaging.',
       },
       { role: 'user', content: prompt },
     ],
     response_format: { type: 'json_object' },
-    max_tokens: 16384,
+    max_tokens: 4000,
   };
-}
-
-// Legacy: keep old function name for backward compat (will be removed)
-export function buildExerciseBatchRequest(
-  userId: string,
-  clusterIndex: number,
-  phrases: PhraseForBatch[]
-): BatchRequest {
-  return buildUserExerciseBatchRequest(userId, phrases);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -345,6 +324,7 @@ export interface FeedQuizSpec {
   register: string;
   questionType: string;
   source: 'phrase' | 'drill';
+  isListening?: boolean;
   weaknessCategory?: string;
   example?: string;
   correction?: string;

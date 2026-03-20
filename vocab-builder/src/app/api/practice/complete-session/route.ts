@@ -22,39 +22,62 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
 
-        // 1. Mark session as completed
-        await updateDocument('generatedSessions', sessionId, {
-            status: 'completed',
-            completedAt: serverTimestamp(),
-            results: {
+        const { getDocument, setDocument } = await import('@/lib/firestore-rest');
+        const session = await getDocument('generatedSessions', sessionId);
+
+        if (!session) {
+            return NextResponse.json({ error: 'Session not found' }, { status: 404 });
+        }
+
+        const isOwner = session.userId === userId;
+        const accuracy = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0;
+
+        if (isOwner) {
+            // 1. Mark session as completed for the owner
+            await updateDocument('generatedSessions', sessionId, {
+                status: 'completed',
+                completedAt: serverTimestamp(),
+                results: {
+                    correctCount,
+                    totalQuestions,
+                    accuracy,
+                },
+            });
+
+            // 2. Update SRS for all phrases reviewed in this session
+            try {
+                const performance = totalQuestions > 0 ? correctCount / totalQuestions : 0.5;
+
+                for (const phraseId of phraseIds) {
+                    await updateDocument('savedPhrases', phraseId, {
+                        lastReviewedAt: serverTimestamp(),
+                        lastReviewSource: 'generated_session',
+                    });
+                }
+
+                // Update skill progress
+                await updateSkillProgress(
+                    userId,
+                    'exercise',
+                    performance,
+                    `Generated session: ${correctCount}/${totalQuestions} correct`
+                );
+            } catch (srsError) {
+                console.error('SRS update error (non-fatal):', srsError);
+            }
+        } else {
+            // Extension C: Public Verification
+            // Non-owners taking the quiz helps verify the content and gives them practice.
+            // We do NOT update their SRS (since these probably aren't their active phrases),
+            // and we do NOT mark the original session as 'completed' for the owner.
+            await setDocument('communityAttempts', `${sessionId}_${userId}`, {
+                sessionId,
+                userId,
                 correctCount,
                 totalQuestions,
-                accuracy: totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0,
-            },
-        });
-
-        // 2. Update SRS for all phrases reviewed in this session
-        // Import reviewPhrases from SRS module (server-side)
-        try {
-            // Use REST API to update each phrase's SRS data
-            const performance = totalQuestions > 0 ? correctCount / totalQuestions : 0.5;
-
-            for (const phraseId of phraseIds) {
-                await updateDocument('savedPhrases', phraseId, {
-                    lastReviewedAt: serverTimestamp(),
-                    lastReviewSource: 'generated_session',
-                });
-            }
-
-            // Update skill progress
-            await updateSkillProgress(
-                userId,
-                'exercise',
-                performance,
-                `Generated session: ${correctCount}/${totalQuestions} correct`
-            );
-        } catch (srsError) {
-            console.error('SRS update error (non-fatal):', srsError);
+                accuracy,
+                completedAt: serverTimestamp(),
+            });
         }
 
         return NextResponse.json({

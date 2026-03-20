@@ -65,9 +65,8 @@ export function ArticleReader({ content, className, articleId, userId }: Article
                 throw new Error('Failed to generate audio');
             }
 
-            const blob = await response.blob();
-            const url = URL.createObjectURL(blob);
-            return url;
+            const data = await response.json();
+            return data.url;
         } catch (err) {
             setError('Failed to load audio');
             console.error('TTS error:', err);
@@ -95,7 +94,7 @@ export function ArticleReader({ content, className, articleId, userId }: Article
         }
 
         // Play audio
-        if (!audioRef.current) {
+        if (!audioRef.current && audioUrlRef.current) {
             audioRef.current = new Audio(audioUrlRef.current);
 
             audioRef.current.onloadedmetadata = () => {
@@ -122,8 +121,10 @@ export function ArticleReader({ content, className, articleId, userId }: Article
         }
 
         try {
-            await audioRef.current.play();
-            setIsPlaying(true);
+            if (audioRef.current) {
+                await audioRef.current.play();
+                setIsPlaying(true);
+            }
         } catch (err) {
             console.error('Playback error:', err);
             setError('Failed to play audio');

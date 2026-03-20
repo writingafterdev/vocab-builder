@@ -69,7 +69,7 @@ export async function uploadToFirebaseStorage(
 /**
  * Generate a unique audio file path
  */
-export function generateAudioPath(userId: string, type: 'exercise' | 'article', id: string): string {
+export function generateAudioPath(userId: string, type: 'exercise' | 'article' | 'feed-quiz', id: string): string {
     const timestamp = Date.now();
     return `audio/${type}/${userId}/${id}_${timestamp}.wav`;
 }

@@ -199,10 +199,12 @@ export async function POST(request: NextRequest) {
                 subtopic: phraseData.subtopic,
                 type: 'idiom',
                 masteryLevel: 0,
+                learningStep: 1, // Set to 1 so Phase 4 practice article cron picks it up
                 reviewCount: 0,
                 correctCount: 0,
                 lastReviewed: null,
-                nextReview: null,
+                nextReviewDate: new Date().toISOString(), // Use exact variable name the cron looks for
+                nextReview: null, // the old schema
                 createdAt: serverTimestamp(),
                 passiveExposure: {
                     readingSessionCount: 0,

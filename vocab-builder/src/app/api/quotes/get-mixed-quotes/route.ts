@@ -30,8 +30,21 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
+        // Fetch user's saved phrases for Passive Learning cross-pollination
+        let userSavedPhrases: string[] = [];
+        try {
+            const phrases = await runQuery(
+                'savedPhrases',
+                [{ field: 'userId', op: 'EQUAL', value: userId }],
+                200
+            );
+            userSavedPhrases = phrases.map(p => (p.phrase as string).toLowerCase().trim());
+        } catch (e) {
+            console.warn('[QuoteFeed] Failed to fetch saved phrases for boost', e);
+        }
+
         // ─── Try personalized feed from quotes collection ───
-        const feed = await getPersonalizedFeed(userId);
+        const feed = await getPersonalizedFeed(userId, userSavedPhrases);
 
         // Check onboarding
         if (feed.needsOnboarding) {

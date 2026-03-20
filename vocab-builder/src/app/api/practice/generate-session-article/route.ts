@@ -138,9 +138,9 @@ export async function POST(request: NextRequest) {
             console.warn('No ID token provided, skipping reviewDayCount update');
         }
 
-        // Step 6: Store extracted quotes for the feed
+        // Step 6: Store extracted quotes for the feed and global bank
         for (const quote of articleResult.quotes) {
-            await addDocument('generatedQuotes', {
+            const quoteData = {
                 userId,
                 sessionId: docId,
                 text: quote.text,
@@ -148,9 +148,17 @@ export async function POST(request: NextRequest) {
                 sourceType: 'generated_session',
                 postTitle: articleResult.title,
                 author: 'VocabBuilder AI',
+                topic: 'general',
+                source: 'Community Practice',
                 createdAt: serverTimestamp(),
                 isRead: false,
-            });
+            };
+
+            // 1. Private collection (legacy fallback)
+            await addDocument('generatedQuotes', quoteData);
+            
+            // 2. Global Quotes Bank (Community Passive Learning)
+            await addDocument('quotes', quoteData);
         }
 
         return NextResponse.json({
@@ -295,7 +303,7 @@ async function generateMergedArticle(
 
     const questionsTarget = Math.min(Math.ceil(phraseCount * 0.6), 8);
 
-    const prompt = `You are a Substack-style writer creating a compelling, immersive article. Your articles get readers hooked from the first line, tell stories that linger, and teach vocabulary through CONTEXT — never through definitions.
+    const prompt = `You are a Substack-style writer creating a compelling, highly philosophical, and immersive article. Your articles get readers hooked from the first line, explore deep themes rather than simple daily scenarios, and teach vocabulary through profound CONTEXT — never through definitions.
 
 PHRASES TO WEAVE IN:
 ${phraseInventory}
@@ -303,15 +311,11 @@ ${phraseInventory}
 THEMATIC GROUPS:
 ${clusterDescriptions}
 
-YOUR TASK: Write ONE cohesive article that naturally incorporates ALL the phrases above. The article should feel like a real Substack post — engaging, opinionated, with a strong narrative voice.
+YOUR TASK: Write ONE cohesive article that naturally incorporates ALL the phrases above. The article should feel like a real Substack post — engaging, opinionated, deeply insightful, and intellectually rich.
 
 CRITICAL RULES:
 
-1. **STRUCTURE**: The article must flow through the thematic groups NATURALLY. Don't abruptly jump topics. Find creative narrative threads that connect them:
-   - Maybe it's a story that moves through different settings
-   - Maybe it's an essay that explores connected themes  
-   - Maybe it's a "day in the life" narrative
-   - Whatever fits the phrases best
+1. **STRUCTURE**: The article must flow through the thematic groups NATURALLY. Avoid mundane "day in the life" stories; aim for deep cultural commentary, philosophical exploration, or fascinating historical narratives.
 
 2. **CONTEXT LAYERING** (for each phrase):
    - BEFORE: Set up the situation so the phrase feels inevitable
@@ -334,11 +338,15 @@ CRITICAL RULES:
    - "[Character] chose to say X instead of Y because..." (tests register/pragmatic awareness)
    - "Based on the situation, what was [character] really trying to communicate?" (tests subtext)
 
-6. **EXTRACTABLE QUOTES**: Include 2-3 sentences that work as standalone quotes — vivid, memorable, containing key phrases.
+6. **EXTRACTABLE QUOTES**: 
+   You MUST extract 3 profound, beautiful, standalone sentences from your article. 
+   - These quotes MUST contain at least one of the TARGET PHRASES.
+   - The sentence surrounding the phrase must be staggeringly rich in meaning and perfectly quotable. 
+   - A boring sentence that happens to contain the phrase is unacceptable.
 
 RESPOND IN JSON:
 {
-  "title": "A catchy, Substack-worthy title (not 'Vocabulary Practice')",
+  "title": "A catchy, Substack-worthy title (not 'Vocabulary Practice', must sound like a real essay title)",
   "subtitle": "A compelling one-line hook",
   "sections": [
     {
@@ -360,8 +368,8 @@ RESPOND IN JSON:
   ],
   "quotes": [
     {
-      "text": "A vivid, standalone sentence from the article",
-      "highlightedPhrases": ["phrase that appears in this quote"]
+      "text": "A profoundly insightful, standalone sentence from the article",
+      "highlightedPhrases": ["phrase that appears in this exact quote"]
     }
   ]
 }`;

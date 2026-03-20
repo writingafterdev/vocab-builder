@@ -86,8 +86,10 @@ export function useTTS(): UseTTSResult {
                     return;
                 }
 
-                const blob = await response.blob();
-                const url = URL.createObjectURL(blob);
+                const data = await response.json();
+                const url = data.url;
+
+                if (!url) throw new Error('No audio URL returned');
 
                 const audio = new Audio(url);
                 audioRef.current = audio;
@@ -100,7 +102,6 @@ export function useTTS(): UseTTSResult {
                             resolve(true);
                         }
                     }
-                    URL.revokeObjectURL(url); // Cleanup
                 };
 
                 audio.onerror = (e) => {

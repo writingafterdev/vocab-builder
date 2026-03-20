@@ -42,7 +42,10 @@ export function TopicPicker({ userId, onComplete }: TopicPickerProps) {
         try {
             const res = await fetch('/api/quotes/topic-picker', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-user-id': userId,
+                },
                 body: JSON.stringify({ topics: Array.from(selected) }),
             });
 

@@ -17,13 +17,17 @@ const XAI_URL = 'https://api.x.ai/v1/chat/completions';
  * Extract 3-5 impactful quotes from article content
  * @param content - Raw HTML content of the article
  * @param title - Article title for context
+ * @param userId - Optional user ID for tracking
+ * @param userEmail - Optional user email for tracking
+ * @param targetPhrases - Phrases that MUST be prioritized in extraction
  * @returns Array of quote strings
  */
 export async function extractQuotes(
     content: string,
     title: string,
     userId?: string,
-    userEmail?: string
+    userEmail?: string,
+    targetPhrases?: string[]
 ): Promise<string[]> {
     const apiKey = getGrokKey('articles');
     if (!apiKey) {
@@ -43,17 +47,29 @@ export async function extractQuotes(
             .trim()
             .slice(0, 4000); // Limit to avoid token overflow
 
+        let targetPhrasesInstruction = '';
+        if (targetPhrases && targetPhrases.length > 0) {
+            targetPhrasesInstruction = `
+TARGET PHRASES TO FIND:
+${targetPhrases.map(p => `- "${p}"`).join('\n')}
+
+CRITICAL RULE: You MUST prioritize finding and extracting sentences that contain these exact TARGET PHRASES. The extracted quote must be staggeringly rich in meaning, deeply contextual, and profound. A boring sentence that happens to contain the phrase is unacceptable.
+
+FALLBACK RULE: If the article text does not naturally contain ANY of these Target Phrases, ignore them entirely and extract the 3-5 absolute best, most profound quotes organically.`;
+        }
+
         const prompt = `Extract 3-5 of the most impactful, quotable sentences from this article.
 
 ARTICLE TITLE: ${title}
 
 ARTICLE CONTENT:
 ${plainText}
+${targetPhrasesInstruction}
 
 RULES:
 1. Select complete sentences that stand alone well out of context
-2. Prefer sentences that are insightful, surprising, or thought-provoking
-3. Avoid generic statements or introductions
+2. Prefer sentences that are insightful, surprising, philosophical, or thought-provoking
+3. Avoid generic statements or mundane introductions
 4. Each quote should be 15-50 words (not too short, not too long)
 5. Preserve the exact wording from the article
 
@@ -124,6 +140,7 @@ Return ONLY a JSON array of quote strings, e.g.:
  * @param author - Article author name
  * @param source - Article source name
  * @param userId - Optional user ID for token tracking
+ * @param targetPhrases - Optional list of phrases to prioritize extracting
  */
 export async function extractAndSaveQuotes(
     postId: string,
@@ -133,8 +150,9 @@ export async function extractAndSaveQuotes(
     author: string = 'Unknown',
     source: string = 'Article',
     userId?: string,
+    targetPhrases?: string[]
 ): Promise<string[]> {
-    const quotes = await extractQuotes(content, title, userId);
+    const quotes = await extractQuotes(content, title, userId, undefined, targetPhrases);
     
     if (quotes.length === 0) return [];
 
