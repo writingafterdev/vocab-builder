@@ -6,6 +6,7 @@ import {
     queryCollection,
     updateDocument,
     setDocument,
+    runQuery,
     serverTimestamp,
 } from '@/lib/firestore-rest';
 import {
@@ -39,11 +40,10 @@ export async function POST(request: NextRequest) {
 
         console.log('[CollectBatch] Starting...');
 
-        // Get all active batch jobs
-        const activeJobs = await queryCollection('batchJobs', {
-            where: [{ field: 'status', op: '==', value: 'submitted' }],
-            limit: 10,
-        });
+        // Get all active batch jobs using runQuery starting with proper filter scans
+        const activeJobs = await runQuery('batchJobs', [
+            { field: 'status', op: 'EQUAL', value: 'submitted' }
+        ], 10);
 
         if (activeJobs.length === 0) {
             console.log('[CollectBatch] No active batch jobs');

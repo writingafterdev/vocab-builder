@@ -165,13 +165,13 @@ export async function POST(request: NextRequest) {
                         submittedAt: new Date().toISOString(),
                     });
 
-                    // Mark posts as batch_submitted
-                    for (const post of pendingPosts) {
-                        await updateDocument('posts', post.id as string, {
+                    // Mark posts as batch_submitted in parallel
+                    await Promise.all(pendingPosts.map(post => 
+                        updateDocument('posts', post.id as string, {
                             processingStatus: 'batch_submitted',
                             batchId: articleBatchId,
-                        });
-                    }
+                        })
+                    ));
 
                     console.log(`[DailyImport] Phase 2: submitted ${pendingPosts.length} articles to Grok batch ${articleBatchId}`);
                 } else {

@@ -1,4 +1,4 @@
-import { queryCollection, updateDocument } from '../src/lib/firestore-rest';
+import { queryCollection, updateDocument, runQuery } from '../src/lib/firestore-rest';
 
 /**
  * Script to make all saved phrases for a user due immediately for testing.
@@ -16,10 +16,10 @@ async function main() {
     console.log(`Searching for savedPhrases for user: ${userId}...`);
 
     try {
-        // Query ALL saved phrases
-        // Note: runQuery might be better for high volumes, but queryCollection works on first 100
-        const phrases = await queryCollection('savedPhrases');
-        const userPhrases = phrases.filter(p => p.userId === userId);
+        // Query saved phrases specifically for this user using runQuery
+        const userPhrases = await runQuery('savedPhrases', [
+            { field: 'userId', op: 'EQUAL', value: userId }
+        ], 500);
 
         if (userPhrases.length === 0) {
             console.log("No phrases found for this user in top 100 documents.");
@@ -30,14 +30,14 @@ async function main() {
 
         for (const p of userPhrases) {
              const now = new Date();
-             // Subtract 1 day to be safely in the "past" so it is definitely due
-             const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+             // Add 1 day to be safely in "tomorrow" for your automated test
+             const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
              
              await updateDocument('savedPhrases', p.id, {
-                 nextReviewDate: yesterday.toISOString(),
-                 learningStep: p.learningStep || 1 // Keep it in learning phase to trigger practice articles
+                 nextReviewDate: tomorrow.toISOString(),
+                 learningStep: p.learningStep || 1 // Keep it in learning phase
              });
-             console.log(`✅ Updated: "${p.phrase}"`);
+             console.log(`✅ Updated to Tomorrow: "${p.phrase}"`);
         }
 
         console.log("\nAll done! Total phrases due for review reset. Run your daily-import test script now.");
