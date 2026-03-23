@@ -99,7 +99,7 @@ export default function AdminUserPage() {
                 }
 
                 // Dynamic import of Firestore functions
-                const { doc, getDoc, collection, query, where, limit, getDocs } = await import('firebase/firestore');
+                const { doc, getDoc, collection, query, where, limit, getDocs } = await import('@/lib/firebase/firestore');
 
                 // Load user profile
                 const userDoc = await getDoc(doc(db, 'users', userId));

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthFromRequest } from '@/lib/firebase-admin';
-import { addDocument, updateDocument, serverTimestamp } from '@/lib/firestore-rest';
+import { addDocument, updateDocument, serverTimestamp } from '@/lib/appwrite/database';
 import { SavedPhrase, ChildExpression } from '@/lib/db/types';
 
 export async function POST(request: NextRequest) {

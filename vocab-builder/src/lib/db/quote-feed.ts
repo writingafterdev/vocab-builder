@@ -16,7 +16,7 @@ import {
     runQuery,
     addDocument,
     serverTimestamp,
-} from '../firestore-rest';
+} from '../appwrite/database';
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -28,8 +28,9 @@ export interface QuoteBankEntry {
     author: string;
     source: string;
     topic: string;
+    tags?: string[];
     highlightedPhrases: string[];
-    sourceType: 'article' | 'generated_session';
+    sourceType: 'article' | 'generated_session' | 'generated_fact';
     sessionId?: string;
     userId?: string;
     createdAt: string;
@@ -97,8 +98,9 @@ export async function getAllQuotes(): Promise<QuoteBankEntry[]> {
         author: doc.author as string,
         source: doc.source as string,
         topic: doc.topic as string,
+        tags: (doc.tags as string[]) || [],
         highlightedPhrases: (doc.highlightedPhrases as string[]) || [],
-        sourceType: (doc.sourceType as 'article' | 'generated_session') || 'article',
+        sourceType: (doc.sourceType as 'article' | 'generated_session' | 'generated_fact') || 'article',
         sessionId: doc.sessionId as string | undefined,
         createdAt: doc.createdAt as string,
     }));
@@ -159,18 +161,28 @@ export async function markQuotesViewed(userId: string, quoteIds: string[], idTok
 // ─── Topic Preferences ───────────────────────────────────────────────
 
 /**
- * Boost a topic score by 1 (called when user saves/❤️ a quote)
+ * Boost a topic (and optional tags) score by N weight (called when user saves/❤️ a quote or reads an article)
  */
-export async function boostTopic(userId: string, topic: string, idToken?: string): Promise<void> {
+export async function boostTopic(userId: string, topic: string, weight: number = 1, idToken?: string, tags: string[] = []): Promise<void> {
     const state = await getQuoteFeedState(userId, idToken);
-    const currentScore = state.topicScores[topic] || 0;
+    
+    // Copy the current scores to apply multiple updates at once
+    const updatedScores = { ...state.topicScores };
+    
+    // Boost the broad UI topic
+    updatedScores[topic] = (updatedScores[topic] || 0) + weight;
+    
+    // Also equally boost every specific micro-tag attached to this fact/quote!
+    // This allows the algorithm to learn their granular niche preferences seamlessly.
+    for (const tag of tags) {
+        if (!tag) continue;
+        const normalizedTag = tag.toLowerCase().trim();
+        updatedScores[normalizedTag] = (updatedScores[normalizedTag] || 0) + weight;
+    }
     
     await setDocument('quote_feed_state', userId, {
         ...state,
-        topicScores: {
-            ...state.topicScores,
-            [topic]: currentScore + 1,
-        },
+        topicScores: updatedScores,
         updatedAt: serverTimestamp(),
     }, idToken);
 }
@@ -197,15 +209,20 @@ export async function saveTopicPickerChoices(userId: string, selectedTopics: str
 
 // ─── Smart Feed Algorithm ────────────────────────────────────────────
 
-const MAX_PER_TOPIC = 4; // Diversity cap
-const FEED_SIZE = 15;
+const MAX_PER_TOPIC = 12; // Diversity cap
+const FEED_SIZE = 40;
 
 /**
  * Get personalized quote feed for a user
  * Filters viewed, scores by topic preference, caps topic diversity
- * NEW: Boosts quotes that contain the user's savedPhrases for Passive Learning
+ * NEW: Filters strictly to explicitTopics if requested by the Swiper UI pills.
+ * NEW: Boosts quotes dynamically based on micro-tag scores.
  */
-export async function getPersonalizedFeed(userId: string, savedPhrases: string[] = []): Promise<{
+export async function getPersonalizedFeed(
+    userId: string, 
+    savedPhrases: string[] = [], 
+    explicitTopics?: string[]
+): Promise<{
     quotes: QuoteBankEntry[];
     needsOnboarding: boolean;
 }> {
@@ -219,9 +236,17 @@ export async function getPersonalizedFeed(userId: string, savedPhrases: string[]
         return { quotes: [], needsOnboarding: true };
     }
 
-    // Filter out viewed quotes
+    // Filter out viewed quotes and prune by explicit topic filters from the Swiper UI
     const viewedSet = new Set(state.viewedQuoteIds);
-    let candidates = allQuotes.filter(q => q.id && !viewedSet.has(q.id));
+    let candidates = allQuotes.filter(q => {
+        if (!q.id || viewedSet.has(q.id)) return false;
+        
+        // If explicit UI topics are passed (e.g., user clicked "History" pill), ONLY return History.
+        if (explicitTopics && explicitTopics.length > 0) {
+            return explicitTopics.includes(q.topic);
+        }
+        return true;
+    });
 
     // If too few unviewed, allow oldest-viewed to resurface
     if (candidates.length < FEED_SIZE) {
@@ -230,9 +255,20 @@ export async function getPersonalizedFeed(userId: string, savedPhrases: string[]
         candidates = [...candidates, ...viewedQuotes];
     }
 
-    // Score each quote by topic preference AND saved phrases
+    // Score each quote by topic preference, tag preference, AND saved phrases
     const scored = candidates.map(q => {
+        // Base score: Broad Topic
         let score = state.topicScores[q.topic] || 0;
+        
+        // Granular Score Component: Micro-Tags
+        // Sum up the user's affinity for all the granular tags attached to this specific quote
+        if (q.tags && q.tags.length > 0) {
+            for (const tag of q.tags) {
+                const normalizedTag = tag.toLowerCase().trim();
+                score += (state.topicScores[normalizedTag] || 0); // Rewards hyper-curated niches instantly!
+            }
+        }
+        
         let highlightedPhrases = [...(q.highlightedPhrases || [])];
 
         // ─── Passive Learning Boost ───

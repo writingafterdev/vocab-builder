@@ -3,14 +3,13 @@
  * Uses Firebase Storage for persistent audio file storage
  */
 
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { getApp } from 'firebase/app';
+import { getStorage, ref, uploadBytes, getDownloadURL } from '@/lib/firebase/storage';
+// Removed getApp import since we are using Appwrite polyfill
 
 // Get Firebase Storage instance
 function getStorageInstance() {
     try {
-        const app = getApp();
-        return getStorage(app);
+        return getStorage();
     } catch {
         return null;
     }

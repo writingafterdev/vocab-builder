@@ -1,7 +1,8 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
-import type { User } from 'firebase/auth';
+import { account, databases, DB_ID } from '@/lib/appwrite/client';
+import { OAuthProvider, Models, AppwriteException } from 'appwrite';
 
 interface UserProfile {
     uid: string;
@@ -11,16 +12,15 @@ interface UserProfile {
     bio: string;
     photoURL: string;
     role: 'user' | 'admin';
-    createdAt: Date;
-    lastActiveAt: Date;
+    createdAt: Date | string;
+    lastActiveAt: Date | string;
     stats: {
         totalPhrases: number;
         totalComments: number;
         totalReposts: number;
         currentStreak: number;
         longestStreak: number;
-        lastStudyDate: Date | null;
-        // Gamification
+        lastStudyDate: Date | string | null;
         xp?: number;
         level?: number;
         xpToday?: number;
@@ -30,8 +30,8 @@ interface UserProfile {
     subscription: {
         status: 'trial' | 'active' | 'expired' | 'cancelled';
         plan: 'monthly' | 'yearly' | null;
-        trialEndsAt: Date | null;
-        currentPeriodEnd: Date | null;
+        trialEndsAt: Date | string | null;
+        currentPeriodEnd: Date | string | null;
     };
     settings: {
         dailyGoal: number;
@@ -40,8 +40,17 @@ interface UserProfile {
     };
 }
 
+interface FirebaseAdapterUser {
+    uid: string;
+    email: string | null;
+    displayName: string | null;
+    photoURL: string | null;
+    $id: string; // Keep original for our internal usages
+    getIdToken: () => Promise<string>;
+}
+
 interface AuthContextType {
-    user: User | null;
+    user: FirebaseAdapterUser | null;
     profile: UserProfile | null;
     loading: boolean;
     signInWithGoogle: () => Promise<void>;
@@ -52,170 +61,147 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-    const [user, setUser] = useState<User | null>(null);
+    const [user, setUser] = useState<FirebaseAdapterUser | null>(null);
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [loading, setLoading] = useState(true);
 
+    const refreshProfile = useCallback(async (appwriteUser?: FirebaseAdapterUser) => {
+        const currentUser = appwriteUser || user;
+        if (!currentUser) return;
+
+        try {
+            const userDoc = await databases.getDocument(DB_ID, 'users', currentUser.$id);
+            if (userDoc) {
+                // Deserialize JSON fields that are stored as strings in Appwrite
+                let decodedProfile = { ...userDoc } as any;
+                if (typeof decodedProfile.stats === 'string') decodedProfile.stats = JSON.parse(decodedProfile.stats);
+                if (typeof decodedProfile.subscription === 'string') decodedProfile.subscription = JSON.parse(decodedProfile.subscription);
+                if (typeof decodedProfile.settings === 'string') decodedProfile.settings = JSON.parse(decodedProfile.settings);
+                
+                // Update lastActiveAt seamlessly
+                const nowISO = new Date().toISOString();
+                await databases.updateDocument(DB_ID, 'users', currentUser.$id, { lastActiveAt: nowISO });
+                
+                decodedProfile.lastActiveAt = nowISO;
+                setProfile(decodedProfile as UserProfile);
+            }
+        } catch (e: any) {
+            if (e.code === 404) {
+                // Profile doesn't exist yet, wait for Auth flow or create default
+                const nowISO = new Date().toISOString();
+                const newProfile = {
+                    uid: currentUser.$id,
+                    email: currentUser.email || '',
+                    displayName: currentUser.displayName || '',
+                    username: currentUser.email?.split('@')[0] || `user${Date.now()}`,
+                    bio: '',
+                    photoURL: '',
+                    role: 'user',
+                    createdAt: nowISO,
+                    lastActiveAt: nowISO,
+                    stats: JSON.stringify({
+                        totalPhrases: 0,
+                        totalComments: 0,
+                        totalReposts: 0,
+                        currentStreak: 0,
+                        longestStreak: 0,
+                        lastStudyDate: null,
+                        xp: 0,
+                        level: 1,
+                        xpToday: 0,
+                        xpTodayDate: null,
+                        redeemedDays: 0,
+                    }),
+                    subscription: JSON.stringify({
+                        status: 'trial',
+                        plan: null,
+                        trialEndsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+                        currentPeriodEnd: null,
+                    }),
+                    settings: JSON.stringify({
+                        dailyGoal: 10,
+                        preferredStyles: ['twitter', 'instagram'],
+                        notificationsEnabled: true,
+                    }),
+                };
+
+                await databases.createDocument(DB_ID, 'users', currentUser.$id, newProfile);
+                
+                // Parse it back for local state
+                setProfile({
+                    ...newProfile,
+                    stats: JSON.parse(newProfile.stats),
+                    subscription: JSON.parse(newProfile.subscription),
+                    settings: JSON.parse(newProfile.settings)
+                } as UserProfile);
+            } else {
+                console.warn('[Auth] Appwrite profile fetch failed:', e);
+            }
+        }
+    }, [user]);
+
     useEffect(() => {
-        // Only run on client
         if (typeof window === 'undefined') {
             setLoading(false);
             return;
         }
 
-        let unsubscribe: (() => void) | undefined;
-
-        // Dynamically import and initialize Firebase
-        const initAuth = async () => {
+        const checkSession = async () => {
             try {
-                const { initializeFirebase } = await import('@/lib/firebase');
-                const { auth, db } = await initializeFirebase();
-
-                if (!auth || !db) {
-                    setLoading(false);
-                    return;
-                }
-
-                const { onAuthStateChanged } = await import('firebase/auth');
-                const { doc, getDoc, setDoc, serverTimestamp } = await import('firebase/firestore');
-
-                unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-                    setUser(firebaseUser);
-
-                    if (firebaseUser && db) {
+                const currentUser = await account.get();
+                // Adapt to Firebase-like User Interface for frontend compatibility
+                const adaptedUser: FirebaseAdapterUser = {
+                    uid: currentUser.$id,
+                    $id: currentUser.$id,
+                    email: currentUser.email,
+                    displayName: currentUser.name,
+                    photoURL: currentUser.prefs?.photoURL || null,
+                    getIdToken: async () => {
                         try {
-                            const userRef = doc(db, 'users', firebaseUser.uid);
-                            const userSnap = await getDoc(userRef);
-
-                            if (userSnap.exists()) {
-                                await setDoc(userRef, { lastActiveAt: serverTimestamp() }, { merge: true });
-                                setProfile(userSnap.data() as UserProfile);
-                            } else {
-                                const newProfile = {
-                                    uid: firebaseUser.uid,
-                                    email: firebaseUser.email || '',
-                                    displayName: firebaseUser.displayName || '',
-                                    username: firebaseUser.email?.split('@')[0] || `user${Date.now()}`,
-                                    bio: '',
-                                    photoURL: firebaseUser.photoURL || '',
-                                    role: 'user' as const,
-                                    createdAt: serverTimestamp(),
-                                    lastActiveAt: serverTimestamp(),
-                                    stats: {
-                                        totalPhrases: 0,
-                                        totalComments: 0,
-                                        totalReposts: 0,
-                                        currentStreak: 0,
-                                        longestStreak: 0,
-                                        lastStudyDate: null,
-                                        xp: 0,
-                                        level: 1,
-                                        xpToday: 0,
-                                        xpTodayDate: null,
-                                        redeemedDays: 0,
-                                    },
-                                    subscription: {
-                                        status: 'trial' as const,
-                                        plan: null,
-                                        trialEndsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-                                        currentPeriodEnd: null,
-                                    },
-                                    settings: {
-                                        dailyGoal: 10,
-                                        preferredStyles: ['twitter', 'instagram'],
-                                        notificationsEnabled: true,
-                                    },
-                                };
-
-                                await setDoc(userRef, newProfile);
-                                setProfile(newProfile as unknown as UserProfile);
-                            }
-                        } catch (firestoreError) {
-                            // Firestore may be blocked (ad blocker, network, etc.)
-                            // Still mark auth as resolved so the app doesn't hang
-                            console.warn('[Auth] Firestore profile fetch failed (ad blocker?):', firestoreError);
-                        } finally {
-                            setLoading(false);
+                            const result = await account.createJWT();
+                            return result.jwt;
+                        } catch (e) {
+                            console.error('Failed to create Appwrite JWT', e);
+                            throw e;
                         }
-                    } else {
-                        setProfile(null);
-                        setLoading(false);
                     }
-                });
-            } catch (error) {
-                console.error('Failed to initialize Firebase:', error);
+                };
+                setUser(adaptedUser);
+                await refreshProfile(adaptedUser);
+            } catch (error: any) {
+                if (error instanceof AppwriteException && error.code === 401) {
+                    // Not logged in, completely normal
+                    setUser(null);
+                    setProfile(null);
+                } else {
+                    console.error('[Auth] Session check failed:', error);
+                }
+            } finally {
                 setLoading(false);
             }
         };
 
-        initAuth();
-
-        return () => {
-            if (unsubscribe) unsubscribe();
-        };
+        checkSession();
     }, []);
 
     const signInWithGoogle = useCallback(async () => {
         try {
-            const { initializeFirebase } = await import('@/lib/firebase');
-            const { auth } = await initializeFirebase();
-
-            if (!auth) {
-                console.error('[Auth] Firebase not initialized');
-                return;
-            }
-
-            const { signInWithPopup, signInWithRedirect, GoogleAuthProvider } = await import('firebase/auth');
-            const provider = new GoogleAuthProvider();
-
-            try {
-                await signInWithPopup(auth, provider);
-            } catch (error: unknown) {
-                const firebaseError = error as { code?: string; message?: string };
-                console.error('[Auth] Sign-in error:', firebaseError.code, firebaseError.message);
-                if (firebaseError.code === 'auth/popup-blocked' ||
-                    firebaseError.code === 'auth/cancelled-popup-request' ||
-                    firebaseError.code === 'auth/popup-closed-by-user') {
-                    await signInWithRedirect(auth, provider);
-                } else if (firebaseError.code === 'auth/unauthorized-domain') {
-                    alert(`This domain is not authorized for Firebase Auth. Add "${window.location.hostname}" to Firebase Console > Authentication > Settings > Authorized domains.`);
-                } else {
-                    throw error;
-                }
-            }
+            // Appwrite will redirect to Google, then redirect back to the current URL
+            account.createOAuth2Session(OAuthProvider.Google, window.location.origin, window.location.origin + '/login');
         } catch (error) {
             console.error('[Auth] signInWithGoogle failed:', error);
         }
     }, []);
 
     const signOut = useCallback(async () => {
-        const { initializeFirebase } = await import('@/lib/firebase');
-        const { auth } = await initializeFirebase();
-
-        if (!auth) {
-            throw new Error('Firebase not initialized');
+        try {
+            await account.deleteSession('current');
+            setUser(null);
+            setProfile(null);
+        } catch (error) {
+            console.error('[Auth] signOut failed:', error);
         }
-
-        const { signOut: firebaseSignOut } = await import('firebase/auth');
-        await firebaseSignOut(auth);
     }, []);
-
-    const refreshProfile = useCallback(async () => {
-        if (!user) return;
-
-        const { initializeFirebase } = await import('@/lib/firebase');
-        const { db } = await initializeFirebase();
-
-        if (!db) return;
-
-        const { doc, getDoc } = await import('firebase/firestore');
-        const userRef = doc(db, 'users', user.uid);
-        const userSnap = await getDoc(userRef);
-
-        if (userSnap.exists()) {
-            setProfile(userSnap.data() as UserProfile);
-        }
-    }, [user]);
 
     return (
         <AuthContext.Provider value={{ user, profile, loading, signInWithGoogle, signOut, refreshProfile }}>

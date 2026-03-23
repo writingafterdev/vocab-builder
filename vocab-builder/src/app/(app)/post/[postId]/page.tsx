@@ -753,6 +753,15 @@ export default function PostPage() {
         if (roundedProgress >= 50 && !hasTrackedRead.current && post?.isArticle && post?.id) {
             hasTrackedRead.current = true;
             trackArticleRead(post.id);
+
+            // Track interaction for recommendation engine
+            if (user?.uid && (post as any).importTopic) {
+                fetch('/api/user/track-interaction', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'x-user-id': user.uid },
+                    body: JSON.stringify({ postId: post.id, action: 'read', topic: (post as any).importTopic })
+                }).catch(console.error);
+            }
         }
     }, [post]);
 
@@ -989,7 +998,7 @@ export default function PostPage() {
                     throw new Error('Firebase Storage not available');
                 }
 
-                const { ref, uploadBytes, getDownloadURL } = await import('firebase/storage');
+                const { ref, uploadBytes, getDownloadURL } = await import('@/lib/firebase/storage');
                 const audioRef = ref(storage, `audio/articles/${post.id}.wav`);
 
                 toast.loading('Uploading audio...', { id: 'audio-upload' });
@@ -998,7 +1007,7 @@ export default function PostPage() {
                 toast.dismiss('audio-upload');
 
                 // Save URL to Firestore
-                const { Timestamp } = await import('firebase/firestore');
+                const { Timestamp } = await import('@/lib/firebase/firestore');
                 await updatePost(post.id, {
                     audioUrl,
                     audioGeneratedAt: Timestamp.now()

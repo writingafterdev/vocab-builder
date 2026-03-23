@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { setDocument, serverTimestamp } from '@/lib/firestore-rest';
+import { setDocument, serverTimestamp } from '@/lib/appwrite/database';
 import { updateSkillProgress } from '@/lib/db/skill-progress';
 
 /**

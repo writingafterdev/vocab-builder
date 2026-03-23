@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { extractAndSaveQuotes } from '@/lib/quote-extraction';
-import { queryCollection, getDocument } from '@/lib/firestore-rest';
+import { queryCollection, getDocument } from '@/lib/appwrite/database';
 
 /**
  * POST /api/quotes/backfill

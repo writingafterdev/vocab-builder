@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDocument, updateDocument, serverTimestamp } from '@/lib/firestore-rest';
+import { getDocument, updateDocument, serverTimestamp } from '@/lib/appwrite/database';
 
 const COLLECTION_NAME = 'userReadingLists';
 
@@ -97,7 +97,7 @@ export async function DELETE(
         }
 
         // Import deleteDocument
-        const { deleteDocument } = await import('@/lib/firestore-rest');
+        const { deleteDocument } = await import('@/lib/appwrite/database');
         await deleteDocument(COLLECTION_NAME, listId);
 
         return NextResponse.json({

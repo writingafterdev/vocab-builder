@@ -31,13 +31,11 @@ async function main() {
         for (const p of userPhrases) {
              const now = new Date();
              // Add 1 day to be safely in "tomorrow" for your automated test
-             const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-             
              await updateDocument('savedPhrases', p.id, {
-                 nextReviewDate: tomorrow.toISOString(),
+                 nextReviewDate: now.toISOString(),
                  learningStep: p.learningStep || 1 // Keep it in learning phase
              });
-             console.log(`✅ Updated to Tomorrow: "${p.phrase}"`);
+             console.log(`✅ Updated to Now: "${p.phrase}"`);
         }
 
         console.log("\nAll done! Total phrases due for review reset. Run your daily-import test script now.");

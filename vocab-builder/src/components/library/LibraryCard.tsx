@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 import { User, ImageIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { LexileLevel } from '@/lib/db/types';
-import { Timestamp } from 'firebase/firestore';
+import { Timestamp } from '@/lib/firebase/firestore';
 import { CardSize } from './BentoGrid';
 
 export interface LibraryCardPost {

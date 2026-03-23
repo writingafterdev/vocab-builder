@@ -12,7 +12,7 @@ import {
     updateDoc,
     arrayUnion,
     serverTimestamp,
-} from 'firebase/firestore';
+} from '@/lib/firebase/firestore';
 import { getDbAsync } from './core';
 
 // Topic document structure in Firestore

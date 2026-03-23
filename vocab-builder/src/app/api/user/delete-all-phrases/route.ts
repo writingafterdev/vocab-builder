@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthFromRequest } from '@/lib/firebase-admin';
-import { queryCollection, deleteDocument } from '@/lib/firestore-rest';
+import { queryCollection, deleteDocument } from '@/lib/appwrite/database';
 
 /**
  * DELETE /api/user/delete-all-phrases

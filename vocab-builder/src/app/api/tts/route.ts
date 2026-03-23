@@ -59,8 +59,8 @@ export async function POST(request: NextRequest) {
 }
 
 import crypto from 'crypto';
-import { getDocument, setDocument } from '@/lib/firestore-rest';
-import { uploadToFirebaseStorage } from '@/lib/firebase-storage';
+import { getDocument, setDocument } from '@/lib/appwrite/database';
+import { uploadToAppwriteStorage } from '@/lib/appwrite/storage';
 
 async function generateSingleTTS(req: TTSRequest): Promise<NextResponse> {
     const voiceId = VOICE_MAP[req.voice || 'default'] || VOICE_MAP.default;
@@ -85,9 +85,9 @@ async function generateSingleTTS(req: TTSRequest): Promise<NextResponse> {
     const result = await callGrokTTS(text, { voiceId });
     const extension = result.mimeType === 'audio/mpeg' ? 'mp3' : 'wav';
     
-    // 4. Upload to Firebase Storage
-    const storagePath = `audio/cache/${hashId}.${extension}`;
-    const downloadUrl = await uploadToFirebaseStorage(result.audio, storagePath, result.mimeType);
+    // 4. Upload to Appwrite Storage
+    const filename = `${hashId}.${extension}`;
+    const downloadUrl = await uploadToAppwriteStorage(result.audio, filename, result.mimeType);
 
     if (!downloadUrl) {
          throw new Error('Failed to upload audio to storage');
@@ -101,7 +101,7 @@ async function generateSingleTTS(req: TTSRequest): Promise<NextResponse> {
         createdAt: new Date().toISOString()
     });
 
-    console.log(`[TTS] Successfully cached new audio at: ${storagePath}`);
+    console.log(`[TTS] Successfully cached new audio at: ${filename}`);
     return NextResponse.json({ url: downloadUrl, cached: false });
 }
 

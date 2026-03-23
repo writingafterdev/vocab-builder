@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthFromRequest } from '@/lib/firebase-admin';
-import { addDocument, setDocument, serverTimestamp } from '@/lib/firestore-rest';
-import { Timestamp } from 'firebase/firestore';
+import { addDocument, setDocument, serverTimestamp } from '@/lib/appwrite/database';
+import { Timestamp } from '@/lib/firebase/firestore';
 
 /**
  * POST /api/test/seed-phrases

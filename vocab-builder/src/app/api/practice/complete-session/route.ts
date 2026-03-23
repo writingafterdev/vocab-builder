@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { updateDocument, serverTimestamp } from '@/lib/firestore-rest';
+import { updateDocument, serverTimestamp } from '@/lib/appwrite/database';
 import { updateSkillProgress } from '@/lib/db/skill-progress';
 
 /**
@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
 
-        const { getDocument, setDocument } = await import('@/lib/firestore-rest');
+        const { getDocument, setDocument } = await import('@/lib/appwrite/database');
         const session = await getDocument('generatedSessions', sessionId);
 
         if (!session) {

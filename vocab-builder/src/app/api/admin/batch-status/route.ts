@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { queryCollection, getDocument } from '@/lib/firestore-rest';
+import { queryCollection, getDocument } from '@/lib/appwrite/database';
 
 const CRON_SECRET = process.env.CRON_SECRET;
 

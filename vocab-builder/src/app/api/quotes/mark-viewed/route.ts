@@ -25,9 +25,10 @@ export async function POST(request: NextRequest) {
         const idToken = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : undefined;
 
         const body = await request.json();
-        const { quoteIds, boostTopicName } = body as {
+        const { quoteIds, boostTopicName, boostTags } = body as {
             quoteIds?: string[];
             boostTopicName?: string;
+            boostTags?: string[];
         };
 
         // Mark quotes as viewed
@@ -35,9 +36,9 @@ export async function POST(request: NextRequest) {
             await markQuotesViewed(userId, quoteIds, idToken);
         }
 
-        // Boost topic if provided (triggered by ❤️ save)
-        if (boostTopicName) {
-            await boostTopic(userId, boostTopicName, idToken);
+        // Boost topic and tags if provided (triggered by ❤️ save)
+        if (boostTopicName || (boostTags && boostTags.length > 0)) {
+            await boostTopic(userId, boostTopicName || 'general', 1, idToken, boostTags || []);
         }
 
         return NextResponse.json({ success: true });

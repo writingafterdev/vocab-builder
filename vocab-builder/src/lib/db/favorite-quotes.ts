@@ -8,7 +8,7 @@ import {
     queryCollection,
     runQuery,
     serverTimestamp,
-} from '../firestore-rest';
+} from '../appwrite/database';
 
 export interface FavoriteQuote {
     id: string; // userId_quoteId

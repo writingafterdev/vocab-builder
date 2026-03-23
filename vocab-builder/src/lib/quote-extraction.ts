@@ -8,7 +8,7 @@
 
 import { logTokenUsage } from '@/lib/db/token-tracking';
 import { addQuotesToBank } from '@/lib/db/quote-feed';
-import { updateDocument } from '@/lib/firestore-rest';
+import { updateDocument } from '@/lib/appwrite/database';
 import { getGrokKey } from '@/lib/grok-client';
 
 const XAI_URL = 'https://api.x.ai/v1/chat/completions';
@@ -198,7 +198,7 @@ export function extractQuotesAsync(
     extractQuotes(content, title, userId).then(async (quotes) => {
         if (quotes.length > 0) {
             try {
-                const { updateDocument } = await import('@/lib/firestore-rest');
+                const { updateDocument } = await import('@/lib/appwrite/database');
                 await updateDocument('posts', postId, {
                     extractedQuotes: quotes,
                 });

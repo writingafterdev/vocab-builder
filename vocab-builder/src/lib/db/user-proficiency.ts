@@ -5,8 +5,8 @@
  * Used to adapt reading and exercise difficulty.
  */
 
-import { Timestamp } from 'firebase/firestore';
-import { getDocument, setDocument, updateDocument } from '@/lib/firestore-rest';
+import { Timestamp } from '@/lib/firebase/firestore';
+import { getDocument, setDocument, updateDocument } from '@/lib/appwrite/database';
 
 // Proficiency labels shown to users
 export type ProficiencyLevel = 'beginner' | 'elementary' | 'intermediate' | 'upper_intermediate' | 'advanced';

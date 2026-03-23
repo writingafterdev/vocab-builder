@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { runQuery, updateDocument, serverTimestamp } from '@/lib/firestore-rest';
+import { runQuery, updateDocument, serverTimestamp } from '@/lib/appwrite/database';
 
 /**
  * GET: Return all journey nodes for a user, ordered by `order` field.

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDocument, updateDocument, addDocument, serverTimestamp } from '@/lib/firestore-rest';
+import { getDocument, updateDocument, addDocument, serverTimestamp } from '@/lib/appwrite/database';
 import { SavedPhrase } from '@/lib/db/types';
 
 interface TrackEncounterRequest {

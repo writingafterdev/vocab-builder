@@ -8,8 +8,8 @@
  * - Retention: Long-term memory recall (exercises, SRS)
  */
 
-import { getDocument, setDocument } from '@/lib/firestore-rest';
-import { Timestamp } from 'firebase/firestore';
+import { getDocument, setDocument } from '@/lib/appwrite/database';
+import { Timestamp } from '@/lib/firebase/firestore';
 
 // Skill types
 export type SkillType = 'comprehension' | 'production' | 'interaction' | 'retention';

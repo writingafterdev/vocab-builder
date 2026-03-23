@@ -4,7 +4,7 @@
  * 
  * Uses Firestore REST API for Cloudflare Workers compatibility
  */
-import { addDocument, queryCollection, serverTimestamp } from '../firestore-rest';
+import { addDocument, queryCollection, serverTimestamp } from '../appwrite/database';
 
 interface TokenUsageInput {
     userId: string;

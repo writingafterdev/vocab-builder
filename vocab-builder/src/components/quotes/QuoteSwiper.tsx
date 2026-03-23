@@ -90,6 +90,17 @@ function highlightQuoteText(rawText: string, phrases: string[]): string {
     return html;
 }
 
+const FEED_TOPICS = [
+    { id: 'technology', label: 'Technology', emoji: '💻' },
+    { id: 'science', label: 'Science', emoji: '🔬' },
+    { id: 'business', label: 'Business', emoji: '💼' },
+    { id: 'psychology', label: 'Psychology', emoji: '🧠' },
+    { id: 'culture', label: 'Culture', emoji: '🏛' },
+    { id: 'philosophy', label: 'Philosophy', emoji: '💭' },
+    { id: 'world', label: 'World', emoji: '🌍' },
+    { id: 'health', label: 'Health', emoji: '❤️‍🩹' },
+] as const;
+
 export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps) {
     const router = useRouter();
     const [deck, setDeck] = useState<DeckItem[]>([]);
@@ -98,6 +109,7 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
     const [savedQuotes, setSavedQuotes] = useState<Set<string>>(new Set());
     const [phase, setPhase] = useState<'idle' | 'sending-to-back'>('idle');
     const [needsOnboarding, setNeedsOnboarding] = useState(false);
+    const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
     const isAnimating = useRef(false);
     const cardStackRef = useRef<HTMLDivElement>(null);
 
@@ -137,9 +149,9 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
     const dragRotate = useTransform(dragX, [-200, 0, 200], [-8, 0, 8]);
 
     // Flush viewed buffer to API
-    const flushViewedBuffer = useCallback(async (topicBoost?: string) => {
+    const flushViewedBuffer = useCallback(async (topicBoost?: string, tagsBoost?: string[]) => {
         const ids = [...viewedBufferRef.current];
-        if (ids.length === 0 && !topicBoost) return;
+        if (ids.length === 0 && !topicBoost && (!tagsBoost || tagsBoost.length === 0)) return;
         viewedBufferRef.current = [];
 
         try {
@@ -156,6 +168,7 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
                 body: JSON.stringify({
                     quoteIds: ids,
                     boostTopicName: topicBoost,
+                    boostTags: tagsBoost,
                 }),
             });
         } catch (err) {
@@ -174,6 +187,54 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
         };
     }, [flushViewedBuffer]);
 
+    const fetchMoreQuotes = useCallback(async () => {
+        if (!userId || loading) return;
+        try {
+            const { initializeFirebase } = await import('@/lib/firebase');
+            const { auth } = await initializeFirebase();
+            const token = auth?.currentUser ? await auth.currentUser.getIdToken() : null;
+            const headers: HeadersInit = token
+                ? { 'Authorization': `Bearer ${token}`, 'x-user-id': userId }
+                : { 'x-user-id': userId };
+
+            const url = new URL('/api/quotes/get-mixed-quotes', window.location.origin);
+            if (selectedTopics.length > 0) {
+                url.searchParams.set('explicitTopics', selectedTopics.join(','));
+            }
+
+            const quotesRes = await fetch(url.toString(), { 
+                headers,
+                cache: 'no-store'
+            });
+
+            if (quotesRes.ok) {
+                const data = await quotesRes.json();
+                if (data.needsOnboarding) return;
+                
+                const fetchedQuotes = data.quotes || [];
+                setDeck(prevDeck => {
+                    const newQuotes = fetchedQuotes
+                        .filter((q: any) => !prevDeck.some(d => d.id === q.id))
+                        .map((q: any) => ({
+                            id: q.id,
+                            type: 'quote' as const,
+                            data: q
+                        }));
+                    return [...prevDeck, ...newQuotes];
+                });
+            }
+        } catch (error) {
+            console.error('Failed to fetch more quotes:', error);
+        }
+    }, [userId, loading, selectedTopics]);
+
+    // Background fetch trigger for infinite doomscrolling
+    useEffect(() => {
+        if (deck.length > 0 && deck.length - activeIndex <= 6 && !loading) {
+            fetchMoreQuotes();
+        }
+    }, [activeIndex, deck.length, fetchMoreQuotes, loading]);
+
     useEffect(() => {
         let cancelled = false;
         async function fetchQuotesAndSaved() {
@@ -186,7 +247,7 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
                     : { 'x-user-id': userId };
 
                 const [quotesRes, savedRes] = await Promise.all([
-                    fetch('/api/quotes/get-mixed-quotes', { 
+                    fetch(`/api/quotes/get-mixed-quotes?${selectedTopics.length > 0 ? `explicitTopics=${selectedTopics.join(',')}` : ''}`, { 
                         headers,
                         cache: 'no-store'
                     }),
@@ -205,11 +266,17 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
                         }
 
                         const fetchedQuotes = data.quotes || [];
-                        setDeck(fetchedQuotes.map((q: any) => ({
-                            id: q.id,
-                            type: 'quote',
-                            data: q
-                        })));
+                        setDeck(prevDeck => {
+                            const newQuotes = fetchedQuotes
+                                .filter((q: any) => !prevDeck.some(d => d.id === q.id))
+                                .map((q: any) => ({
+                                    id: q.id,
+                                    type: 'quote' as const,
+                                    data: q
+                                }));
+                            // If we triggered this fetch via explicit selection, replace the deck instead of appending!
+                            return prevDeck.length === 0 ? newQuotes : [...prevDeck, ...newQuotes];
+                        });
                     }
                     if (savedRes.ok) {
                         const data = await savedRes.json();
@@ -226,7 +293,14 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
         }
         fetchQuotesAndSaved();
         return () => { cancelled = true; };
-    }, [userId]);
+    }, [userId, selectedTopics]);
+
+    // Wipe deck and re-fetch if topics change
+    useEffect(() => {
+        setDeck([]);
+        setLoading(true);
+        setActiveIndex(0);
+    }, [selectedTopics]);
 
     // Store pre-generated questions and calculate smart insertion points
     useEffect(() => {
@@ -371,8 +445,9 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
             if (res.ok) {
                 // Boost topic on save (❤️ = "more like this")
                 const quoteTopic = (quote as any).topic;
-                if (quoteTopic) {
-                    flushViewedBuffer(quoteTopic);
+                const quoteTags = (quote as any).tags;
+                if (quoteTopic || quoteTags) {
+                    flushViewedBuffer(quoteTopic, quoteTags);
                 }
             } else {
                 const data = await res.json();
@@ -599,8 +674,35 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
 
     return (
         <div className="relative">
+            {/* Topic Filter Bar */}
+            <div className="bg-neutral-50/60 backdrop-blur-sm p-3 rounded-2xl border border-neutral-100 flex gap-2 overflow-x-auto pb-3 mb-6 mt-2 px-3 no-scrollbar scroll-smooth">
+                {FEED_TOPICS.map(topic => {
+                    const isSelected = selectedTopics.includes(topic.id);
+                    return (
+                        <button
+                            key={topic.id}
+                            onClick={() => {
+                                setSelectedTopics(prev => 
+                                    prev.includes(topic.id) 
+                                        ? prev.filter(t => t !== topic.id) 
+                                        : [...prev, topic.id]
+                                );
+                            }}
+                            className={`flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full border text-sm font-medium transition-all duration-200 ${
+                                isSelected 
+                                ? 'bg-neutral-900 border-neutral-900 text-white shadow-sm scale-105' 
+                                : 'bg-white border-neutral-200 text-neutral-500 hover:border-neutral-400 hover:text-neutral-900 shadow-sm'
+                            }`}
+                        >
+                            <span className="text-base">{topic.emoji}</span>
+                            <span>{topic.label}</span>
+                        </button>
+                    )
+                })}
+            </div>
+
             {/* Card Stack */}
-            <div ref={cardStackRef} className="relative w-full max-w-[800px] mx-auto h-[340px]">
+            <div ref={cardStackRef} className="relative w-full max-w-[800px] mx-auto h-[310px]">
                 {/* Render back to front for proper z-order */}
                 {[...cards].reverse().map(({ item, stackPos }) => {
                     const isTop = stackPos === 0;

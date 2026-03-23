@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { addDocument, queryCollection, serverTimestamp } from '@/lib/firestore-rest';
+import { addDocument, queryCollection, serverTimestamp } from '@/lib/appwrite/database';
 import { logTokenUsage } from '@/lib/db/token-tracking';
 
 import { safeParseAIJson } from '@/lib/ai-utils';
@@ -54,7 +54,7 @@ import { SocialDistance } from '@/lib/db/types';
 async function assignTopics(phrase: string, meaning: string, userId: string, userEmail: string): Promise<{ topic: string; subtopic?: string }> {
     if (!XAI_API_KEY) return { topic: 'daily_life' };
 
-    const { setDocument, updateDocument, runQuery } = await import('@/lib/firestore-rest');
+    const { setDocument, updateDocument, runQuery } = await import('@/lib/appwrite/database');
 
     // 1. Fetch existing topic definitions
     let existingTopics: any[] = [];
@@ -320,7 +320,7 @@ export async function POST(request: NextRequest) {
 
         if (existingPhrase) {
             // Phrase already exists - update it instead of creating duplicate
-            const { updateDocument } = await import('@/lib/firestore-rest');
+            const { updateDocument } = await import('@/lib/appwrite/database');
 
             // Increment a "reviewPriority" counter (signals they need more practice)
             const currentPriority = (existingPhrase.reviewPriority as number) || 0;
@@ -432,7 +432,7 @@ export async function POST(request: NextRequest) {
         // If this is a child phrase (Layer 1+), update the parent
         if (parentPhraseId) {
             try {
-                const { updateDocument, getDocument } = await import('@/lib/firestore-rest');
+                const { updateDocument, getDocument } = await import('@/lib/appwrite/database');
                 const parentDoc = await getDocument('savedPhrases', parentPhraseId) as Record<string, any> | null;
 
                 if (parentDoc) {
@@ -467,7 +467,7 @@ export async function POST(request: NextRequest) {
                 try {
                     const assigned = await assignTopics(phrase, meaning, resolvedUserId, userEmail || '');
                     if (assigned.topic && assigned.topic !== 'pending_ai') {
-                        const { updateDocument } = await import('@/lib/firestore-rest');
+                        const { updateDocument } = await import('@/lib/appwrite/database');
                         await updateDocument('savedPhrases', phraseId, {
                             topic: assigned.topic,
                             subtopic: assigned.subtopic || null,

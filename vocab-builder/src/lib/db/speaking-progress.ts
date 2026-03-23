@@ -7,9 +7,9 @@
  * - Weekly aggregates
  */
 
-import { getDocument, updateDocument, setDocument } from '@/lib/firestore-rest';
+import { getDocument, updateDocument, setDocument } from '@/lib/appwrite/database';
 import { SpeakingFeedback } from '@/lib/speaking-analysis';
-import { Timestamp } from 'firebase/firestore';
+import { Timestamp } from '@/lib/firebase/firestore';
 
 export interface SessionRecord {
     date: any; // Timestamp

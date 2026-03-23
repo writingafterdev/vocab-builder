@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { runQuery, deleteDocument } from '@/lib/firestore-rest';
+import { runQuery, deleteDocument } from '@/lib/appwrite/database';
 
 /**
  * DELETE all saved phrases for a user

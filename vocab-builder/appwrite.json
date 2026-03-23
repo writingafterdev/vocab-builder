@@ -1,0 +1,24 @@
+{
+  "projectId": "697698eb000b03b2cc1a",
+  "projectName": "vocab-builder",
+  "functions": [
+    {
+      "$id": "background-jobs",
+      "name": "Background Jobs",
+      "runtime": "node-18.0",
+      "execute": [],
+      "events": [],
+      "schedule": "0 22 * * *",
+      "timeout": 900,
+      "enabled": true,
+      "logging": true,
+      "entrypoint": "dist/index.js",
+      "commands": "",
+      "path": "appwrite-functions/background-jobs",
+      "scopes": [
+        "databases.read",
+        "databases.write"
+      ]
+    }
+  ]
+}

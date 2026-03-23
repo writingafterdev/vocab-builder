@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { queryCollection, runQuery } from '@/lib/firestore-rest';
+import { queryCollection, runQuery } from '@/lib/appwrite/database';
 
 /**
  * Debug endpoint to test phrase queries

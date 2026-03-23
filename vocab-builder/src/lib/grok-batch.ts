@@ -1,18 +1,18 @@
-import { getGrokKey } from './grok-client';
+import { getGrokKey, GrokKeyGroup } from './grok-client';
 
 const XAI_BASE_URL = 'https://api.x.ai/v1';
 const DEFAULT_MODEL = 'grok-4-1-fast-non-reasoning';
 
-function getApiKey(): string {
-    const key = getGrokKey('articles');
-    if (!key) throw new Error('No Grok API key configured for articles. Set GROK_KEY_ARTICLES or XAI_API_KEY.');
+function getApiKey(group: GrokKeyGroup = 'articles'): string {
+    const key = getGrokKey(group);
+    if (!key) throw new Error(`No Grok API key configured for ${group}. Set GROK_KEY_${group.toUpperCase()} or XAI_API_KEY.`);
     return key;
 }
 
-function headers(): Record<string, string> {
+function headers(group?: GrokKeyGroup): Record<string, string> {
     return {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${getApiKey()}`,
+        'Authorization': `Bearer ${getApiKey(group)}`,
     };
 }
 
@@ -70,10 +70,10 @@ export interface BatchResultsPage {
 /**
  * Step 1: Create a new batch container
  */
-export async function createBatch(name: string): Promise<string> {
+export async function createBatch(name: string, group?: GrokKeyGroup): Promise<string> {
     const res = await fetch(`${XAI_BASE_URL}/batches`, {
         method: 'POST',
-        headers: headers(),
+        headers: headers(group),
         body: JSON.stringify({ name }),
     });
 
@@ -92,7 +92,8 @@ export async function createBatch(name: string): Promise<string> {
  */
 export async function addBatchRequests(
     batchId: string,
-    requests: BatchRequest[]
+    requests: BatchRequest[],
+    group?: GrokKeyGroup
 ): Promise<void> {
     // xAI format: wrap each request in chat_get_completion
     const batchRequests = requests.map(req => ({
@@ -115,7 +116,7 @@ export async function addBatchRequests(
 
         const res = await fetch(`${XAI_BASE_URL}/batches/${batchId}/requests`, {
             method: 'POST',
-            headers: headers(),
+            headers: headers(group),
             body: JSON.stringify({ batch_requests: chunk }),
         });
 
@@ -129,10 +130,10 @@ export async function addBatchRequests(
 /**
  * Step 3: Check batch status
  */
-export async function getBatchStatus(batchId: string): Promise<BatchStatus> {
+export async function getBatchStatus(batchId: string, group?: GrokKeyGroup): Promise<BatchStatus> {
     const res = await fetch(`${XAI_BASE_URL}/batches/${batchId}`, {
         method: 'GET',
-        headers: headers(),
+        headers: headers(group),
     });
 
     if (!res.ok) {
@@ -163,7 +164,8 @@ export async function getBatchStatus(batchId: string): Promise<BatchStatus> {
 export async function getBatchResults(
     batchId: string,
     pageSize: number = 100,
-    paginationToken?: string
+    paginationToken?: string,
+    group?: GrokKeyGroup
 ): Promise<BatchResultsPage> {
     const params = new URLSearchParams({ page_size: String(pageSize) });
     if (paginationToken) {
@@ -172,7 +174,7 @@ export async function getBatchResults(
 
     const res = await fetch(
         `${XAI_BASE_URL}/batches/${batchId}/results?${params}`,
-        { method: 'GET', headers: headers() }
+        { method: 'GET', headers: headers(group) }
     );
 
     if (!res.ok) {
@@ -230,7 +232,7 @@ export async function getBatchResults(
 /**
  * Get ALL results (auto-paginates)
  */
-export async function getAllBatchResults(batchId: string): Promise<{
+export async function getAllBatchResults(batchId: string, group?: GrokKeyGroup): Promise<{
     succeeded: BatchResult[];
     failed: BatchResult[];
 }> {
@@ -239,7 +241,7 @@ export async function getAllBatchResults(batchId: string): Promise<{
     let token: string | undefined;
 
     do {
-        const page = await getBatchResults(batchId, 100, token);
+        const page = await getBatchResults(batchId, 100, token, group);
         allSucceeded.push(...page.succeeded);
         allFailed.push(...page.failed);
         token = page.pagination_token;
@@ -251,10 +253,10 @@ export async function getAllBatchResults(batchId: string): Promise<{
 /**
  * Cancel a batch
  */
-export async function cancelBatch(batchId: string): Promise<void> {
+export async function cancelBatch(batchId: string, group?: GrokKeyGroup): Promise<void> {
     const res = await fetch(`${XAI_BASE_URL}/batches/${batchId}/cancel`, {
         method: 'POST',
-        headers: headers(),
+        headers: headers(group),
     });
 
     if (!res.ok) {

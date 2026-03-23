@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPersonalizedFeed } from '@/lib/db/quote-feed';
-import { queryCollection, runQuery } from '@/lib/firestore-rest';
+import { queryCollection, runQuery } from '@/lib/appwrite/database';
 
 interface QuoteResponse {
     id: string;
@@ -11,7 +11,7 @@ interface QuoteResponse {
     source: string;
     topic: string;
     highlightedPhrases: string[];
-    sourceType?: 'article' | 'generated_session';
+    sourceType?: 'article' | 'generated_session' | 'generated_fact';
     sessionId?: string;
 }
 
@@ -43,8 +43,12 @@ export async function GET(request: NextRequest) {
             console.warn('[QuoteFeed] Failed to fetch saved phrases for boost', e);
         }
 
+        const url = new URL(request.url);
+        const explicitTopicsStr = url.searchParams.get('explicitTopics');
+        const explicitTopics = explicitTopicsStr ? explicitTopicsStr.split(',') : undefined;
+
         // ─── Try personalized feed from quotes collection ───
-        const feed = await getPersonalizedFeed(userId, userSavedPhrases);
+        const feed = await getPersonalizedFeed(userId, userSavedPhrases, explicitTopics);
 
         // Check onboarding
         if (feed.needsOnboarding) {
@@ -111,7 +115,7 @@ export async function GET(request: NextRequest) {
         const posts = allPosts.filter(post => {
             if (!post.generatedForUserId) return true;
             return post.generatedForUserId === userId;
-        }).slice(0, 20);
+        }).slice(0, 80);
 
         const articleQuotes: QuoteResponse[] = [];
 
@@ -166,8 +170,8 @@ export async function GET(request: NextRequest) {
             }
         }
 
-        const shuffledArticle = articleQuotes.sort(() => Math.random() - 0.5).slice(0, 12);
-        const combined = [...generatedQuotes, ...shuffledArticle].slice(0, 15);
+        const shuffledArticle = articleQuotes.sort(() => Math.random() - 0.5).slice(0, 40);
+        const combined = [...generatedQuotes, ...shuffledArticle].slice(0, 50);
 
         return NextResponse.json({ quotes: combined, needsOnboarding: false });
     } catch (error) {

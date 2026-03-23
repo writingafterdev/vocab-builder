@@ -11,8 +11,9 @@ import {
     where,
     orderBy,
     limit,
+    startAfter,
     serverTimestamp,
-} from 'firebase/firestore';
+} from '@/lib/firebase/firestore';
 import { getDbAsync } from './core';
 import type { Post, ExtractedPhrase, SentencePair } from './types';
 
@@ -49,6 +50,77 @@ export async function getPosts(limitCount = 20, userId?: string): Promise<Post[]
     }
 
     return posts.slice(0, limitCount);
+}
+
+/**
+ * Get posts for a user's feed with pagination
+ * Returns { posts, lastDoc } to use in the next query
+ */
+export async function getPostsPaginated(
+    limitCount = 20, 
+    userId?: string, 
+    startAfterDoc?: any,
+    topicScores?: Record<string, number>
+): Promise<{ posts: Post[], lastDoc: any }> {
+    const firestore = await getDbAsync();
+    const postsRef = collection(firestore, 'posts');
+
+    let q = query(
+        postsRef,
+        orderBy('createdAt', 'desc'),
+        limit(limitCount * 2) // Get extra to filter
+    );
+
+    if (startAfterDoc) {
+        q = query(
+            postsRef,
+            orderBy('createdAt', 'desc'),
+            startAfter(startAfterDoc),
+            limit(limitCount * 2) // Get extra to filter
+        );
+    }
+
+    const snapshot = await getDocs(q);
+    const lastDoc = snapshot.docs.length > 0 ? snapshot.docs[snapshot.docs.length - 1] : null;
+
+    let posts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Post));
+
+    // Filter out AI posts that belong to other users
+    if (userId) {
+        posts = posts.filter(post => {
+            // Show all non-AI posts (admin, user)
+            if (!post.generatedForUserId) return true;
+            // Show AI posts only if they belong to current user
+            return post.generatedForUserId === userId;
+        });
+    } else {
+        // No user logged in - only show public posts
+        posts = posts.filter(post => !post.generatedForUserId);
+    }
+
+    // Smart Sorting: locally sort by topic scores if provided
+    if (topicScores && Object.keys(topicScores).length > 0) {
+        posts.sort((a, b) => {
+            const aTopic = (a as any).importTopic || 'general';
+            const bTopic = (b as any).importTopic || 'general';
+            const aScore = topicScores[aTopic] || 0;
+            const bScore = topicScores[bTopic] || 0;
+            
+            // Primary sort by score DESC
+            if (bScore !== aScore) {
+                return bScore - aScore;
+            }
+            
+            // Secondary sort by date DESC (which they originally were, but sort might not be stable)
+            // @ts-ignore
+            const aTime = a.createdAt?.seconds || 0;
+            // @ts-ignore
+            const bTime = b.createdAt?.seconds || 0;
+            return bTime - aTime;
+        });
+    }
+
+    return { posts: posts.slice(0, limitCount), lastDoc };
 }
 
 /**

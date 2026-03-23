@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { setDocument, runQuery, serverTimestamp } from '@/lib/firestore-rest';
+import { setDocument, runQuery, serverTimestamp } from '@/lib/appwrite/database';
 
 /**
  * Save new journey nodes to Firestore.

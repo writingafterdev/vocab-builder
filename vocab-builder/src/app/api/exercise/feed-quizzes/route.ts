@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDocument } from '@/lib/firestore-rest';
+import { getDocument } from '@/lib/appwrite/database';
 
 export async function GET(request: NextRequest) {
     try {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDocument, updateDocument, addDocument } from '@/lib/firestore-rest';
+import { getDocument, updateDocument, addDocument } from '@/lib/appwrite/database';
 import { XP_CONFIG, type XpSource, type UserStats } from '@/types';
 
 /**

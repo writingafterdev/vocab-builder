@@ -10,7 +10,7 @@ import {
     query,
     where,
     serverTimestamp,
-} from 'firebase/firestore';
+} from '@/lib/firebase/firestore';
 import { getDbAsync } from './core';
 import type { UserSettings } from '@/types';
 

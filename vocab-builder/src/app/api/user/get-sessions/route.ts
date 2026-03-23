@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { runQuery } from '@/lib/firestore-rest';
+import { runQuery } from '@/lib/appwrite/database';
 
 /**
  * Get completed sessions for a user on a specific date

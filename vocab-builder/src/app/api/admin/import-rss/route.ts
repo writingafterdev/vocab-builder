@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 // Dynamic import to avoid bundling rss-parser/xml2js/sax into the main worker
 // import Parser from 'rss-parser';
-import { setDocument, serverTimestamp } from '@/lib/firestore-rest';
+import { setDocument, serverTimestamp } from '@/lib/appwrite/database';
 import { createHash } from 'crypto';
 import { extractQuotesAsync } from '@/lib/quote-extraction';
 

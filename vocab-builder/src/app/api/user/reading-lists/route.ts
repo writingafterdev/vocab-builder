@@ -4,7 +4,7 @@ import {
     getDocument,
     queryCollection,
     serverTimestamp
-} from '@/lib/firestore-rest';
+} from '@/lib/appwrite/database';
 
 const COLLECTION_NAME = 'userReadingLists';
 

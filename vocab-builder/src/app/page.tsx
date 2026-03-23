@@ -2,146 +2,22 @@
 
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState, useCallback, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { EditorialLoader } from '@/components/ui/editorial-loader';
 
-// Conversation script - each message in the flow
-type MessageType = 'harry' | 'user';
-type TriggerType = 'auto' | 'interaction';
-
-interface Message {
-    id: number;
-    type: MessageType;
-    text: string;
-    trigger: TriggerType;
-    delay?: number; // delay in ms before showing (for auto triggers)
-}
-
-const conversation: Message[] = [
-    // Scene 1: Introduction
-    { id: 1, type: 'harry', text: "Hi, I'm Harry.", trigger: 'auto' },
-    { id: 2, type: 'user', text: "Harry? I didn't ask for that. I'm here for my next English exam...", trigger: 'interaction' },
-    { id: 3, type: 'harry', text: "I know, I know. Bear with me.", trigger: 'auto', delay: 1000 },
-
-    // Scene 2: The Problem with Traditional Learning
-    { id: 4, type: 'harry', text: "Let me guess — you've tried flashcards. Wordlists. Maybe Anki?", trigger: 'interaction' },
-    { id: 5, type: 'user', text: "...yeah, and they never stick.", trigger: 'auto', delay: 1500 },
-    { id: 6, type: 'harry', text: "That's because you were learning vocabulary. Not acquiring it.", trigger: 'auto', delay: 1500 },
-
-    // Scene 3: Acquisition vs Learning
-    { id: 7, type: 'harry', text: "Learning is memorizing definitions. It's what schools taught you.", trigger: 'interaction' },
-    { id: 8, type: 'harry', text: "Acquisition is different. It's how you learned your first language — through stories, context, real usage.", trigger: 'auto', delay: 2000 },
-    { id: 9, type: 'user', text: "So you're saying I should just... read more?", trigger: 'auto', delay: 2000 },
-    { id: 10, type: 'harry', text: "Yes. But with intention.", trigger: 'auto', delay: 1000 },
-
-    // Scene 4: The Method
-    { id: 11, type: 'harry', text: "Here's how it works:", trigger: 'interaction' },
-    { id: 12, type: 'harry', text: "You read something that actually interests you.", trigger: 'auto', delay: 1000 },
-    { id: 13, type: 'harry', text: "You find a phrase that feels right. You save it.", trigger: 'auto', delay: 1500 },
-    { id: 14, type: 'harry', text: "Later, you don't just review it — you use it. In conversations. In writing.", trigger: 'auto', delay: 1500 },
-    { id: 15, type: 'user', text: "That sounds... actually doable.", trigger: 'auto', delay: 2000 },
-
-    // Scene 5: The Conversational CTA
-    { id: 16, type: 'harry', text: "It is. And I'll help you.", trigger: 'interaction' },
-    { id: 17, type: 'harry', text: "So — want to give it a shot?", trigger: 'auto', delay: 1500 },
-];
-
-// Typing animation component
-function TypeWriter({
-    text,
-    onComplete,
-    speed = 40
-}: {
-    text: string;
-    onComplete?: () => void;
-    speed?: number;
-}) {
-    const [displayedText, setDisplayedText] = useState('');
-    const [isComplete, setIsComplete] = useState(false);
-
-    useEffect(() => {
-        let index = 0;
-        const interval = setInterval(() => {
-            if (index < text.length) {
-                setDisplayedText(text.slice(0, index + 1));
-                index++;
-            } else {
-                clearInterval(interval);
-                setIsComplete(true);
-                onComplete?.();
-            }
-        }, speed);
-
-        return () => clearInterval(interval);
-    }, [text, speed, onComplete]);
-
-    return (
-        <span>
-            {displayedText}
-            {!isComplete && (
-                <span className="animate-pulse">|</span>
-            )}
-        </span>
-    );
-}
-
-// Single message component
-function MessageBubble({
-    message,
-    onComplete,
-    isTyping = true
-}: {
-    message: Message;
-    onComplete?: () => void;
-    isTyping?: boolean;
-}) {
-    const isHarry = message.type === 'harry';
-
-    if (isHarry) {
-        return (
-            <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="mb-2"
-            >
-                <p className="text-2xl md:text-4xl font-normal text-black leading-relaxed">
-                    {isTyping ? (
-                        <TypeWriter text={message.text} onComplete={onComplete} speed={35} />
-                    ) : (
-                        message.text
-                    )}
-                </p>
-            </motion.div>
-        );
-    }
-
-    // User's thoughts - fade in with subtle animation, smaller and italic
-    return (
-        <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.4 }}
-            className="mb-2"
-            onAnimationComplete={onComplete}
-        >
-            <p className="text-lg md:text-2xl font-normal text-[#999] italic leading-relaxed">
-                {message.text}
-            </p>
-        </motion.div>
-    );
-}
+const GoogleLogo = () => (
+    <svg width="20" height="20" viewBox="0 0 18 18" className="mr-2">
+        <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/>
+        <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/>
+        <path fill="#FBBC05" d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707s.102-1.167.282-1.707V4.96H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.04l3.007-2.333z"/>
+        <path fill="#EA4335" d="M9 3.58c1.32 0 2.507.454 3.44 1.357l2.58-2.58C13.464.844 11.43 0 9 0 5.483 0 2.455 2.048.957 4.96l3.007 2.332C4.672 5.164 6.656 3.58 9 3.58z"/>
+    </svg>
+);
 
 export default function LandingPage() {
     const { user, loading, signInWithGoogle } = useAuth();
     const router = useRouter();
-
-    const [visibleMessages, setVisibleMessages] = useState<Message[]>([]);
-    const [currentIndex, setCurrentIndex] = useState(0);
-    const [isTyping, setIsTyping] = useState(false);
-    const [canInteract, setCanInteract] = useState(false);
-    const [showCTA, setShowCTA] = useState(false);
-    const hasStarted = useRef(false);
 
     // Redirect if already logged in
     useEffect(() => {
@@ -149,79 +25,6 @@ export default function LandingPage() {
             router.push('/feed');
         }
     }, [user, loading, router]);
-
-    // Start the conversation (only once)
-    useEffect(() => {
-        if (!hasStarted.current && currentIndex === 0 && visibleMessages.length === 0) {
-            hasStarted.current = true;
-            // Delay slightly to ensure component is ready
-            const timer = setTimeout(() => {
-                setVisibleMessages([conversation[0]]);
-                setCurrentIndex(1);
-                setIsTyping(true);
-            }, 100);
-            return () => clearTimeout(timer);
-        }
-    }, []);
-
-    const showNextMessage = useCallback(() => {
-        if (currentIndex >= conversation.length) {
-            // Conversation complete, show CTA
-            setTimeout(() => setShowCTA(true), 1000);
-            return;
-        }
-
-        const nextMessage = conversation[currentIndex];
-        setIsTyping(nextMessage.type === 'harry');
-        setCanInteract(false);
-
-        setVisibleMessages(prev => [...prev, nextMessage]);
-        setCurrentIndex(prev => prev + 1);
-    }, [currentIndex]);
-
-    const handleMessageComplete = useCallback(() => {
-        setIsTyping(false);
-
-        // Check if there's another message that auto-triggers
-        const nextIndex = currentIndex;
-        if (nextIndex < conversation.length) {
-            const nextMessage = conversation[nextIndex];
-            if (nextMessage.trigger === 'auto') {
-                setTimeout(() => {
-                    showNextMessage();
-                }, nextMessage.delay || 1000);
-            } else {
-                // Wait for user interaction
-                setCanInteract(true);
-            }
-        } else {
-            // End of conversation
-            setTimeout(() => setShowCTA(true), 1000);
-        }
-    }, [currentIndex, showNextMessage]);
-
-    // Handle user interactions (scroll, click, keypress)
-    useEffect(() => {
-        if (!canInteract) return;
-
-        const handleInteraction = () => {
-            if (canInteract) {
-                showNextMessage();
-            }
-        };
-
-        window.addEventListener('scroll', handleInteraction, { once: true });
-        window.addEventListener('click', handleInteraction, { once: true });
-        window.addEventListener('keydown', handleInteraction, { once: true });
-        window.addEventListener('touchstart', handleInteraction, { once: true });
-
-        return () => {
-            window.removeEventListener('scroll', handleInteraction);
-            window.removeEventListener('click', handleInteraction);
-            window.removeEventListener('keydown', handleInteraction);
-            window.removeEventListener('touchstart', handleInteraction);
-        };
-    }, [canInteract, showNextMessage]);
 
     if (loading) {
         return (
@@ -232,45 +35,41 @@ export default function LandingPage() {
     }
 
     return (
-        <div className="min-h-screen bg-white text-black">
-            {/* Main conversation area - slightly left of center */}
-            <main className="min-h-screen px-8 md:px-24 lg:px-[20%] py-16 md:py-24">
-                <div className="max-w-4xl">
-                    {/* Messages */}
-                    <AnimatePresence>
-                        {visibleMessages.map((message, index) => (
-                            <MessageBubble
-                                key={`${index}-${message.id}`}
-                                message={message}
-                                isTyping={index === visibleMessages.length - 1 && isTyping && message.type === 'harry'}
-                                onComplete={index === visibleMessages.length - 1 ? handleMessageComplete : undefined}
-                            />
-                        ))}
-                    </AnimatePresence>
-
-                    {/* Conversational CTA */}
-                    <AnimatePresence>
-                        {showCTA && (
-                            <motion.div
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                transition={{ duration: 0.5 }}
-                                className="mt-8"
-                            >
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        signInWithGoogle();
-                                    }}
-                                    className="text-2xl md:text-4xl font-normal text-black hover:text-[#666] transition-colors duration-300 cursor-pointer"
-                                >
-                                    Yeah, let&apos;s go →
-                                </button>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
+        <div className="min-h-screen bg-white text-black flex items-center justify-center p-4">
+            <motion.div 
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, ease: "easeOut" }}
+                className="max-w-md w-full text-center space-y-6"
+            >
+                {/* Logo / Splash */}
+                <div className="space-y-2">
+                    <h1 className="text-4xl md:text-5xl font-light tracking-tight text-black">
+                        Vocab Builder
+                    </h1>
+                    <p className="text-lg md:text-xl font-normal text-slate-500 leading-relaxed max-w-sm mx-auto">
+                        Acquire English vocabulary naturally through stories, context, and real usage.
+                    </p>
                 </div>
-            </main>
+
+                {/* Login Action Card */}
+                <div className="pt-4">
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            signInWithGoogle();
+                        }}
+                        className="w-full flex items-center justify-center px-4 py-3.5 border border-slate-200 rounded-xl shadow-sm bg-white hover:bg-slate-50 hover:border-slate-300 transition-all duration-200 cursor-pointer font-medium text-slate-700 text-lg"
+                    >
+                        <GoogleLogo />
+                        Continue with Google
+                    </button>
+                    
+                    <p className="mt-4 text-xs text-slate-400">
+                        By continuing, you agree to start acquiring language naturally.
+                    </p>
+                </div>
+            </motion.div>
         </div>
     );
 }

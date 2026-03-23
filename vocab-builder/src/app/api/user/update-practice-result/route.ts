@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDocument, updateDocument, addDocument, setDocument } from '@/lib/firestore-rest';
+import { getDocument, updateDocument, addDocument, setDocument } from '@/lib/appwrite/database';
 import { QuestionResult } from '@/lib/db/practice-types';
 import { SavedPhrase, DEFAULT_LEARNING_CYCLE } from '@/lib/db/types';
 

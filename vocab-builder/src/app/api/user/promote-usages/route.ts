@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { serverTimestamp, updateDocument, addDocument, getDocument } from '@/lib/firestore-rest';
+import { serverTimestamp, updateDocument, addDocument, getDocument } from '@/lib/appwrite/database';
 
 interface PromoteUsagesRequest {
     usagesIncluded: Array<{

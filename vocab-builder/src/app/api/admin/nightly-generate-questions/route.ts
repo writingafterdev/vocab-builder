@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { queryCollection, updateDocument, serverTimestamp } from '@/lib/firestore-rest';
+import { queryCollection, updateDocument, serverTimestamp } from '@/lib/appwrite/database';
 
 /**
  * Nightly job to generate MCQ questions for saved phrases

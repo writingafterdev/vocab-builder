@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 import { getNextApiKey } from '@/lib/api-key-rotation';
 import { uploadToFirebaseStorage } from '@/lib/firebase-storage';
-import { getDocument, updateDocument } from '@/lib/firestore-rest';
+import { getDocument, updateDocument } from '@/lib/appwrite/database';
 import type { SpeakingChunk } from '@/types';
 
 /**

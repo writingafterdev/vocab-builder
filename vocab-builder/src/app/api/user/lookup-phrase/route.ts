@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDocument, setDocument, updateDocument, serverTimestamp } from '@/lib/firestore-rest';
+import { getDocument, setDocument, updateDocument, serverTimestamp } from '@/lib/appwrite/database';
 import { GlobalPhraseData, CommonUsage, PhraseVariant, Register, Nuance, SocialDistance } from '@/lib/db/types';
 import { normalizePhraseKey } from '@/lib/db/practice-types';
 import { safeParseAIJson } from '@/lib/ai-utils';

@@ -13,7 +13,7 @@ import {
     where,
     orderBy,
     serverTimestamp,
-} from 'firebase/firestore';
+} from '@/lib/firebase/firestore';
 import { getDbAsync } from './core';
 import type { UserReadingList, Collection } from './types';
 

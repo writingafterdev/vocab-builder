@@ -43,7 +43,7 @@ import { getPost } from '@/lib/db/posts';
 import { getSavedArticles, unsaveArticle, SavedArticle } from '@/lib/db/bookmarks';
 import { getLearningStats } from '@/lib/db/learning-stats';
 import { Repost } from '@/lib/db/types';
-import { Timestamp } from 'firebase/firestore';
+import { Timestamp } from '@/lib/firebase/firestore';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { sanitizeHtml } from '@/lib/sanitize';

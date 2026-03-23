@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { queryCollection } from '@/lib/firestore-rest';
+import { queryCollection } from '@/lib/appwrite/database';
 
 const DAILY_PHRASE_LIMIT = 15;
 

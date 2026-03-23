@@ -5,8 +5,8 @@
  * Each weakness is tracked with severity, occurrences, and improvement.
  */
 
-import { getDocument, setDocument, updateDocument } from '@/lib/firestore-rest';
-import { Timestamp } from 'firebase/firestore';
+import { getDocument, setDocument, updateDocument } from '@/lib/appwrite/database';
+import { Timestamp } from '@/lib/firebase/firestore';
 import { ExtractedWeakness, WeaknessCategory } from '@/lib/speaking-feedback';
 
 // ============================================

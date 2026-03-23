@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { runQuery } from '@/lib/firestore-rest';
+import { runQuery } from '@/lib/appwrite/database';
 
 // Force dynamic since we check SRS dates relative to "now"
 export const dynamic = 'force-dynamic';

@@ -11,7 +11,7 @@ import {
     where,
     orderBy,
     Timestamp,
-} from 'firebase/firestore';
+} from '@/lib/firebase/firestore';
 import { getDbAsync } from './core';
 
 export interface SavedArticle {

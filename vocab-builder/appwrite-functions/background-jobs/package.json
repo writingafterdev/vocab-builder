@@ -1,0 +1,17 @@
+{
+  "name": "background-jobs",
+  "version": "1.0.0",
+  "description": "Appwrite Function: daily import, AI processing, and fact generation",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "node ../../scripts/build-functions.mjs",
+    "test": "echo \"No tests yet\" && exit 0"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}

@@ -13,7 +13,7 @@ import {
     orderBy,
     increment,
     serverTimestamp,
-} from 'firebase/firestore';
+} from '@/lib/firebase/firestore';
 import { getDbAsync } from './core';
 import type { Repost } from './types';
 

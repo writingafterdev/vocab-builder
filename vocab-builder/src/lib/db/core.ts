@@ -5,7 +5,7 @@
  * This ensures Firebase is only loaded dynamically in the browser.
  */
 import { initializeFirebase } from '../firebase';
-import type { Firestore } from 'firebase/firestore';
+import type { Firestore } from '@/lib/firebase/firestore';
 
 // Re-export initializeFirebase for convenience
 export { initializeFirebase };

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logTokenUsage } from '@/lib/db/token-tracking';
-import { updateDocument } from '@/lib/firestore-rest';
+import { updateDocument } from '@/lib/appwrite/database';
 import { getGrokKey } from '@/lib/grok-client';
 
 /**

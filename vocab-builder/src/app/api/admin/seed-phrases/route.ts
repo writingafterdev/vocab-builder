@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { addDocument, queryCollection, serverTimestamp } from '@/lib/firestore-rest';
+import { addDocument, queryCollection, serverTimestamp } from '@/lib/appwrite/database';
 
 /**
  * Seed test phrases for cron job testing.

@@ -3,7 +3,7 @@
  * Extracted from admin/import-rss and admin/import-reddit routes.
  */
 
-import { setDocument, getDocument, updateDocument, queryCollection, serverTimestamp } from '@/lib/firestore-rest';
+import { setDocument, getDocument, updateDocument, queryCollection, serverTimestamp } from '@/lib/appwrite/database';
 import { createHash } from 'crypto';
 
 // ─── Types ───────────────────────────────────────────────────────────

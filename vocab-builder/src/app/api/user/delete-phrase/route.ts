@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { deleteDocument, getDocument, updateDocument } from '@/lib/firestore-rest';
+import { deleteDocument, getDocument, updateDocument } from '@/lib/appwrite/database';
 
 export async function DELETE(req: Request) {
     try {

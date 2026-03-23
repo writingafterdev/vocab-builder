@@ -1,6 +1,5 @@
-import { queryCollection } from '@/lib/firestore-rest';
-import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
+import { queryCollection } from '@/lib/appwrite/database';
+
 
 export interface DailyActivity {
     date: string; // YYYY-MM-DD

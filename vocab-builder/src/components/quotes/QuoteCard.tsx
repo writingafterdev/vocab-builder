@@ -12,6 +12,8 @@ export interface Quote {
     postTitle: string;
     author: string;
     source: string;
+    topic?: string;
+    tags?: string[];
     highlightedPhrases?: string[];
 }
 

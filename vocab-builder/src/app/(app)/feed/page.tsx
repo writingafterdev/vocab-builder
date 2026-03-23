@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { Button } from '@/components/ui/button';
@@ -35,13 +35,13 @@ import {
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { getSourceLogo } from '@/lib/sources';
-import { getPosts, createUserArticle } from '@/lib/db/posts';
+import { getPosts, getPostsPaginated, createUserArticle } from '@/lib/db/posts';
 import { getUserPhrases } from '@/lib/db/srs';
 
 // import { getCollections } from '@/lib/db/collections';
 import { RichTextEditor } from '@/components/rich-text-editor';
 import type { Post as PostType, Collection, LexileLevel } from '@/lib/db/types';
-import { Timestamp } from 'firebase/firestore';
+import { Timestamp } from '@/lib/firebase/firestore';
 import { BentoGrid, BentoCard, getCardSize, getBentoPattern, StackingCards, StackingCardItem } from '@/components/library';
 import { LibraryCard as NewLibraryCard } from '@/components/library';
 import { QuoteSwiper } from '@/components/quotes';
@@ -54,6 +54,7 @@ interface LibraryPost extends PostType {
     isRead?: boolean;
     wordCount?: number;
     topics?: string[];
+    importTopic?: string;
 }
 
 // Library Card Component matching mockup design
@@ -372,6 +373,10 @@ export default function LibraryPage() {
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [activeFilter, setActiveFilter] = useState<FilterTab>('all');
+    const [lastDoc, setLastDoc] = useState<any>(null);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [hasMore, setHasMore] = useState(true);
+    const observerTarget = useRef<HTMLDivElement>(null);
     // const [selectedCollection, setSelectedCollection] = useState<Collection | null>(null); // Removed
     const [userLists, setUserLists] = useState<Array<{ id: string; name: string; postIds: string[] }>>([]);
     const [generatedSessions, setGeneratedSessions] = useState<Array<{
@@ -425,6 +430,18 @@ export default function LibraryPage() {
                 toast.success(isInList ? 'Removed from list' : 'Added to list');
                 // Refresh lists
                 fetchUserLists();
+
+                // Track interaction for recommendations
+                if (!isInList) {
+                    const post = posts.find((p: any) => p.id === postId);
+                    if (post && post.importTopic) {
+                        fetch('/api/user/track-interaction', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'x-user-id': user.uid },
+                            body: JSON.stringify({ postId, action: 'save', topic: post.importTopic })
+                        }).catch(console.error);
+                    }
+                }
             } else {
                 const data = await response.json();
                 toast.error(data.error || 'Failed to update list');
@@ -445,16 +462,26 @@ export default function LibraryPage() {
     const [selectedListId, setSelectedListId] = useState<string>('');
     const [importing, setImporting] = useState(false);
 
+    const [topicScores, setTopicScores] = useState<Record<string, number> | null>(null);
+
     const loadPosts = async () => {
         setLoading(true);
         try {
-            const fetchedPosts = await getPosts(40, user?.uid);
-            
-            // Randomize the order of the fetched posts so the feed feels fresh
-            const shuffledPosts = [...fetchedPosts].sort(() => 0.5 - Math.random()).slice(0, 20);
+            let scores = topicScores;
+            if (user?.uid && !scores) {
+                const res = await fetch('/api/user/topic-scores', {
+                    headers: { 'x-user-id': user.uid }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    scores = data.topicScores || {};
+                    setTopicScores(scores);
+                }
+            }
 
-            // Add mock progress and phrases count for now
-            const postsWithMeta = shuffledPosts.map(p => ({
+            const { posts: fetchedPosts, lastDoc: newLastDoc } = await getPostsPaginated(20, user?.uid, undefined, scores || undefined);
+            
+            const postsWithMeta = fetchedPosts.map(p => ({
                 ...p,
                 progress: Math.floor(Math.random() * 100),
                 phrasesCount: Math.floor(Math.random() * 20),
@@ -462,11 +489,51 @@ export default function LibraryPage() {
                 isRead: Math.random() > 0.7,
             }));
             setPosts(postsWithMeta);
+            setLastDoc(newLastDoc);
+            setHasMore(fetchedPosts.length === 20);
         } catch (error) {
             console.error('Failed to load posts:', error);
         }
         setLoading(false);
     };
+
+    const loadMorePosts = useCallback(async () => {
+        if (!hasMore || loadingMore || !lastDoc) return;
+        setLoadingMore(true);
+        try {
+            const { posts: fetchedPosts, lastDoc: newLastDoc } = await getPostsPaginated(20, user?.uid, lastDoc, topicScores || undefined);
+            const postsWithMeta = fetchedPosts.map(p => ({
+                ...p,
+                progress: Math.floor(Math.random() * 100),
+                phrasesCount: Math.floor(Math.random() * 20),
+                wordCount: Math.ceil(p.content.length / 5),
+                isRead: Math.random() > 0.7,
+            }));
+            setPosts(prev => [...prev, ...postsWithMeta]);
+            setLastDoc(newLastDoc);
+            setHasMore(fetchedPosts.length === 20);
+        } catch (error) {
+            console.error('Failed to load more posts:', error);
+        }
+        setLoadingMore(false);
+    }, [hasMore, loadingMore, lastDoc, user?.uid, topicScores]);
+
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            entries => {
+                if (entries[0].isIntersecting) {
+                    loadMorePosts();
+                }
+            },
+            { threshold: 0.1 }
+        );
+
+        if (observerTarget.current) {
+            observer.observe(observerTarget.current);
+        }
+
+        return () => observer.disconnect();
+    }, [loadMorePosts, observerTarget.current]);
 
     const handleImport = async () => {
         if (!user || !importTitle.trim() || !importContent.trim()) {
@@ -701,6 +768,20 @@ export default function LibraryPage() {
                                     </StackingCardItem>
                                 ))}
                             </StackingCards>
+                        )}
+                        
+                        {/* Infinite Scroll trigger */}
+                        {posts.length > 0 && hasMore && (
+                            <div ref={observerTarget} className="w-full py-16 flex justify-center mt-8">
+                                {loadingMore ? (
+                                    <div className="flex flex-col items-center gap-3">
+                                        <div className="w-6 h-6 border-2 border-neutral-300 border-t-neutral-800 rounded-full animate-spin" />
+                                        <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Loading...</span>
+                                    </div>
+                                ) : (
+                                    <div className="h-6" />
+                                )}
+                            </div>
                         )}
                     </div>
                 </section>

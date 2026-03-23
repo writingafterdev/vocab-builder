@@ -1,29 +1,25 @@
-/**
- * Authenticated fetch helper for making secure API calls
- * Automatically includes Firebase ID token in requests
- */
-import { auth } from '@/lib/firebase';
+import { account } from '@/lib/appwrite/client';
 
 /**
  * Make an authenticated API request
- * Automatically includes the Firebase ID token in the Authorization header
+ * Automatically includes the Appwrite JWT explicitly generated
  */
 export async function authFetch(
     url: string,
     options: RequestInit = {}
 ): Promise<Response> {
-    const user = auth?.currentUser;
-
-    if (!user) {
-        throw new Error('User not authenticated');
+    let token = '';
+    try {
+        const jwtResponse = await account.createJWT();
+        token = jwtResponse.jwt;
+    } catch (error) {
+        console.warn('Could not generate JWT. User may not be logged in.');
     }
 
-    // Get fresh ID token
-    const token = await user.getIdToken();
-
-    // Merge headers with auth
     const headers = new Headers(options.headers);
-    headers.set('Authorization', `Bearer ${token}`);
+    if (token) {
+        headers.set('Authorization', `Bearer ${token}`);
+    }
     headers.set('Content-Type', 'application/json');
 
     return fetch(url, {

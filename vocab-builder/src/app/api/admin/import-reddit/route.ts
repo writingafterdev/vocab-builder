@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchSubredditPosts, fetchPostComments } from '@/lib/reddit';
-import { setDocument, serverTimestamp } from '@/lib/firestore-rest';
+import { setDocument, serverTimestamp } from '@/lib/appwrite/database';
 import { RedditComment } from '@/lib/db/types';
 
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase());
