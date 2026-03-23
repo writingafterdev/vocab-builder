@@ -69,6 +69,13 @@ export async function getDocs(queryRef: any) {
     }
 }
 
+export async function addDoc(colRef: any, data: any) {
+    const docId = ID.unique();
+    const colId = colRef.type === 'collection' ? colRef.path : colRef.col;
+    await databases.createDocument(DB_ID, colId, docId, data);
+    return { type: 'doc', col: colId, id: docId };
+}
+
 export async function setDoc(docRef: any, data: any, options?: { merge: boolean }) {
     try {
         // Does it exist? Try to get it. If not found, create it.
