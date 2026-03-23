@@ -53,6 +53,8 @@ const nextConfig: NextConfig = {
   },
 
   // Security headers
+  output: 'standalone',
+
   async headers() {
     return [
       {
