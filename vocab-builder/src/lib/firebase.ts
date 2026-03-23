@@ -5,14 +5,14 @@
  */
 
 export async function initializeFirebase() {
-    return { app: {}, auth: {}, db: {}, storage: {} };
+    return { app: {} as any, auth, db, storage };
 }
 
 export function getFirebaseInstances() {
-    return { app: {}, auth: {}, db: {}, storage: {} };
+    return { app: {} as any, auth, db, storage };
 }
 
-export const auth = {};
-export const db = {};
-export const storage = {};
-export default {};
+export const auth: any = { currentUser: null };
+export const db: any = {};
+export const storage: any = {};
+export default {} as any;
