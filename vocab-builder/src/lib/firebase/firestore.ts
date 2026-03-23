@@ -90,6 +90,28 @@ export async function setDoc(docRef: any, data: any, options?: { merge: boolean 
 }
 
 export async function updateDoc(docRef: any, data: any) {
+    // Check if there's any __increment__ operations
+    let hasIncrement = false;
+    for (const key of Object.keys(data)) {
+        if (data[key] && typeof data[key] === 'object' && '__increment__' in data[key]) {
+            hasIncrement = true;
+            break;
+        }
+    }
+
+    if (hasIncrement) {
+        // Fetch current doc to calculate increment
+        const currentDoc = await databases.getDocument(DB_ID, docRef.col, docRef.id);
+        const newData = { ...data };
+        for (const key of Object.keys(newData)) {
+            if (newData[key] && typeof newData[key] === 'object' && '__increment__' in newData[key]) {
+                const currentVal = (currentDoc[key] || 0) as number;
+                newData[key] = currentVal + newData[key].__increment__;
+            }
+        }
+        return await databases.updateDocument(DB_ID, docRef.col, docRef.id, newData);
+    }
+
     return await databases.updateDocument(DB_ID, docRef.col, docRef.id, data);
 }
 
@@ -151,6 +173,10 @@ export function arrayRemove(...elements: any[]) {
 
 export function serverTimestamp() {
     return new Date().toISOString();
+}
+
+export function increment(n: number) {
+    return { __increment__: n };
 }
 
 export function writeBatch() {
