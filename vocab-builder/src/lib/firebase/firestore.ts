@@ -29,15 +29,17 @@ function createSnapshot(docData: any, reqId: string) {
         return {
             id: reqId,
             exists: () => false,
-            data: () => undefined
-        };
+            data: () => undefined,
+            ref: { type: 'doc', col: '', id: reqId }
+        } as any;
     }
     const { $id, $databaseId, $collectionId, $createdAt, $updatedAt, $permissions, ...rest } = docData;
     return {
         id: $id || reqId,
         exists: () => true,
-        data: () => rest
-    };
+        data: () => rest,
+        ref: { type: 'doc', col: $collectionId, id: $id || reqId }
+    } as any;
 }
 
 export async function getDoc(docRef: any) {
