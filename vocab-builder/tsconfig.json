@@ -42,6 +42,7 @@
   "exclude": [
     "node_modules",
     "cron-worker",
-    "test-feed.ts"
+    "test-feed.ts",
+    "scripts/legacy-firebase"
   ]
 }

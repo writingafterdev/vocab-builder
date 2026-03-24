@@ -254,7 +254,7 @@ function flattenToStringArray(value: unknown): string[] {
 export async function POST(request: NextRequest) {
     try {
         // Secure authentication - verify Firebase ID token
-        const { getAuthFromRequest } = await import('@/lib/firebase-admin');
+        const { getAuthFromRequest } = await import('@/lib/appwrite/auth-admin');
         const authUser = await getAuthFromRequest(request);
 
         // Fallback to header-based auth for backward compatibility (deprecate later)

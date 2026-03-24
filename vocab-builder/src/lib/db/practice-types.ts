@@ -1,7 +1,7 @@
 /**
  * Practice Types for Guided Practice System
  */
-import { Timestamp } from '@/lib/firebase/firestore';
+import { Timestamp } from '@/lib/appwrite/firestore';
 import { Register, Nuance } from './types';
 
 // Practice mode - MCQ vs free response

@@ -15,7 +15,7 @@ import {
     getDocs,
     updateDoc,
     Timestamp,
-} from '@/lib/firebase/firestore';
+} from '@/lib/appwrite/firestore';
 
 interface ComprehensionQuestion {
     question: string;

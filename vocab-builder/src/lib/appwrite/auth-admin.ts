@@ -8,7 +8,7 @@ import { Client, Account } from 'node-appwrite';
  *   - Just the token: "<token>"
  */
 export async function verifyIdToken(tokenOrHeader: string | null): Promise<{
-    uid: string;
+    $id: string;
     email: string | undefined;
 } | null> {
     if (!tokenOrHeader) {
@@ -34,7 +34,7 @@ export async function verifyIdToken(tokenOrHeader: string | null): Promise<{
         const user = await account.get();
 
         return {
-            uid: user.$id,
+            $id: user.$id,
             email: user.email,
         };
     } catch (error) {
@@ -59,7 +59,7 @@ export async function getAuthFromRequest(request: Request): Promise<{
     }
 
     return {
-        userId: verified.uid,
+        userId: verified.$id,
         userEmail: verified.email || '',
     };
 }

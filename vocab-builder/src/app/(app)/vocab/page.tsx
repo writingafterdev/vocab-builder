@@ -569,12 +569,12 @@ export default function VocabBankPage() {
     // Load phrases
     useEffect(() => {
         const loadPhrases = async () => {
-            if (!user?.uid) {
+            if (!user?.$id) {
                 if (!authLoading) setLoading(false);
                 return;
             }
             try {
-                const savedPhrases = await getUserPhrases(user.uid);
+                const savedPhrases = await getUserPhrases(user.$id);
                 const visiblePhrases = savedPhrases.filter(sp => {
                     const hasParent = !!(sp as any).parentPhraseId;
                     const hasAppeared = (sp as any).hasAppearedInExercise === true;
@@ -615,7 +615,7 @@ export default function VocabBankPage() {
             setLoading(false);
         };
         loadPhrases();
-    }, [user?.uid, authLoading]);
+    }, [user?.$id, authLoading]);
 
     // Filtering
     const filteredPhrases = useMemo(() => {
@@ -650,14 +650,14 @@ export default function VocabBankPage() {
         try {
             const res = await fetch('/api/user/delete-all-phrases', {
                 method: 'DELETE',
-                headers: { 'x-user-id': user!.uid },
+                headers: { 'x-user-id': user!.$id },
             });
             if (res.ok) {
                 const { deleted } = await res.json();
                 setPhrases([]);
-                if (user?.uid) {
-                    localStorage.removeItem(`due_clusters_${user.uid}`);
-                    localStorage.removeItem(`ondemand_clusters_${user.uid}`);
+                if (user?.$id) {
+                    localStorage.removeItem(`due_clusters_${user.$id}`);
+                    localStorage.removeItem(`ondemand_clusters_${user.$id}`);
                 }
                 toast.success(`Deleted ${deleted} phrase${deleted !== 1 ? 's' : ''}`);
             } else {
@@ -666,7 +666,7 @@ export default function VocabBankPage() {
         } catch {
             toast.error('Failed to delete all phrases');
         }
-    }, [confirm, phrases.length, user?.uid]);
+    }, [confirm, phrases.length, user?.$id]);
 
     // Delete handler
     const handleDeletePhrase = useCallback(async (phraseId: string) => {
@@ -686,9 +686,9 @@ export default function VocabBankPage() {
             });
             if (res.ok) {
                 setPhrases(prev => prev.filter(p => p.id !== phraseId));
-                if (user?.uid) {
-                    localStorage.removeItem(`due_clusters_${user.uid}`);
-                    localStorage.removeItem(`ondemand_clusters_${user.uid}`);
+                if (user?.$id) {
+                    localStorage.removeItem(`due_clusters_${user.$id}`);
+                    localStorage.removeItem(`ondemand_clusters_${user.$id}`);
                 }
                 toast.success('Phrase deleted');
             } else {
@@ -697,7 +697,7 @@ export default function VocabBankPage() {
         } catch {
             toast.error('Failed to delete');
         }
-    }, [confirm, user?.uid]);
+    }, [confirm, user?.$id]);
 
     // Available topics for modal editing
     const availableTopics = useMemo(() => [

@@ -39,7 +39,7 @@ function PracticePageContent() {
             <div className="flex justify-center max-w-2xl mx-auto px-4 lg:px-8 gap-8">
                 <div className="flex-1 min-h-screen space-y-6 pt-10">
                     {/* Generated Article Session Card */}
-                    <GenerateArticleCard userId={user.uid} />
+                    <GenerateArticleCard userId={user.$id} />
                 </div>
             </div>
         </>
@@ -69,9 +69,12 @@ function GenerateArticleCard({ userId }: { userId?: string }) {
         if (!userId || generating) return;
         setGenerating(true);
         try {
-            const { initializeFirebase } = await import('@/lib/firebase');
-            const { auth } = await initializeFirebase();
-            const token = auth?.currentUser ? await auth.currentUser.getIdToken() : null;
+            const { account } = await import('@/lib/appwrite/client');
+            let token = null;
+            try {
+                const jwtRes = await account.createJWT();
+                token = jwtRes.jwt;
+            } catch(e) {}
 
             const res = await fetch('/api/practice/generate-session-article', {
                 method: 'POST',

@@ -29,7 +29,7 @@ interface SuggestCollocationsRequest {
 export async function POST(request: NextRequest) {
     try {
         // Secure authentication
-        const { getAuthFromRequest } = await import('@/lib/firebase-admin');
+        const { getAuthFromRequest } = await import('@/lib/appwrite/auth-admin');
         const authUser = await getAuthFromRequest(request);
 
         const userEmail = authUser?.userEmail || request.headers.get('x-user-email');

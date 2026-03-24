@@ -16,7 +16,7 @@ import {
     increment,
     serverTimestamp,
     Timestamp,
-} from '@/lib/firebase/firestore';
+} from '@/lib/appwrite/firestore';
 import { getDbAsync } from './core';
 import type { SavedPhrase, Post, ExerciseSurface, LearningPhase } from './types';
 import type { ExerciseQuestionType } from './types';

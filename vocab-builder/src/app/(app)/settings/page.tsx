@@ -56,11 +56,11 @@ export default function SettingsPage() {
         async function fetchProficiency() {
             if (!user) return;
             try {
-                const token = await user.getIdToken();
+                const token = await user.getJwt();
                 const res = await fetch('/api/user/get-proficiency', {
                     headers: {
                         'Authorization': `Bearer ${token}`,
-                        'x-user-id': user.uid
+                        'x-user-id': user.$id
                     }
                 });
                 if (res.ok) {
@@ -83,7 +83,7 @@ export default function SettingsPage() {
         try {
             // Check if username changed and is available
             if (username.toLowerCase() !== profile.username.toLowerCase()) {
-                const isAvailable = await checkUsernameAvailable(username, user.uid);
+                const isAvailable = await checkUsernameAvailable(username, user.$id);
                 if (!isAvailable) {
                     setUsernameError('Username is already taken');
                     setSaving(false);
@@ -91,7 +91,7 @@ export default function SettingsPage() {
                 }
             }
 
-            await updateUserProfile(user.uid, {
+            await updateUserProfile(user.$id, {
                 displayName,
                 username: username.toLowerCase(),
                 bio,
@@ -99,7 +99,7 @@ export default function SettingsPage() {
 
             // Update username in all comments if it changed
             if (username.toLowerCase() !== profile.username.toLowerCase()) {
-                await updateCommentsUsername(user.uid, username.toLowerCase());
+                await updateCommentsUsername(user.$id, username.toLowerCase());
             }
 
             // Refresh the profile in context

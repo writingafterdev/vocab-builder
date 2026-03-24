@@ -43,7 +43,7 @@ import { getPost } from '@/lib/db/posts';
 import { getSavedArticles, unsaveArticle, SavedArticle } from '@/lib/db/bookmarks';
 import { getLearningStats } from '@/lib/db/learning-stats';
 import { Repost } from '@/lib/db/types';
-import { Timestamp } from '@/lib/firebase/firestore';
+import { Timestamp } from '@/lib/appwrite/firestore';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { sanitizeHtml } from '@/lib/sanitize';
@@ -95,7 +95,7 @@ export default function ProfilePage() {
             if (!user) return;
 
             try {
-                const stats = await getLearningStats(user.uid);
+                const stats = await getLearningStats(user.$id);
                 setLearningStats(prev => ({
                     ...prev,
                     scenariosCompleted: stats.scenariosCompleted,
@@ -110,11 +110,11 @@ export default function ProfilePage() {
                     masteredPhrases: stats.masteredPhrases
                 }));
 
-                const token = await user.getIdToken();
+                const token = await user.getJwt();
                 const favRes = await fetch('/api/user/favorite-quotes', {
                     headers: {
                         'Authorization': `Bearer ${token}`,
-                        'x-user-id': user.uid
+                        'x-user-id': user.$id
                     }
                 });
                 if (favRes.ok) {
@@ -122,7 +122,7 @@ export default function ProfilePage() {
                     setFavQuotes(favData.quotes || []);
                 }
 
-                const userReposts = await getUserReposts(user.uid);
+                const userReposts = await getUserReposts(user.$id);
                 const repostsWithPosts = await Promise.all(
                     userReposts.map(async (r) => {
                         const post = await getPost(r.postId);
@@ -138,7 +138,7 @@ export default function ProfilePage() {
                 );
                 setReposts(repostsWithPosts);
 
-                const saved = await getSavedArticles(user.uid);
+                const saved = await getSavedArticles(user.$id);
                 const savedWithPosts = await Promise.all(
                     saved.map(async (s) => {
                         const post = await getPost(s.postId);
@@ -157,7 +157,7 @@ export default function ProfilePage() {
 
                 // Fetch reading lists
                 const listsResponse = await fetch('/api/user/reading-lists', {
-                    headers: { 'x-user-id': user.uid },
+                    headers: { 'x-user-id': user.$id },
                 });
                 if (listsResponse.ok) {
                     const listsData = await listsResponse.json();

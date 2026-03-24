@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDocument } from '@/lib/appwrite/database';
+import { getDocument, safeDocId } from '@/lib/appwrite/database';
 
 export async function GET(request: NextRequest) {
     try {
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
 
         // 1. Fetch today's pre-generated feed quizzes by exact document ID
         try {
-            const docId = `${dateStr}_${userId}`;
+            const docId = safeDocId(`${dateStr}_${userId}`);
             const feedQuizzes = await getDocument('feedQuizzes', docId) as any;
             
             if (feedQuizzes && feedQuizzes.questions && Array.isArray(feedQuizzes.questions) && feedQuizzes.questions.length > 0) {

@@ -11,7 +11,7 @@ export default function DevToolsPage() {
     const addLog = (msg: string) => setLog(prev => [`[${new Date().toLocaleTimeString()}] ${msg}`, ...prev]);
 
     const run = async (label: string, fn: () => Promise<any>) => {
-        if (!user?.uid) { addLog('❌ Not logged in'); return; }
+        if (!user?.$id) { addLog('❌ Not logged in'); return; }
         setLoading(label);
         try {
             const result = await fn();
@@ -23,7 +23,7 @@ export default function DevToolsPage() {
         }
     };
 
-    const uid = user?.uid;
+    const uid = user?.$id;
     const h = { 'Content-Type': 'application/json', 'x-user-id': uid! };
 
     const actions = [

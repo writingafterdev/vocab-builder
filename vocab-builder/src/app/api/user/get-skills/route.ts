@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyIdToken } from '@/lib/firebase-admin';
+import { verifyIdToken } from '@/lib/appwrite/auth-admin';
 import { getSkillProgress, getSkillSummary } from '@/lib/db/skill-progress';
 
 /**
@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
                 const token = authHeader.split(' ')[1];
                 const decoded = await verifyIdToken(token);
                 if (decoded) {
-                    userId = decoded.uid;
+                    userId = decoded.$id;
                 }
             } catch {
                 console.log('[Get Skills] Token verification failed');

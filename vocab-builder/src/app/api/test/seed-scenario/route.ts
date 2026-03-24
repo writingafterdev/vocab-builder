@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthFromRequest } from '@/lib/firebase-admin';
+import { getAuthFromRequest } from '@/lib/appwrite/auth-admin';
 import { addDocument, updateDocument, serverTimestamp } from '@/lib/appwrite/database';
 import { SavedPhrase, ChildExpression } from '@/lib/db/types';
 

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
-import { initializeFirebase } from '@/lib/firebase';
+
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -90,16 +90,9 @@ export default function AdminUserPage() {
         const loadUserData = async () => {
             setLoading(true);
             try {
-                // Initialize Firebase dynamically
-                const { db } = await initializeFirebase();
-                if (!db) {
-                    console.error('Failed to initialize Firebase');
-                    setLoading(false);
-                    return;
-                }
-
-                // Dynamic import of Firestore functions
-                const { doc, getDoc, collection, query, where, limit, getDocs } = await import('@/lib/firebase/firestore');
+                // Dynamic import of Appwrite firestore adapter
+                const { doc, getDoc, collection, query, where, limit, getDocs } = await import('@/lib/appwrite/firestore');
+                const db = {}; // no-op handle — Appwrite adapter manages its own connection
 
                 // Load user profile
                 const userDoc = await getDoc(doc(db, 'users', userId));

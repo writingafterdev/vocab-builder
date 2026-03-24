@@ -15,7 +15,7 @@ import {
     orderBy,
     limit,
     serverTimestamp,
-} from '@/lib/firebase/firestore';
+} from '@/lib/appwrite/firestore';
 import { getDbAsync } from './core';
 import type { Post, LearningCycleSettings } from './types';
 import { DEFAULT_LEARNING_CYCLE } from './types';

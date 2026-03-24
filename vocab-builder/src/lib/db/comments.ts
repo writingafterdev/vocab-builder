@@ -13,7 +13,7 @@ import {
     orderBy,
     increment,
     serverTimestamp,
-} from '@/lib/firebase/firestore';
+} from '@/lib/appwrite/firestore';
 import { getDbAsync } from './core';
 import type { Comment } from './types';
 

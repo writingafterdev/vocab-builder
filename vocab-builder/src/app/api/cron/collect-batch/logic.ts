@@ -4,6 +4,7 @@ import {
     setDocument,
     runQuery,
     serverTimestamp,
+    safeDocId,
 } from '@/lib/appwrite/database';
 import {
     getBatchStatus,
@@ -219,7 +220,7 @@ async function processFeedQuizResults(
 
         try {
             const parsed = JSON.parse(content);
-            const docId = `${dateStr}_${userId}`;
+            const docId = safeDocId(`${dateStr}_${userId}`);
             
             const rawItems = Array.isArray(parsed) ? parsed : (parsed.questions || parsed.items || []);
 
@@ -321,7 +322,7 @@ async function processPracticeArticleResults(
                 }
             } catch { /* ignore */ }
 
-            const docId = `session_${userId}_${Date.now()}`;
+            const docId = safeDocId(`sess_${userId}_${Date.now()}`);
             await setDocument('generatedSessions', docId, {
                 userId,
                 title: article.title,

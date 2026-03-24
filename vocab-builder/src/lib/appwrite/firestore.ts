@@ -2,10 +2,10 @@ import { databases, DB_ID } from '@/lib/appwrite/client';
 import { ID, Query as AppwriteQuery } from 'appwrite';
 
 /**
- * FIREBASE FIRESTORE -> APPWRITE WEB SDK POLYFILL
- * This file exactly mocks the `firebase/firestore` Web SDK interface,
- * allowing the existing 60+ React components to fetch from Appwrite without
- * changing ANY line of their component logic!
+ * Appwrite Firestore Adapter
+ * Maps Firebase Firestore SDK interface to native Appwrite Web SDK calls.
+ * This allows the DB layer and components to use familiar Firestore-style
+ * APIs (doc, getDoc, collection, query, where, etc.) while running on Appwrite.
  */
 
 export interface Firestore {}

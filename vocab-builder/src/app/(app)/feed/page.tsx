@@ -41,7 +41,7 @@ import { getUserPhrases } from '@/lib/db/srs';
 // import { getCollections } from '@/lib/db/collections';
 import { RichTextEditor } from '@/components/rich-text-editor';
 import type { Post as PostType, Collection, LexileLevel } from '@/lib/db/types';
-import { Timestamp } from '@/lib/firebase/firestore';
+import { Timestamp } from '@/lib/appwrite/firestore';
 import { BentoGrid, BentoCard, getCardSize, getBentoPattern, StackingCards, StackingCardItem } from '@/components/library';
 import { LibraryCard as NewLibraryCard } from '@/components/library';
 import { QuoteSwiper } from '@/components/quotes';
@@ -395,7 +395,7 @@ export default function LibraryPage() {
         if (!user) return;
         try {
             const response = await fetch('/api/user/reading-lists', {
-                headers: { 'x-user-id': user.uid },
+                headers: { 'x-user-id': user.$id },
             });
             if (response.ok) {
                 const data = await response.json();
@@ -418,7 +418,7 @@ export default function LibraryPage() {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'x-user-id': user.uid,
+                    'x-user-id': user.$id,
                 },
                 body: JSON.stringify({
                     action: isInList ? 'remove' : 'add',
@@ -437,7 +437,7 @@ export default function LibraryPage() {
                     if (post && post.importTopic) {
                         fetch('/api/user/track-interaction', {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json', 'x-user-id': user.uid },
+                            headers: { 'Content-Type': 'application/json', 'x-user-id': user.$id },
                             body: JSON.stringify({ postId, action: 'save', topic: post.importTopic })
                         }).catch(console.error);
                     }
@@ -468,9 +468,9 @@ export default function LibraryPage() {
         setLoading(true);
         try {
             let scores = topicScores;
-            if (user?.uid && !scores) {
+            if (user?.$id && !scores) {
                 const res = await fetch('/api/user/topic-scores', {
-                    headers: { 'x-user-id': user.uid }
+                    headers: { 'x-user-id': user.$id }
                 });
                 if (res.ok) {
                     const data = await res.json();
@@ -479,7 +479,7 @@ export default function LibraryPage() {
                 }
             }
 
-            const { posts: fetchedPosts, lastDoc: newLastDoc } = await getPostsPaginated(20, user?.uid, undefined, scores || undefined);
+            const { posts: fetchedPosts, lastDoc: newLastDoc } = await getPostsPaginated(20, user?.$id, undefined, scores || undefined);
             
             const postsWithMeta = fetchedPosts.map(p => ({
                 ...p,
@@ -501,7 +501,7 @@ export default function LibraryPage() {
         if (!hasMore || loadingMore || !lastDoc) return;
         setLoadingMore(true);
         try {
-            const { posts: fetchedPosts, lastDoc: newLastDoc } = await getPostsPaginated(20, user?.uid, lastDoc, topicScores || undefined);
+            const { posts: fetchedPosts, lastDoc: newLastDoc } = await getPostsPaginated(20, user?.$id, lastDoc, topicScores || undefined);
             const postsWithMeta = fetchedPosts.map(p => ({
                 ...p,
                 progress: Math.floor(Math.random() * 100),
@@ -516,7 +516,7 @@ export default function LibraryPage() {
             console.error('Failed to load more posts:', error);
         }
         setLoadingMore(false);
-    }, [hasMore, loadingMore, lastDoc, user?.uid, topicScores]);
+    }, [hasMore, loadingMore, lastDoc, user?.$id, topicScores]);
 
     useEffect(() => {
         const observer = new IntersectionObserver(
@@ -546,7 +546,7 @@ export default function LibraryPage() {
             const articleId = await createUserArticle({
                 title: importTitle.trim(),
                 content: importContent.trim(),
-                userId: user.uid,
+                userId: user.$id,
                 userName: profile?.displayName || user.email || 'User',
                 source: importSource.trim() || 'User Import',
                 originalUrl: importUrl.trim() || undefined,
@@ -560,7 +560,7 @@ export default function LibraryPage() {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            'x-user-id': user.uid,
+                            'x-user-id': user.$id,
                         },
                         body: JSON.stringify({
                             action: 'add',
@@ -597,7 +597,7 @@ export default function LibraryPage() {
     const loadDueCount = async () => {
         if (!user) return;
         try {
-            const savedPhrases = await getUserPhrases(user.uid);
+            const savedPhrases = await getUserPhrases(user.$id);
             const now = new Date();
 
             // Helper to handle Firestore timestamps or regular dates
@@ -626,7 +626,7 @@ export default function LibraryPage() {
         // Fetch generated sessions for feed
         if (user) {
             fetch('/api/practice/list-sessions', {
-                headers: { 'x-user-id': user.uid },
+                headers: { 'x-user-id': user.$id },
                 cache: 'no-store'
             })
                 .then(res => res.ok ? res.json() : { sessions: [] })
@@ -639,7 +639,7 @@ export default function LibraryPage() {
 
             // Fetch daily pre-generated feed quizzes from Firestore via API
             fetch('/api/exercise/feed-quizzes', {
-                headers: { 'x-user-id': user.uid },
+                headers: { 'x-user-id': user.$id },
                 cache: 'no-store'
             })
                 .then(res => res.ok ? res.json() : { quizzes: [] })
@@ -678,7 +678,7 @@ export default function LibraryPage() {
 
                     {/* Quote Swiper - Centered */}
                     <div className="w-full max-w-4xl px-8 flex-1 flex flex-col justify-center -mt-8">
-                        {user?.uid && <QuoteSwiper userId={user.uid} preGeneratedQuestions={preGeneratedQuestions} />}
+                        {user?.$id && <QuoteSwiper userId={user.$id} preGeneratedQuestions={preGeneratedQuestions} />}
                     </div>
 
                     {/* Scroll hint */}

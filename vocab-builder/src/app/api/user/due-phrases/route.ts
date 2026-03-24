@@ -136,7 +136,7 @@ function sortClustersForVariety(clusters: PhraseCluster[]): PhraseCluster[] {
 export async function GET(request: NextRequest) {
     try {
         // Secure authentication - verify Firebase ID token (edge-compatible)
-        const { getAuthFromRequest } = await import('@/lib/firebase-admin');
+        const { getAuthFromRequest } = await import('@/lib/appwrite/auth-admin');
         const authUser = await getAuthFromRequest(request);
 
         // Fallback for backward compatibility or when testing

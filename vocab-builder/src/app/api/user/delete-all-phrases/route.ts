@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthFromRequest } from '@/lib/firebase-admin';
+import { getAuthFromRequest } from '@/lib/appwrite/auth-admin';
 import { queryCollection, deleteDocument } from '@/lib/appwrite/database';
 
 /**
  * DELETE /api/user/delete-all-phrases
- * Deletes ALL saved phrases for the authenticated user.
+ * Deletes ALL saved phrases for the authenticated user.$id
  */
 export async function DELETE(request: NextRequest) {
     try {

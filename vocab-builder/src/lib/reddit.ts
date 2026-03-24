@@ -3,7 +3,7 @@
  * Uses Reddit's public JSON endpoints (no OAuth required)
  */
 
-const USER_AGENT = 'vocab-builder:v1.0.0 (educational app)';
+const USER_AGENT = 'web:vocab-builder:v1.0.0 (by /u/writingafterx)';
 
 // ============================================================================
 // TYPES

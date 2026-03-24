@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthFromRequest } from '@/lib/firebase-admin';
+import { getAuthFromRequest } from '@/lib/appwrite/auth-admin';
 import { getQuoteFeedState } from '@/lib/db/quote-feed';
 
 export async function GET(request: NextRequest) {

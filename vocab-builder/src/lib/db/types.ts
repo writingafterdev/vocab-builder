@@ -1,7 +1,7 @@
 /**
  * Shared types for database modules
  */
-import { Timestamp } from '@/lib/firebase/firestore';
+import { Timestamp } from '@/lib/appwrite/firestore';
 
 // ============================================================================
 // REDDIT CONTENT TYPES

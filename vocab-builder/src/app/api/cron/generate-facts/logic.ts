@@ -22,13 +22,55 @@ function pickRandom<T>(arr: T[], n: number): T[] {
     return shuffled.slice(0, n);
 }
 
+/**
+ * Salvage complete JSON objects from a truncated JSON array.
+ * E.g. if the LLM output is `[{...}, {...}, {... (truncated)`,
+ * this will recover the complete objects before the truncation point.
+ */
+function salvageTruncatedJSON(text: string): any[] {
+    // Find the last complete object boundary (closing brace followed by comma or end)
+    let lastGoodEnd = -1;
+    let braceDepth = 0;
+    let inString = false;
+    let escape = false;
+
+    for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
+        if (escape) { escape = false; continue; }
+        if (ch === '\\') { escape = true; continue; }
+        if (ch === '"') { inString = !inString; continue; }
+        if (inString) continue;
+        if (ch === '{') braceDepth++;
+        if (ch === '}') {
+            braceDepth--;
+            if (braceDepth === 0) {
+                lastGoodEnd = i;
+            }
+        }
+    }
+
+    if (lastGoodEnd === -1) return [];
+
+    // Slice up to last complete object, close the array
+    const salvaged = text.slice(0, lastGoodEnd + 1).trim();
+    // Ensure it starts with [ and ends properly
+    const arrayStr = salvaged.startsWith('[') ? salvaged + ']' : '[' + salvaged + ']';
+
+    try {
+        const result = JSON.parse(arrayStr);
+        return Array.isArray(result) ? result : [];
+    } catch {
+        return [];
+    }
+}
+
 export async function runGenerateFactsLogic() {
     const apiKey = getGrokKey('articles');
     if (!apiKey) {
         throw new Error('No Grok API key configured');
     }
 
-    const numTopics = Math.floor(Math.random() * 4) + 5; // 5, 6, 7, or 8
+    const numTopics = Math.floor(Math.random() * 2) + 3; // 3 or 4 (keep output manageable)
     const selectedTopics = pickRandom(TOPIC_POOL, numTopics);
     console.log(`[FactGen] Generating facts for topics: ${selectedTopics.join(', ')}`);
 
@@ -43,7 +85,7 @@ export async function runGenerateFactsLogic() {
         body: JSON.stringify({
             model: 'grok-4-1-fast-non-reasoning',
             messages: [{ role: 'user', content: prompt }],
-            max_tokens: 1500,
+            max_tokens: 4000,
             temperature: 0.6,
         }),
     });
@@ -62,8 +104,15 @@ export async function runGenerateFactsLogic() {
     try {
         generatedFacts = JSON.parse(cleaned);
     } catch (e) {
-        console.error('[FactGen] Failed to parse JSON from Grok:', cleaned);
-        throw new Error('JSON parse error from LLM');
+        // Try to salvage complete objects from truncated JSON array
+        console.warn('[FactGen] JSON parse failed, attempting to salvage...');
+        generatedFacts = salvageTruncatedJSON(cleaned);
+        if (generatedFacts.length === 0) {
+            console.error('[FactGen] Could not salvage any facts from Grok output');
+            // Return empty instead of crashing the whole pipeline
+            return { success: true, generatedCount: 0, topics: selectedTopics, facts: [] };
+        }
+        console.log(`[FactGen] Salvaged ${generatedFacts.length} facts from truncated response`);
     }
 
     if (!Array.isArray(generatedFacts)) {

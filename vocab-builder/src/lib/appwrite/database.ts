@@ -10,22 +10,121 @@ const databases = new Databases(client);
 // Default to main unless specified in env
 const DB_ID = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || 'main';
 
-// ─── Auto-serialize: convert objects/arrays → JSON strings before writing ────
-// Appwrite string attributes only accept actual strings. Our app code passes
-// raw JS objects (e.g. topicScores: { tech: 5 }) that need to be stringified.
-function serializeData(data: Record<string, any>): Record<string, any> {
-    const serialized: Record<string, any> = {};
+// ─── Schema Cache ────────────────────────────────────────────────────
+// Appwrite requires strict schemas — every field must be a defined attribute.
+// This cache fetches collection schemas once and filters + serializes writes 
+// automatically, preventing both "Unknown attribute" and type mismatch errors.
+
+interface AttrInfo {
+    type: string;   // 'string' | 'integer' | 'float' | 'boolean' | 'datetime' | 'enum' | 'relationship' | 'ip' | 'email' | 'url'
+    array: boolean; // true if the attribute is an array variant
+}
+
+const schemaCache = new Map<string, Map<string, AttrInfo>>();
+const schemaFetchPromises = new Map<string, Promise<Map<string, AttrInfo>>>();
+
+// Fields that Appwrite manages internally — never write these
+const SYSTEM_FIELDS = new Set(['id', '$id', '$createdAt', '$updatedAt', '$permissions', '$databaseId', '$collectionId']);
+
+async function getCollectionSchema(collectionId: string): Promise<Map<string, AttrInfo>> {
+    if (schemaCache.has(collectionId)) {
+        return schemaCache.get(collectionId)!;
+    }
+
+    if (schemaFetchPromises.has(collectionId)) {
+        return schemaFetchPromises.get(collectionId)!;
+    }
+
+    const fetchPromise = (async () => {
+        try {
+            const attrs = await databases.listAttributes(DB_ID, collectionId);
+            const info = new Map<string, AttrInfo>();
+            for (const attr of (attrs as any).attributes || []) {
+                if (attr.key && attr.status === 'available') {
+                    info.set(attr.key, {
+                        type: attr.type || 'string',
+                        array: attr.array === true,
+                    });
+                }
+            }
+            schemaCache.set(collectionId, info);
+            return info;
+        } catch (e: any) {
+            console.warn(`[DB] Could not fetch schema for ${collectionId}: ${e.message}`);
+            return new Map<string, AttrInfo>();
+        } finally {
+            schemaFetchPromises.delete(collectionId);
+        }
+    })();
+
+    schemaFetchPromises.set(collectionId, fetchPromise);
+    return fetchPromise;
+}
+
+/**
+ * Prepare data for writing to Appwrite.
+ * - Strips system fields (id, $id, etc.)
+ * - Drops attributes not in the collection schema
+ * - For array-type attributes: keeps value as a real JS array
+ * - For string-type attributes: stringifies objects/arrays → JSON strings
+ * - For other types: passes value through as-is
+ */
+async function prepareWriteData(collectionId: string, data: Record<string, any>): Promise<Record<string, any>> {
+    const schema = await getCollectionSchema(collectionId);
+
+    const result: Record<string, any> = {};
+    const dropped: string[] = [];
+
     for (const [key, value] of Object.entries(data)) {
+        // Always strip system fields
+        if (SYSTEM_FIELDS.has(key)) continue;
+
+        // If schema is empty (fetch failed), pass all non-system fields with basic serialization
+        if (schema.size === 0) {
+            if (value !== null && value !== undefined && typeof value === 'object' && !(value instanceof Date) && !Array.isArray(value)) {
+                result[key] = JSON.stringify(value);
+            } else {
+                result[key] = value;
+            }
+            continue;
+        }
+
+        const attrInfo = schema.get(key);
+        if (!attrInfo) {
+            dropped.push(key);
+            continue;
+        }
+
+        // Handle value serialization based on attribute type
         if (value === null || value === undefined) {
-            serialized[key] = value;
-        } else if (typeof value === 'object' && !(value instanceof Date)) {
-            // Arrays and plain objects → JSON string
-            serialized[key] = JSON.stringify(value);
+            result[key] = value;
+        } else if (attrInfo.array) {
+            // Appwrite array attribute — must be a real JS array
+            result[key] = Array.isArray(value) ? value : [value];
+        } else if (attrInfo.type === 'string') {
+            // String attribute — stringify objects/arrays, pass strings through
+            if (typeof value === 'object' && !(value instanceof Date)) {
+                result[key] = JSON.stringify(value);
+            } else {
+                result[key] = String(value);
+            }
+        } else if (attrInfo.type === 'integer') {
+            result[key] = typeof value === 'number' ? Math.round(value) : parseInt(String(value), 10) || 0;
+        } else if (attrInfo.type === 'float' || attrInfo.type === 'double') {
+            result[key] = typeof value === 'number' ? value : parseFloat(String(value)) || 0;
+        } else if (attrInfo.type === 'boolean') {
+            result[key] = Boolean(value);
         } else {
-            serialized[key] = value;
+            // datetime, enum, relationship, etc. — pass through
+            result[key] = value;
         }
     }
-    return serialized;
+
+    if (dropped.length > 0) {
+        console.warn(`[DB] Dropped unknown attributes for ${collectionId}: ${dropped.join(', ')}`);
+    }
+
+    return result;
 }
 
 // ─── Auto-deserialize: parse JSON strings back to objects on read ─────────────
@@ -58,9 +157,26 @@ export function serverTimestamp() {
     return new Date().toISOString();
 }
 
+/**
+ * Sanitize a string into a valid Appwrite document ID.
+ * - Max 36 chars
+ * - Valid chars: a-z, A-Z, 0-9, underscore
+ * - Cannot start with a leading underscore
+ */
+export function safeDocId(raw: string): string {
+    // Strip invalid characters
+    let sanitized = raw.replace(/[^a-zA-Z0-9_]/g, '');
+    // Remove leading underscores
+    sanitized = sanitized.replace(/^_+/, '');
+    // Truncate to 36 chars
+    return sanitized.slice(0, 36);
+}
+
+
 export async function addDocument(collection: string, data: Record<string, any>, idToken?: string): Promise<string> {
     const id = ID.unique();
-    await databases.createDocument(DB_ID, collection, id, serializeData(data));
+    const safe = await prepareWriteData(collection, data);
+    await databases.createDocument(DB_ID, collection, id, safe);
     return id;
 }
 
@@ -76,7 +192,8 @@ export async function getDocument(collection: string, documentId: string, idToke
 
 export async function updateDocument(collection: string, documentId: string, data: Record<string, any>, idToken?: string): Promise<void> {
     try {
-        await databases.updateDocument(DB_ID, collection, documentId, serializeData(data));
+        const safe = await prepareWriteData(collection, data);
+        await databases.updateDocument(DB_ID, collection, documentId, safe);
     } catch(e: any) {
         console.error(`Failed to update Appwrite doc ${documentId} in ${collection}:`, e.message);
         throw e;
@@ -84,13 +201,13 @@ export async function updateDocument(collection: string, documentId: string, dat
 }
 
 export async function setDocument(collection: string, documentId: string, data: Record<string, any>, idToken?: string): Promise<void> {
-    const serialized = serializeData(data);
+    const safe = await prepareWriteData(collection, data);
     try {
         await databases.getDocument(DB_ID, collection, documentId);
-        await databases.updateDocument(DB_ID, collection, documentId, serialized);
+        await databases.updateDocument(DB_ID, collection, documentId, safe);
     } catch (e: any) {
         if (e.code === 404) {
-            await databases.createDocument(DB_ID, collection, documentId, serialized);
+            await databases.createDocument(DB_ID, collection, documentId, safe);
         } else {
             throw e;
         }

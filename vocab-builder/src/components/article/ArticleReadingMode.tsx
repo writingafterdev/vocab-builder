@@ -368,9 +368,12 @@ export function ArticleReadingMode({
         setIsExtractingPhrases(true);
 
         try {
-            const { initializeFirebase } = await import('@/lib/firebase');
-            const { auth } = await initializeFirebase();
-            const token = auth?.currentUser ? await auth.currentUser.getIdToken() : null;
+            const { account } = await import('@/lib/appwrite/client');
+            let token = null;
+            try {
+                const jwtRes = await account.createJWT();
+                token = jwtRes.jwt;
+            } catch(e) {}
 
             const extractRes = await fetch('/api/admin/extract-phrases', {
                 method: 'POST',

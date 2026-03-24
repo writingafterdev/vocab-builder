@@ -14,7 +14,7 @@ import {
     serverTimestamp,
     arrayUnion,
     arrayRemove,
-} from '@/lib/firebase/firestore';
+} from '@/lib/appwrite/firestore';
 import { getDbAsync } from './core';
 import type { Collection, Post } from './types';
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 import { getNextApiKey } from '@/lib/api-key-rotation';
-import { uploadToFirebaseStorage } from '@/lib/firebase-storage';
+import { uploadToAppwriteStorage } from '@/lib/appwrite/storage';
 import { getDocument, updateDocument } from '@/lib/appwrite/database';
 import type { SpeakingChunk } from '@/types';
 
@@ -231,9 +231,10 @@ export async function POST(request: NextRequest) {
         const audioBytes = Uint8Array.from(atob(audioPart.inlineData.data), c => c.charCodeAt(0));
         const wavData = pcmToWav(audioBytes);
 
-        // Upload to Firebase Storage
-        const storagePath = `tts-cache/${articleId}/${chunkIndex}.wav`;
-        const audioUrl = await uploadToFirebaseStorage(wavData, storagePath, 'audio/wav');
+        // Upload to Appwrite Storage
+        const storagePath = `tts_cache_${articleId}_${chunkIndex}.wav`;
+        const buffer = Buffer.from(wavData);
+        const audioUrl = await uploadToAppwriteStorage(buffer, storagePath, 'audio/wav');
 
         if (!audioUrl) {
             throw new Error('Failed to upload audio to storage');

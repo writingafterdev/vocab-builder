@@ -81,9 +81,12 @@ export function useInlineExercise({
 
     const getHeaders = useCallback(async (): Promise<HeadersInit> => {
         try {
-            const { initializeFirebase } = await import('@/lib/firebase');
-            const { auth } = await initializeFirebase();
-            const token = auth?.currentUser ? await auth.currentUser.getIdToken() : null;
+            const { account } = await import('@/lib/appwrite/client');
+            let token = null;
+            try {
+                const jwtRes = await account.createJWT();
+                token = jwtRes.jwt;
+            } catch(e) {}
             return token
                 ? { 'Authorization': `Bearer ${token}`, 'x-user-id': userId }
                 : { 'x-user-id': userId };

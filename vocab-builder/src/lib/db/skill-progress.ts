@@ -9,7 +9,7 @@
  */
 
 import { getDocument, setDocument } from '@/lib/appwrite/database';
-import { Timestamp } from '@/lib/firebase/firestore';
+import { Timestamp } from '@/lib/appwrite/firestore';
 
 // Skill types
 export type SkillType = 'comprehension' | 'production' | 'interaction' | 'retention';

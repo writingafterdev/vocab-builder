@@ -13,9 +13,14 @@ async function buildFunctions() {
             entryPoints: [path.join(__dirname, '../appwrite-functions/background-jobs/src/index.ts')],
             bundle: true,
             minify: true, // Compress for faster cloud init
+            format: 'esm', // Must match "type": "module" in package.json
             platform: 'node',
             target: 'node18',
             outfile: path.join(__dirname, '../appwrite-functions/background-jobs/dist/index.js'),
+            // Provide createRequire shim for any CJS dependencies
+            banner: {
+                js: `import { createRequire } from 'module'; const require = createRequire(import.meta.url);`
+            },
             // Appwrite environment doesn't need to bundle native node modules
             external: [
                 'dns', 'net', 'tls', 'crypto', 'http', 'https', 'stream', 'zlib', 'events', 'path', 'fs', 'os', 'util'

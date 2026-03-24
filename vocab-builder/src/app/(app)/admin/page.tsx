@@ -56,7 +56,7 @@ import {
     bulkDeleteAllPosts,
 } from '@/lib/db/admin';
 import { Post, LearningCycleSettings, DEFAULT_LEARNING_CYCLE } from '@/lib/db/types';
-import { Timestamp } from '@/lib/firebase/firestore';
+import { Timestamp } from '@/lib/appwrite/firestore';
 import type { UserProfile } from '@/types';
 import { RichTextEditor } from '@/components/rich-text-editor';
 import { getTokenUsageStats, getDetailedTokenUsage, DetailedTokenEntry } from '@/lib/db/token-tracking';

@@ -63,7 +63,7 @@ interface GeneratedSession {
 
 export async function POST(request: NextRequest) {
     try {
-        const { getAuthFromRequest } = await import('@/lib/firebase-admin');
+        const { getAuthFromRequest } = await import('@/lib/appwrite/auth-admin');
         const authUser = await getAuthFromRequest(request);
         const userId = authUser?.userId || request.headers.get('x-user-id');
         

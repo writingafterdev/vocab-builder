@@ -9,7 +9,7 @@ import { markQuotesViewed, boostTopic } from '@/lib/db/quote-feed';
  */
 export async function POST(request: NextRequest) {
     try {
-        const { getAuthFromRequest } = await import('@/lib/firebase-admin');
+        const { getAuthFromRequest } = await import('@/lib/appwrite/auth-admin');
         const authUser = await getAuthFromRequest(request);
         let userId = authUser?.userId;
 

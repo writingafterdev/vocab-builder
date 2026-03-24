@@ -90,10 +90,10 @@ export default function DashboardPage() {
 
     useEffect(() => {
         async function loadData() {
-            if (!user?.uid) { setLoading(false); return; }
+            if (!user?.$id) { setLoading(false); return; }
 
             try {
-                const savedPhrases = await getUserPhrases(user.uid);
+                const savedPhrases = await getUserPhrases(user.$id);
                 const now = new Date();
 
                 // Parse dates helper
@@ -136,7 +136,7 @@ export default function DashboardPage() {
                 // Fetch quote of the day
                 try {
                     const qRes = await fetch('/api/quotes/get-mixed-quotes', {
-                        headers: { 'x-user-id': user.uid },
+                        headers: { 'x-user-id': user.$id },
                     });
                     if (qRes.ok) {
                         const qData = await qRes.json();
@@ -149,10 +149,10 @@ export default function DashboardPage() {
                 } catch { /* optional, don't block */ }
                 // Check real exercise data
                 try {
-                    const token = await user.getIdToken();
+                    const token = await user.getJwt();
 
                     fetch('/api/immersive-session/eligible', {
-                        headers: { 'x-user-id': user.uid }
+                        headers: { 'x-user-id': user.$id }
                     })
                         .then(res => res.ok ? res.json() : null)
                         .then(data => data && setImmersiveEligible(data.eligible))
@@ -175,7 +175,7 @@ export default function DashboardPage() {
             }
         }
         loadData();
-    }, [user?.uid]);
+    }, [user?.$id]);
 
     // ─── Computed Stats ───
     const totalPhrases = allPhrases.length;

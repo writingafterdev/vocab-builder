@@ -25,6 +25,6 @@ const Checkbox = React.forwardRef<
         </CheckboxPrimitive.Indicator>
     </CheckboxPrimitive.Root>
 ))
-Checkbox.displayName = CheckboxPrimitive.Root.displayName
+Checkbox.name = CheckboxPrimitive.Root.name
 
 export { Checkbox }

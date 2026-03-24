@@ -155,9 +155,12 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
         viewedBufferRef.current = [];
 
         try {
-            const { initializeFirebase } = await import('@/lib/firebase');
-            const { auth } = await initializeFirebase();
-            const token = auth?.currentUser ? await auth.currentUser.getIdToken() : null;
+            const { account } = await import('@/lib/appwrite/client');
+            let token = null;
+            try {
+                const jwtRes = await account.createJWT();
+                token = jwtRes.jwt;
+            } catch(e) {}
             await fetch('/api/quotes/mark-viewed', {
                 method: 'POST',
                 headers: {
@@ -190,9 +193,12 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
     const fetchMoreQuotes = useCallback(async () => {
         if (!userId || loading) return;
         try {
-            const { initializeFirebase } = await import('@/lib/firebase');
-            const { auth } = await initializeFirebase();
-            const token = auth?.currentUser ? await auth.currentUser.getIdToken() : null;
+            const { account } = await import('@/lib/appwrite/client');
+            let token = null;
+            try {
+                const jwtRes = await account.createJWT();
+                token = jwtRes.jwt;
+            } catch(e) {}
             const headers: HeadersInit = token
                 ? { 'Authorization': `Bearer ${token}`, 'x-user-id': userId }
                 : { 'x-user-id': userId };
@@ -239,9 +245,12 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
         let cancelled = false;
         async function fetchQuotesAndSaved() {
             try {
-                const { initializeFirebase } = await import('@/lib/firebase');
-                const { auth } = await initializeFirebase();
-                const token = auth?.currentUser ? await auth.currentUser.getIdToken() : null;
+                const { account } = await import('@/lib/appwrite/client');
+            let token = null;
+            try {
+                const jwtRes = await account.createJWT();
+                token = jwtRes.jwt;
+            } catch(e) {}
                 const headers: HeadersInit = token
                     ? { 'Authorization': `Bearer ${token}`, 'x-user-id': userId }
                     : { 'x-user-id': userId };

@@ -40,20 +40,19 @@ interface UserProfile {
     };
 }
 
-interface FirebaseAdapterUser {
-    uid: string;
+export interface AppUser {
+    $id: string;
     email: string | null;
-    displayName: string | null;
+    name: string | null;
     photoURL: string | null;
-    $id: string; // Keep original for our internal usages
-    getIdToken: () => Promise<string>;
+    getJwt: () => Promise<string>;
 }
 
 interface AuthContextType {
-    user: FirebaseAdapterUser | null;
+    user: AppUser | null;
     profile: UserProfile | null;
     loading: boolean;
-    signInWithGoogle: () => Promise<void>;
+    signIn: () => Promise<void>;
     signOut: () => Promise<void>;
     refreshProfile: () => Promise<void>;
 }
@@ -61,11 +60,11 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-    const [user, setUser] = useState<FirebaseAdapterUser | null>(null);
+    const [user, setUser] = useState<AppUser | null>(null);
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [loading, setLoading] = useState(true);
 
-    const refreshProfile = useCallback(async (appwriteUser?: FirebaseAdapterUser) => {
+    const refreshProfile = useCallback(async (appwriteUser?: AppUser) => {
         const currentUser = appwriteUser || user;
         if (!currentUser) return;
 
@@ -92,7 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 const newProfile = {
                     uid: currentUser.$id,
                     email: currentUser.email || '',
-                    displayName: currentUser.displayName || '',
+                    displayName: currentUser.name || '',
                     username: currentUser.email?.split('@')[0] || `user${Date.now()}`,
                     bio: '',
                     photoURL: '',
@@ -150,13 +149,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             try {
                 const currentUser = await account.get();
                 // Adapt to Firebase-like User Interface for frontend compatibility
-                const adaptedUser: FirebaseAdapterUser = {
-                    uid: currentUser.$id,
+                const adaptedUser: AppUser = {
                     $id: currentUser.$id,
                     email: currentUser.email,
-                    displayName: currentUser.name,
+                    name: currentUser.name,
                     photoURL: currentUser.prefs?.photoURL || null,
-                    getIdToken: async () => {
+                    getJwt: async () => {
                         try {
                             const result = await account.createJWT();
                             return result.jwt;
@@ -184,12 +182,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         checkSession();
     }, []);
 
-    const signInWithGoogle = useCallback(async () => {
+    const signIn = useCallback(async () => {
         try {
             // Appwrite will redirect to Google, then redirect back to the current URL
             account.createOAuth2Session(OAuthProvider.Google, window.location.origin, window.location.origin + '/login');
         } catch (error) {
-            console.error('[Auth] signInWithGoogle failed:', error);
+            console.error('[Auth] signIn failed:', error);
         }
     }, []);
 
@@ -204,7 +202,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, []);
 
     return (
-        <AuthContext.Provider value={{ user, profile, loading, signInWithGoogle, signOut, refreshProfile }}>
+        <AuthContext.Provider value={{ user, profile, loading, signIn, signOut, refreshProfile }}>
             {children}
         </AuthContext.Provider>
     );

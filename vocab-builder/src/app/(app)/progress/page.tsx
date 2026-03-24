@@ -143,20 +143,20 @@ export default function ProgressPage() {
 
         async function loadProgress() {
             try {
-                const token = await user!.getIdToken();
+                const token = await user!.getJwt();
 
                 // Fetch both skill and speaking progress in parallel
                 const [skillRes, speakingRes] = await Promise.all([
                     fetch('/api/user/get-skills', {
                         headers: {
                             'Authorization': `Bearer ${token}`,
-                            'x-user-id': user!.uid
+                            'x-user-id': user!.$id
                         }
                     }),
                     fetch('/api/user/speaking-progress', {
                         headers: {
                             'Authorization': `Bearer ${token}`,
-                            'x-user-id': user!.uid
+                            'x-user-id': user!.$id
                         }
                     })
                 ]);

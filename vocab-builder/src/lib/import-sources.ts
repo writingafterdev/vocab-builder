@@ -3,7 +3,7 @@
  * Extracted from admin/import-rss and admin/import-reddit routes.
  */
 
-import { setDocument, getDocument, updateDocument, queryCollection, serverTimestamp } from '@/lib/appwrite/database';
+import { setDocument, getDocument, updateDocument, queryCollection, serverTimestamp, safeDocId } from '@/lib/appwrite/database';
 import { createHash } from 'crypto';
 
 // ─── Types ───────────────────────────────────────────────────────────
@@ -209,7 +209,7 @@ export async function importFromRSS(
 
         const link = item.link || '';
         const hash = createHash('md5').update(link || item.title).digest('hex');
-        const postId = `rss_${sourceId}_${hash.slice(0, 20)}`;
+        const postId = safeDocId(`rss_${sourceId.slice(0, 10)}_${hash.slice(0, 20)}`);
 
         // Check if already exists
         const existing = await getDocument('posts', postId);
@@ -226,7 +226,7 @@ export async function importFromRSS(
             authorName: item.creator || (item as any).author || sourceName,
             authorUsername: `rss_${sourceId}`,
             source: sourceName,
-            content,
+            content: content.length > 9500 ? content.slice(0, 9500) + '...' : content,
             title: item.title,
             isArticle: true,
             type: 'admin',
@@ -274,7 +274,7 @@ export async function importFromReddit(
     for (const post of posts) {
         if (!post.title || !post.content) continue;
 
-        const postId = `reddit_${subreddit}_${post.id}`;
+        const postId = safeDocId(`rdt_${subreddit.slice(0, 10)}_${post.id}`);
 
         const existing = await getDocument('posts', postId);
         if (existing) {
@@ -295,7 +295,7 @@ export async function importFromReddit(
             authorName: post.author,
             authorUsername: `u/${post.author}`,
             source: `r/${subreddit}`,
-            content: post.content,
+            content: post.content.length > 9500 ? post.content.slice(0, 9500) + '...' : post.content,
             title: post.title,
             isArticle: true,
             type: 'admin',

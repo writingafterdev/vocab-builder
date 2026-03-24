@@ -9,7 +9,7 @@
 
 import { getDocument, updateDocument, setDocument } from '@/lib/appwrite/database';
 import { SpeakingFeedback } from '@/lib/speaking-analysis';
-import { Timestamp } from '@/lib/firebase/firestore';
+import { Timestamp } from '@/lib/appwrite/firestore';
 
 export interface SessionRecord {
     date: any; // Timestamp

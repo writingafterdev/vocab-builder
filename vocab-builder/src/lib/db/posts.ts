@@ -13,7 +13,7 @@ import {
     limit,
     startAfter,
     serverTimestamp,
-} from '@/lib/firebase/firestore';
+} from '@/lib/appwrite/firestore';
 import { getDbAsync } from './core';
 import type { Post, ExtractedPhrase, SentencePair } from './types';
 

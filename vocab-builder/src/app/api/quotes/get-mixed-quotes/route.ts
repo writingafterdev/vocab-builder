@@ -18,7 +18,7 @@ interface QuoteResponse {
 export async function GET(request: NextRequest) {
     try {
         // Secure authentication
-        const { getAuthFromRequest } = await import('@/lib/firebase-admin');
+        const { getAuthFromRequest } = await import('@/lib/appwrite/auth-admin');
         const authUser = await getAuthFromRequest(request);
         let userId = authUser?.userId;
 

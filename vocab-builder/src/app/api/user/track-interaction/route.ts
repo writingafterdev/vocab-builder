@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthFromRequest } from '@/lib/firebase-admin';
+import { getAuthFromRequest } from '@/lib/appwrite/auth-admin';
 import { boostTopic } from '@/lib/db/quote-feed';
 
 export async function POST(request: NextRequest) {

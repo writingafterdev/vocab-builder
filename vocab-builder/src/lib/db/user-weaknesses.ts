@@ -1,12 +1,11 @@
 /**
- * User Weaknesses - Firestore Data Layer
+ * User Weaknesses - Appwrite Data Layer
  * 
  * Tracks user errors from speaking sessions for Daily Drill feature.
  * Each weakness is tracked with severity, occurrences, and improvement.
  */
 
 import { getDocument, setDocument, updateDocument } from '@/lib/appwrite/database';
-import { Timestamp } from '@/lib/firebase/firestore';
 import { ExtractedWeakness, WeaknessCategory } from '@/lib/speaking-feedback';
 
 // ============================================
@@ -59,7 +58,7 @@ export async function saveSessionWeaknesses(
 ): Promise<void> {
     if (newWeaknesses.length === 0) return;
 
-    const now = Timestamp.now();
+    const now = new Date().toISOString();
     const existing = await getUserWeaknesses(userId);
 
     let weaknesses: WeaknessEntry[] = existing?.weaknesses || [];
@@ -158,7 +157,7 @@ export async function updateWeaknessAfterDrill(
     const profile = await getUserWeaknesses(userId);
     if (!profile) return;
 
-    const now = Timestamp.now();
+    const now = new Date().toISOString();
     const weaknesses = profile.weaknesses.map(w => {
         if (w.id === weaknessId) {
             // Blend new performance with existing (weighted average)

@@ -16,7 +16,7 @@ const GoogleLogo = () => (
 );
 
 export default function LandingPage() {
-    const { user, loading, signInWithGoogle } = useAuth();
+    const { user, loading, signIn } = useAuth();
     const router = useRouter();
 
     // Redirect if already logged in
@@ -57,7 +57,7 @@ export default function LandingPage() {
                     <button
                         onClick={(e) => {
                             e.stopPropagation();
-                            signInWithGoogle();
+                            signIn();
                         }}
                         className="w-full flex items-center justify-center px-4 py-3.5 border border-slate-200 rounded-xl shadow-sm bg-white hover:bg-slate-50 hover:border-slate-300 transition-all duration-200 cursor-pointer font-medium text-slate-700 text-lg"
                     >

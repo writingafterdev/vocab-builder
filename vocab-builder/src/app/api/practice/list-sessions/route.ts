@@ -22,9 +22,9 @@ export async function GET(request: NextRequest) {
         const authHeader = request.headers.get('Authorization');
         if (authHeader?.startsWith('Bearer ')) {
             try {
-                const { verifyIdToken } = await import('@/lib/firebase-admin');
+                const { verifyIdToken } = await import('@/lib/appwrite/auth-admin');
                 const verified = await verifyIdToken(authHeader);
-                userId = verified?.uid || null;
+                userId = verified?.$id || null;
             } catch {
                 // ignore — fall through to x-user-id
             }

@@ -23,3 +23,23 @@ export async function uploadToAppwriteStorage(buffer: Buffer, filename: string, 
         return null;
     }
 }
+
+export async function deleteFromAppwriteStorage(fileUrlOrId: string): Promise<boolean> {
+    try {
+        let fileId = fileUrlOrId;
+        
+        // Extract fileId if a full URL was passed
+        if (fileUrlOrId.includes('/files/')) {
+            const matches = fileUrlOrId.match(/\/files\/([a-zA-Z0-9\-_]+)\/view/);
+            if (matches && matches[1]) {
+                fileId = matches[1];
+            }
+        }
+
+        await storage.deleteFile(BUCKET_ID, fileId);
+        return true;
+    } catch (error) {
+        console.error('Appwrite Storage delete error:', error);
+        return false;
+    }
+}

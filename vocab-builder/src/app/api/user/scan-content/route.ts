@@ -8,7 +8,7 @@ const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models
 
 export async function POST(request: NextRequest) {
     try {
-        const { getAuthFromRequest } = await import('@/lib/firebase-admin');
+        const { getAuthFromRequest } = await import('@/lib/appwrite/auth-admin');
         const authUser = await getAuthFromRequest(request);
         const userId = authUser?.userId || request.headers.get('x-user-id');
         const userEmail = authUser?.userEmail || request.headers.get('x-user-email');

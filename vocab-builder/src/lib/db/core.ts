@@ -1,43 +1,23 @@
 /**
  * Core database utilities
  * 
- * ALL CLIENT COMPONENTS should use getDbAsync() for Firebase operations.
- * This ensures Firebase is only loaded dynamically in the browser.
+ * The Appwrite adapter (src/lib/appwrite/firestore.ts) handles all database
+ * operations internally via the Appwrite SDK. The `db` object passed around
+ * is a no-op placeholder maintained for interface compatibility.
  */
-import { initializeFirebase } from '../firebase';
-import type { Firestore } from '@/lib/firebase/firestore';
+import type { Firestore } from '@/lib/appwrite/firestore';
 
-// Re-export initializeFirebase for convenience
-export { initializeFirebase };
+/** No-op database handle — the Appwrite adapter manages its own connection. */
+const db = {} as Firestore;
 
 /**
- * Async helper to get Firestore instance - use this in client components!
- * This ensures Firebase is lazily loaded only on the client side.
+ * Async helper to get database handle — use this in client components.
+ * Returns immediately since Appwrite SDK initializes on import.
  */
 export async function getDbAsync(): Promise<Firestore> {
-    const { db } = await initializeFirebase();
-    if (!db) {
-        throw new Error('Firestore not initialized - this should only be called from client side');
-    }
     return db;
 }
 
-// Legacy sync exports - these will NOT WORK in Cloudflare Workers
-// Kept for backward compatibility with code that hasn't been migrated yet
-import { db } from '../firebase';
-
-/**
- * @deprecated usage of 'db' directly is unsafe in Cloudflare Workers.
- * Use getDbAsync() instead.
- */
 export { db };
 
-/**
- * @deprecated Use getDbAsync() instead for Cloudflare Workers compatibility.
- * This sync check will fail if the app is bundled for edge runtime.
- */
-export const checkDb = () => {
-    if (!db) throw new Error('Firestore not initialized - use getDbAsync() for client components');
-    return db;
-};
-
+export const checkDb = () => db;

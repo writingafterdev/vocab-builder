@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
         users: users.map(u => ({
             id: u.id,
             email: u.email,
-            displayName: u.displayName || u.name,
+            displayName: u.name || u.name,
         })),
     });
 }

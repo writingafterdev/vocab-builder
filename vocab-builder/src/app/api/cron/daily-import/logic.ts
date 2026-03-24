@@ -46,7 +46,6 @@ export async function runDailyImportLogic() {
         return timeA - timeB; 
     });
 
-    sources = sources.slice(0, 10);
     console.log(`[DailyImport] Processing ${sources.length} sources...`);
 
     const byTopic = new Map<string, typeof sources>();

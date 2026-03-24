@@ -261,7 +261,7 @@ function CompletionScreen({
     const router = useRouter();
     const { user } = useAuth();
     const accuracy = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0;
-    const isOwner = user?.uid === session.userId;
+    const isOwner = user?.$id === session.userId;
 
     return (
         <motion.div
@@ -349,11 +349,11 @@ export default function SessionPage() {
     // Load session data
     useEffect(() => {
         async function loadSession() {
-            if (!sessionId || !user?.uid) return;
+            if (!sessionId || !user?.$id) return;
 
             try {
                 const res = await fetch(`/api/practice/get-session?sessionId=${sessionId}`, {
-                    headers: { 'x-user-id': user.uid },
+                    headers: { 'x-user-id': user.$id },
                 });
 
                 if (!res.ok) {
@@ -371,7 +371,7 @@ export default function SessionPage() {
         }
 
         loadSession();
-    }, [sessionId, user?.uid]);
+    }, [sessionId, user?.$id]);
 
     // Build the reading flow: sections interleaved with questions
     const readingFlow = useMemo(() => {
@@ -430,7 +430,7 @@ export default function SessionPage() {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            'x-user-id': user?.uid || '',
+                            'x-user-id': user?.$id || '',
                         },
                         body: JSON.stringify({
                             sessionId,
@@ -444,7 +444,7 @@ export default function SessionPage() {
                 }
             }
         }
-    }, [session, completedQuestionIds, sessionId, user?.uid, firstAttemptCorrect]);
+    }, [session, completedQuestionIds, sessionId, user?.$id, firstAttemptCorrect]);
 
     const handleListeningComplete = useCallback(async () => {
         if (!session) return;
@@ -455,7 +455,7 @@ export default function SessionPage() {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'x-user-id': user?.uid || '',
+                    'x-user-id': user?.$id || '',
                 },
                 body: JSON.stringify({
                     sessionId,
@@ -467,7 +467,7 @@ export default function SessionPage() {
         } catch (e) {
             console.error('Failed to complete session:', e);
         }
-    }, [session, sessionId, user?.uid]);
+    }, [session, sessionId, user?.$id]);
 
     // Highlight vocab phrases in section content
     const highlightPhrases = useCallback((content: string, phrases: string[]) => {
@@ -651,7 +651,7 @@ export default function SessionPage() {
                     {firstUnansweredIndex === -1 && !isCompleted && session && (
                         <WritingPromptCard
                             phrases={session.sections.flatMap(s => s.vocabPhrases).filter((v, i, a) => a.indexOf(v) === i).slice(0, 4)}
-                            userId={user?.uid || ''}
+                            userId={user?.$id || ''}
                         />
                     )}
                     </article>
@@ -690,9 +690,12 @@ function WritingPromptCard({
         setIsSubmitting(true);
 
         try {
-            const { initializeFirebase } = await import('@/lib/firebase');
-            const { auth } = await initializeFirebase();
-            const token = auth?.currentUser ? await auth.currentUser.getIdToken() : null;
+            const { account } = await import('@/lib/appwrite/client');
+            let token = null;
+            try {
+                const jwtRes = await account.createJWT();
+                token = jwtRes.jwt;
+            } catch(e) {}
 
             const res = await fetch('/api/exercise/evaluate-production', {
                 method: 'POST',

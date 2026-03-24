@@ -624,7 +624,7 @@ export default function PostPage() {
     const [highlightedWord, setHighlightedWord] = useState<string | null>(null);
 
     // Session vocab hook for dictionary-first lookup (persisted per postId)
-    const { vocabItems, addVocab, addVocabWithData, markAsSaved, updateVocab } = useSessionVocab(user?.uid, user?.email || undefined, postId);
+    const { vocabItems, addVocab, addVocabWithData, markAsSaved, updateVocab } = useSessionVocab(user?.$id, user?.email || undefined, postId);
 
     // Global Phrase Dictionary hook
     const { lookupPhrase, isLoading: dictionaryLoading } = useGlobalDictionary();
@@ -702,7 +702,7 @@ export default function PostPage() {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'x-user-id': user.uid,
+                    'x-user-id': user.$id,
                     'x-user-email': user.email || '',
                 },
                 body: JSON.stringify({
@@ -755,10 +755,10 @@ export default function PostPage() {
             trackArticleRead(post.id);
 
             // Track interaction for recommendation engine
-            if (user?.uid && (post as any).importTopic) {
+            if (user?.$id && (post as any).importTopic) {
                 fetch('/api/user/track-interaction', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'x-user-id': user.uid },
+                    headers: { 'Content-Type': 'application/json', 'x-user-id': user.$id },
                     body: JSON.stringify({ postId: post.id, action: 'read', topic: (post as any).importTopic })
                 }).catch(console.error);
             }
@@ -794,10 +794,10 @@ export default function PostPage() {
     // Check repost & bookmark status
     useEffect(() => {
         if (user && post) {
-            hasUserReposted(post.id, user.uid).then(setReposted);
+            hasUserReposted(post.id, user.$id).then(setReposted);
             setRepostCount(post.repostCount || 0);
             if (post.isArticle) {
-                isArticleSaved(user.uid, post.id).then(setBookmarked);
+                isArticleSaved(user.$id, post.id).then(setBookmarked);
             }
         }
     }, [user, post]);
@@ -810,7 +810,7 @@ export default function PostPage() {
                 allCommentIds.push(c.id);
                 ((c as any).replies || []).forEach((r: Comment) => allCommentIds.push(r.id));
             });
-            getBatchUserLikes(allCommentIds, user.uid).then(setLikedComments);
+            getBatchUserLikes(allCommentIds, user.$id).then(setLikedComments);
         }
     }, [user, comments]);
 
@@ -827,7 +827,7 @@ export default function PostPage() {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'x-user-id': user.uid,
+                    'x-user-id': user.$id,
                     'x-user-email': user.email || '',
                 },
                 body: JSON.stringify({
@@ -990,24 +990,24 @@ export default function PostPage() {
                 // Combine header and PCM data
                 const wavBlob = new Blob([wavHeader, pcmData], { type: 'audio/wav' });
 
-                // Upload to Firebase Storage
-                const { initializeFirebase } = await import('@/lib/firebase');
-                const { storage } = await initializeFirebase();
-
-                if (!storage) {
-                    throw new Error('Firebase Storage not available');
-                }
-
-                const { ref, uploadBytes, getDownloadURL } = await import('@/lib/firebase/storage');
-                const audioRef = ref(storage, `audio/articles/${post.id}.wav`);
+                // Upload to Appwrite Storage
+                const { storage } = await import('@/lib/appwrite/client');
+                const { ID } = await import('appwrite');
 
                 toast.loading('Uploading audio...', { id: 'audio-upload' });
-                await uploadBytes(audioRef, wavBlob);
-                const audioUrl = await getDownloadURL(audioRef);
+                
+                const file = new File([wavBlob], `audio_articles_${post.id}.wav`, { type: 'audio/wav' });
+                const fileId = ID.unique();
+                const response = await storage.createFile('main-storage', fileId, file);
+
+                const endpoint = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1';
+                const projectId = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID;
+                const audioUrl = `${endpoint}/storage/buckets/main-storage/files/${response.$id}/view?project=${projectId}`;
+                
                 toast.dismiss('audio-upload');
 
                 // Save URL to Firestore
-                const { Timestamp } = await import('@/lib/firebase/firestore');
+                const { Timestamp } = await import('@/lib/appwrite/firestore');
                 await updatePost(post.id, {
                     audioUrl,
                     audioGeneratedAt: Timestamp.now()
@@ -1031,11 +1031,11 @@ export default function PostPage() {
         setBookmarking(true);
         try {
             if (bookmarked) {
-                await unsaveArticle(user.uid, post.id);
+                await unsaveArticle(user.$id, post.id);
                 setBookmarked(false);
                 toast.info('Removed from saved');
             } else {
-                await saveArticle(user.uid, post.id);
+                await saveArticle(user.$id, post.id);
                 setBookmarked(true);
                 toast.success('Saved!');
             }
@@ -1062,14 +1062,14 @@ export default function PostPage() {
             }
             return c;
         }));
-        try { await likeComment(commentId, user.uid); } catch { setLikedComments(likedComments); }
+        try { await likeComment(commentId, user.$id); } catch { setLikedComments(likedComments); }
     };
 
     const handleSubmitComment = async () => {
         if (!user || !comment.trim() || !profile || !post) return;
         setSubmitting(true);
         try {
-            await addComment(post.id, user.uid, profile.displayName || 'User', profile.username || 'user', profile.photoURL, comment);
+            await addComment(post.id, user.$id, profile.displayName || 'User', profile.username || 'user', profile.photoURL, comment);
             setComment('');
             const newComments = await getComments(post.id);
             setComments(newComments);
@@ -1080,7 +1080,7 @@ export default function PostPage() {
     const handleRepost = async () => {
         if (!user || !post) return;
         try {
-            await repostPost(post.id, user.uid);
+            await repostPost(post.id, user.$id);
             setReposted(!reposted);
             setRepostCount(prev => reposted ? prev - 1 : prev + 1);
         } catch (e) { console.error(e); }
@@ -1089,7 +1089,7 @@ export default function PostPage() {
     const handleSubmitReply = async (parentId: string) => {
         if (!user || !replyText.trim() || !profile || !post) return;
         try {
-            await addComment(post.id, user.uid, profile.displayName || 'User', profile.username || 'user', profile.photoURL, replyText, parentId);
+            await addComment(post.id, user.$id, profile.displayName || 'User', profile.username || 'user', profile.photoURL, replyText, parentId);
             setReplyText('');
             setReplyingTo(null);
             const newComments = await getComments(post.id);
@@ -1270,7 +1270,7 @@ export default function PostPage() {
                 {DialogComponent}
                 <ArticleReadingMode
                     post={post}
-                    userId={user?.uid}
+                    userId={user?.$id}
                     userEmail={user?.email || undefined}
                     isAdmin={user?.email === ADMIN_EMAIL}
                     onBookmark={handleBookmark}
@@ -1286,7 +1286,7 @@ export default function PostPage() {
 
     // Regular Post View
     return (
-        <TextHighlighter userId={user?.uid} userEmail={user?.email || undefined} userName={profile?.displayName} userUsername={profile?.username}>
+        <TextHighlighter userId={user?.$id} userEmail={user?.email || undefined} userName={profile?.displayName} userUsername={profile?.username}>
             {DialogComponent}
             <div className="max-w-2xl mx-auto py-6 px-4">
                 <Link href="/feed" className="inline-block mb-6">

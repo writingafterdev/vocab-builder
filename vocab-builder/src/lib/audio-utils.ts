@@ -3,17 +3,9 @@
  * Uses Firebase Storage for persistent audio file storage
  */
 
-import { getStorage, ref, uploadBytes, getDownloadURL } from '@/lib/firebase/storage';
-// Removed getApp import since we are using Appwrite polyfill
+import { uploadToAppwriteStorage } from './appwrite/storage';
 
-// Get Firebase Storage instance
-function getStorageInstance() {
-    try {
-        return getStorage();
-    } catch {
-        return null;
-    }
-}
+// Firebase Storage has been completely migrated to Appwrite Storage
 
 /**
  * Convert PCM audio data to WAV format
@@ -73,25 +65,17 @@ export async function uploadAudioToStorage(
     fileName: string,
     mimeType: string = 'audio/wav'
 ): Promise<string | null> {
-    const storage = getStorageInstance();
-    if (!storage) {
-        console.error('Firebase Storage not initialized');
-        return null;
-    }
-
     try {
         const extension = mimeType.includes('mp3') ? 'mp3' : 'wav';
-        const fullPath = `audio/exercises/${fileName}.${extension}`;
-        const storageRef = ref(storage, fullPath);
-
-        await uploadBytes(storageRef, audioData, {
-            contentType: mimeType,
-        });
-
-        const downloadUrl = await getDownloadURL(storageRef);
+        const fullPath = `audio_exercises_${fileName}.${extension}`;
+        
+        // Ensure audioData is a Buffer for the node-appwrite SDK
+        const buffer = Buffer.isBuffer(audioData) ? audioData : Buffer.from(audioData);
+        
+        const downloadUrl = await uploadToAppwriteStorage(buffer, fullPath, mimeType);
         return downloadUrl;
     } catch (error) {
-        console.error('Failed to upload audio:', error);
+        console.error('Failed to upload audio to Appwrite:', error);
         return null;
     }
 }
