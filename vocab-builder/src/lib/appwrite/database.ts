@@ -10,20 +10,46 @@ const databases = new Databases(client);
 // Default to main unless specified in env
 const DB_ID = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || 'main';
 
-// Helper to sanitize Appwrite Document structure back to exactly what our app expects
+// ─── Auto-serialize: convert objects/arrays → JSON strings before writing ────
+// Appwrite string attributes only accept actual strings. Our app code passes
+// raw JS objects (e.g. topicScores: { tech: 5 }) that need to be stringified.
+function serializeData(data: Record<string, any>): Record<string, any> {
+    const serialized: Record<string, any> = {};
+    for (const [key, value] of Object.entries(data)) {
+        if (value === null || value === undefined) {
+            serialized[key] = value;
+        } else if (typeof value === 'object' && !(value instanceof Date)) {
+            // Arrays and plain objects → JSON string
+            serialized[key] = JSON.stringify(value);
+        } else {
+            serialized[key] = value;
+        }
+    }
+    return serialized;
+}
+
+// ─── Auto-deserialize: parse JSON strings back to objects on read ─────────────
 function sanitizeDocument(doc: any): Record<string, unknown> & { id: string } {
     if (!doc) return null as any;
-    
-    // Convert special fields
-    try {
-        if (typeof doc.stats === 'string') doc.stats = JSON.parse(doc.stats);
-        if (typeof doc.preferences === 'string') doc.preferences = JSON.parse(doc.preferences);
-        if (typeof doc.questions === 'string') doc.questions = JSON.parse(doc.questions);
-        if (typeof doc.userPhraseMap === 'string') doc.userPhraseMap = JSON.parse(doc.userPhraseMap);
-        if (typeof doc.weaknesses === 'string') doc.weaknesses = JSON.parse(doc.weaknesses);
-    } catch {}
 
     const { $id, $createdAt, $updatedAt, $permissions, $databaseId, $collectionId, ...data } = doc;
+
+    // Auto-parse any string value that looks like JSON (starts with { or [)
+    for (const key of Object.keys(data)) {
+        const val = data[key];
+        if (typeof val === 'string' && val.length > 1) {
+            const trimmed = val.trim();
+            if ((trimmed[0] === '{' && trimmed[trimmed.length - 1] === '}') ||
+                (trimmed[0] === '[' && trimmed[trimmed.length - 1] === ']')) {
+                try {
+                    data[key] = JSON.parse(trimmed);
+                } catch {
+                    // Not valid JSON, keep as string
+                }
+            }
+        }
+    }
+
     return { ...data, id: $id } as any;
 }
 
@@ -34,7 +60,7 @@ export function serverTimestamp() {
 
 export async function addDocument(collection: string, data: Record<string, any>, idToken?: string): Promise<string> {
     const id = ID.unique();
-    await databases.createDocument(DB_ID, collection, id, data);
+    await databases.createDocument(DB_ID, collection, id, serializeData(data));
     return id;
 }
 
@@ -50,8 +76,7 @@ export async function getDocument(collection: string, documentId: string, idToke
 
 export async function updateDocument(collection: string, documentId: string, data: Record<string, any>, idToken?: string): Promise<void> {
     try {
-        // Appwrite updates only specified fields (PATCH-like behavior natively)
-        await databases.updateDocument(DB_ID, collection, documentId, data);
+        await databases.updateDocument(DB_ID, collection, documentId, serializeData(data));
     } catch(e: any) {
         console.error(`Failed to update Appwrite doc ${documentId} in ${collection}:`, e.message);
         throw e;
@@ -59,12 +84,13 @@ export async function updateDocument(collection: string, documentId: string, dat
 }
 
 export async function setDocument(collection: string, documentId: string, data: Record<string, any>, idToken?: string): Promise<void> {
+    const serialized = serializeData(data);
     try {
         await databases.getDocument(DB_ID, collection, documentId);
-        await databases.updateDocument(DB_ID, collection, documentId, data);
+        await databases.updateDocument(DB_ID, collection, documentId, serialized);
     } catch (e: any) {
         if (e.code === 404) {
-            await databases.createDocument(DB_ID, collection, documentId, data);
+            await databases.createDocument(DB_ID, collection, documentId, serialized);
         } else {
             throw e;
         }
@@ -134,8 +160,7 @@ export async function runQuery(
     const queries: string[] = [];
     for (const f of filters) {
         if (f.op === 'EQUAL') queries.push(Query.equal(f.field, f.value as string|number|boolean|string[]));
-        if (f.op === 'ARRAY_CONTAINS') queries.push(Query.contains(f.field, f.value as any)); // Appwrite array search is equal for arrays or contains/search depending on attribute types. Or Query.equal natively works on arrays. We will use Query.search or equal based on need. Let's use equal.
-        // Actually Query.equal on array attribute matches if any value is exactly equal! So `Query.equal` is the direct equivalent of `ARRAY_CONTAINS`.
+        if (f.op === 'ARRAY_CONTAINS') queries.push(Query.contains(f.field, f.value as any));
         if (f.op === 'LESS_THAN') queries.push(Query.lessThan(f.field, f.value as string|number));
         if (f.op === 'LESS_THAN_OR_EQUAL') queries.push(Query.lessThanEqual(f.field, f.value as string|number));
         if (f.op === 'GREATER_THAN') queries.push(Query.greaterThan(f.field, f.value as string|number));
