@@ -26,6 +26,6 @@ const Progress = React.forwardRef<
         />
     </ProgressPrimitive.Root>
 ))
-Progress.name = ProgressPrimitive.Root.name
+Progress.displayName = ProgressPrimitive.Root.displayName
 
 export { Progress }
