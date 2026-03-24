@@ -186,10 +186,10 @@ function PreviewImage({ src, size }: { src?: string | null; size: 'sm' | 'md' | 
 export function LibraryCard({ post, size = 'small' }: LibraryCardProps) {
     const router = useRouter();
     const progress = post.progress || 0;
-    const wordCount = post.wordCount || Math.ceil(post.content.length / 5);
+    const wordCount = post.wordCount || Math.ceil((post.content || '').length / 5);
     const savedWords = post.phrasesCount || 0;
 
-    const cleanContent = post.content.replace(/<[^>]*>?/gm, '');
+    const cleanContent = (post.content || '').replace(/<[^>]*>?/gm, '');
     const previewLength = size === 'small' ? 80 : size === 'medium' ? 120 : 180;
     const previewText = decodeHtmlEntities(cleanContent.slice(0, previewLength)) + '...';
 

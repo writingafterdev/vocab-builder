@@ -68,7 +68,7 @@ function LibraryCard({ post, userLists, onAddToList, variant = 'standard', class
     const router = useRouter();
     const progress = post.progress || 0;
     const isRead = post.isRead || progress === 100;
-    const wordCount = post.wordCount || Math.ceil(post.content.length / 5);
+    const wordCount = post.wordCount || Math.ceil((post.content || '').length / 5);
     const phrasesCount = post.phrasesCount || 0;
 
     // Helper to determine styles based on variant
@@ -124,7 +124,7 @@ function LibraryCard({ post, userLists, onAddToList, variant = 'standard', class
             .replace(/&apos;/g, "'");
     };
 
-    const cleanContent = post.content.replace(/<[^>]*>?/gm, '');
+    const cleanContent = (post.content || '').replace(/<[^>]*>?/gm, '');
     const previewText = decodeHtmlEntities(cleanContent.slice(0, 150)) + '...';
 
     // Determine source type for icon
@@ -485,7 +485,7 @@ export default function LibraryPage() {
                 ...p,
                 progress: Math.floor(Math.random() * 100),
                 phrasesCount: Math.floor(Math.random() * 20),
-                wordCount: Math.ceil(p.content.length / 5),
+                wordCount: Math.ceil((p.content || '').length / 5),
                 isRead: Math.random() > 0.7,
             }));
             setPosts(postsWithMeta);
@@ -506,7 +506,7 @@ export default function LibraryPage() {
                 ...p,
                 progress: Math.floor(Math.random() * 100),
                 phrasesCount: Math.floor(Math.random() * 20),
-                wordCount: Math.ceil(p.content.length / 5),
+                wordCount: Math.ceil((p.content || '').length / 5),
                 isRead: Math.random() > 0.7,
             }));
             setPosts(prev => [...prev, ...postsWithMeta]);
@@ -655,7 +655,7 @@ export default function LibraryPage() {
             const query = searchQuery.toLowerCase();
             const matchesSearch =
                 post.title?.toLowerCase().includes(query) ||
-                post.content.toLowerCase().includes(query) ||
+                (post.content || '').toLowerCase().includes(query) ||
                 post.authorName?.toLowerCase().includes(query);
             if (!matchesSearch) return false;
         }
