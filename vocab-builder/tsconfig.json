@@ -25,6 +25,9 @@
     "paths": {
       "@/*": [
         "./src/*"
+      ],
+      "@/lib/firebase/firestore": [
+        "./src/lib/firebase/firestoreMock.ts"
       ]
     }
   },
