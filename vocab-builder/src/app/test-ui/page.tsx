@@ -54,7 +54,6 @@ export default async function TestUIPage() {
                                     src={post.coverImage} 
                                     alt="" 
                                     style={{ width: 80, height: 80, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }}
-                                    onError={(e: any) => e.target.style.display = 'none'}
                                 />
                             )}
                             <div style={{ flex: 1 }}>
