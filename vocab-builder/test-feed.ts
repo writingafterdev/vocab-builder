@@ -94,7 +94,7 @@ async function runTests() {
     console.log("✅ Passed: Smart Feed Sorting executed successfully");
 
     console.log("\n--- Test 6: Custom Weight Boosting ---");
-    await quoteFeed.boostTopic(testUserId, 'technology', undefined, 3);
+    await quoteFeed.boostTopic(testUserId, 'technology', 3);
     state = await getDocument('quote_feed_state', testUserId);
     if (state.topicScores['technology'] !== 9) throw new Error("Expected technology score to be 9");
     console.log("✅ Passed: Custom weight topic boost working");

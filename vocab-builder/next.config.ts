@@ -30,7 +30,7 @@ const nextConfig: NextConfig = {
     ],
   },
 
-  // Bundle size optimizations for Cloudflare Workers
+  // Bundle size optimizations
   transpilePackages: ['framer-motion', 'motion-dom', 'motion-utils'],
   experimental: {
     // Tree-shake heavy packages — only import what's actually used

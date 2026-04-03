@@ -2,7 +2,7 @@
 
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { EditorialLoader } from '@/components/ui/editorial-loader';
 
@@ -18,6 +18,9 @@ const GoogleLogo = () => (
 export default function LandingPage() {
     const { user, loading, signIn, signInWithEmail } = useAuth();
     const router = useRouter();
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [isEmailLoading, setIsEmailLoading] = useState(false);
 
     // Redirect if already logged in
     useEffect(() => {
@@ -53,7 +56,7 @@ export default function LandingPage() {
                 </div>
 
                 {/* Login Action Card */}
-                <div className="pt-4 space-y-3">
+                <div className="pt-4 space-y-3 text-left">
                     <button
                         onClick={(e) => {
                             e.stopPropagation();
@@ -64,18 +67,60 @@ export default function LandingPage() {
                         <GoogleLogo />
                         Continue with Google
                     </button>
+
+                    <div className="relative flex items-center justify-center my-6">
+                        <div className="absolute border-t border-slate-200 w-full" />
+                        <span className="relative bg-white px-3 text-xs text-slate-400 uppercase tracking-widest font-medium">Or log in with email</span>
+                    </div>
+
+                    <form onSubmit={async (e) => {
+                        e.preventDefault();
+                        if (!email || !password) return;
+                        setIsEmailLoading(true);
+                        try {
+                            await signInWithEmail(email, password);
+                        } catch (e) {
+                            setIsEmailLoading(false);
+                            alert("Login failed. Check console or credentials.");
+                        }
+                    }} className="space-y-3">
+                        <input
+                            type="email"
+                            placeholder="Email address"
+                            className="w-full px-4 py-3.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all placeholder:text-slate-400 text-slate-700"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                        />
+                        <input
+                            type="password"
+                            placeholder="Password"
+                            className="w-full px-4 py-3.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all placeholder:text-slate-400 text-slate-700"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                        />
+                        <div className="pt-2">
+                            <button
+                                type="submit"
+                                disabled={isEmailLoading}
+                                className="w-full flex items-center justify-center px-4 py-3.5 border border-transparent rounded-xl shadow-sm bg-black hover:bg-slate-800 transition-all duration-200 cursor-pointer font-medium text-white text-lg disabled:opacity-50"
+                            >
+                                {isEmailLoading ? 'Logging in...' : 'Sign In'}
+                            </button>
+                        </div>
+                    </form>
                     
                     <button
+                        type="button"
                         onClick={(e) => {
                             e.stopPropagation();
-                            signInWithEmail();
+                            signInWithEmail('test@vocabbuilder.dev', 'TestUser123!');
                         }}
-                        className="w-full flex items-center justify-center px-4 py-3.5 border border-slate-200 rounded-xl shadow-sm bg-white hover:bg-slate-50 hover:border-slate-300 transition-all duration-200 cursor-pointer font-medium text-slate-700 text-lg"
+                        className="w-full mt-2 text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors cursor-pointer text-center"
                     >
-                        Preview Login (Test User)
+                        Use Demo Account
                     </button>
                     
-                    <p className="mt-4 text-xs text-slate-400">
+                    <p className="mt-4 text-xs text-slate-400 text-center">
                         By continuing, you agree to start acquiring language naturally.
                     </p>
                 </div>
