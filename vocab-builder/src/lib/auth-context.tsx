@@ -53,6 +53,7 @@ interface AuthContextType {
     profile: UserProfile | null;
     loading: boolean;
     signIn: () => Promise<void>;
+    signInWithEmail: (email?: string, password?: string) => Promise<void>;
     signOut: () => Promise<void>;
     refreshProfile: () => Promise<void>;
 }
@@ -191,6 +192,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     }, []);
 
+    const signInWithEmail = useCallback(async (email?: string, password?: string) => {
+        try {
+            const authEmail = email || 'test@vocabbuilder.dev';
+            const authPassword = password || 'TestUser123!';
+            await account.createEmailPasswordSession(authEmail, authPassword);
+            // Reload page to refresh all Appwrite context properly
+            window.location.reload();
+        } catch (error) {
+            console.error('[Auth] signInWithEmail failed:', error);
+            throw error; // Rethrow to handle in UI
+        }
+    }, []);
+
     const signOut = useCallback(async () => {
         try {
             await account.deleteSession('current');
@@ -202,7 +216,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, []);
 
     return (
-        <AuthContext.Provider value={{ user, profile, loading, signIn, signOut, refreshProfile }}>
+        <AuthContext.Provider value={{ user, profile, loading, signIn, signInWithEmail, signOut, refreshProfile }}>
             {children}
         </AuthContext.Provider>
     );

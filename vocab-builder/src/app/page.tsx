@@ -16,7 +16,7 @@ const GoogleLogo = () => (
 );
 
 export default function LandingPage() {
-    const { user, loading, signIn } = useAuth();
+    const { user, loading, signIn, signInWithEmail } = useAuth();
     const router = useRouter();
 
     // Redirect if already logged in
@@ -53,7 +53,7 @@ export default function LandingPage() {
                 </div>
 
                 {/* Login Action Card */}
-                <div className="pt-4">
+                <div className="pt-4 space-y-3">
                     <button
                         onClick={(e) => {
                             e.stopPropagation();
@@ -63,6 +63,16 @@ export default function LandingPage() {
                     >
                         <GoogleLogo />
                         Continue with Google
+                    </button>
+                    
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            signInWithEmail();
+                        }}
+                        className="w-full flex items-center justify-center px-4 py-3.5 border border-slate-200 rounded-xl shadow-sm bg-white hover:bg-slate-50 hover:border-slate-300 transition-all duration-200 cursor-pointer font-medium text-slate-700 text-lg"
+                    >
+                        Preview Login (Test User)
                     </button>
                     
                     <p className="mt-4 text-xs text-slate-400">
