@@ -3,7 +3,8 @@ import { getDocument } from '@/lib/appwrite/database';
 
 /**
  * GET /api/practice/get-session?sessionId=xxx
- * Fetches a generated session by ID
+ * Fetches a generated session by ID and deserializes stored JSON fields
+ * back into the shape the frontend expects.
  */
 export async function GET(request: NextRequest) {
     try {
@@ -20,15 +21,43 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: 'Missing sessionId' }, { status: 400 });
         }
 
-        const session = await getDocument('generatedSessions', sessionId);
+        const raw = await getDocument('generatedSessions', sessionId) as any;
 
-        if (!session) {
+        if (!raw) {
             return NextResponse.json({ error: 'Session not found' }, { status: 404 });
         }
 
-        // Extension C: Public Verification
-        // Sessions are now public to the community, so we do not enforce ownership reading
-        // We will handle ownership logic differently when they complete the quiz.
+        // Deserialize JSON string fields back to the GeneratedSession shape
+        // Storage mapping (Appwrite schema → frontend interface):
+        //   content   → sections     (JSON string → GeneratedSection[])
+        //   subtopic  → subtitle     (string)
+        //   phrases   → phraseIds    (JSON string → string[])
+        //   topic     → quotes       (JSON string → Quote[])
+        //   questions → questions    (JSON string → ComprehensionQuestion[])
+
+        const safeParse = (val: any, fallback: any = []) => {
+            if (Array.isArray(val)) return val;
+            if (typeof val === 'string') {
+                try { return JSON.parse(val); } catch { return fallback; }
+            }
+            return fallback;
+        };
+
+        const session = {
+            id: raw.id,
+            userId: raw.userId,
+            title: raw.title || 'Untitled Session',
+            subtitle: raw.subtopic || raw.subtitle || '',
+            sections: safeParse(raw.content || raw.sections),
+            questions: safeParse(raw.questions),
+            quotes: safeParse(raw.topic && raw.topic.startsWith?.('[') ? raw.topic : raw.quotes),
+            phraseIds: safeParse(raw.phrases || raw.phraseIds),
+            totalPhrases: raw.totalPhrases || 0,
+            status: raw.status || 'generated',
+            createdAt: raw.createdAt || '',
+            isListeningDay: raw.isListeningDay || false,
+            reviewDayIndex: raw.reviewDayIndex || 0,
+        };
 
         return NextResponse.json({ session });
 

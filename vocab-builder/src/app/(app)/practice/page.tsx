@@ -154,7 +154,7 @@ function GenerateArticleCard({ userId }: { userId?: string }) {
                                         {s.totalPhrases} phrases · {s.questionCount} questions
                                     </span>
                                 </div>
-                                {s.status === 'completed' ? (
+                                {s.status?.startsWith('completed') ? (
                                     <span className="text-[10px] font-medium text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">Done</span>
                                 ) : (
                                     <ArrowRight className="w-3.5 h-3.5 text-neutral-300" />

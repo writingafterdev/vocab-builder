@@ -147,27 +147,24 @@ export async function POST(request: NextRequest) {
             console.warn('Failed to update reviewDayCount:', e);
         }
 
-        // Step 6: Store extracted quotes for the feed and global bank
+        // Step 6: Store extracted quotes in the global quotes bank for the feed
         for (const quote of articleResult.quotes) {
-            const quoteData = {
-                userId,
-                sessionId: docId,
-                text: quote.text,
-                highlightedPhrases: quote.highlightedPhrases,
-                sourceType: 'generated_session',
-                postTitle: articleResult.title,
-                author: 'VocabBuilder AI',
-                topic: 'general',
-                source: 'Community Practice',
-                createdAt: serverTimestamp(),
-                isRead: false,
-            };
-
-            // 1. Private collection (legacy fallback)
-            await addDocument('generatedQuotes', quoteData);
-            
-            // 2. Global Quotes Bank (Community Passive Learning)
-            await addDocument('quotes', quoteData);
+            try {
+                await addDocument('quotes', {
+                    userId,
+                    sessionId: docId,
+                    text: quote.text,
+                    highlightedPhrases: JSON.stringify(quote.highlightedPhrases || []),
+                    sourceType: 'generated_session',
+                    postTitle: articleResult.title,
+                    author: 'VocabBuilder AI',
+                    topic: 'general',
+                    source: 'Community Practice',
+                    createdAt: serverTimestamp(),
+                });
+            } catch (quoteErr) {
+                console.warn('Failed to store quote (non-fatal):', quoteErr);
+            }
         }
 
         return NextResponse.json({

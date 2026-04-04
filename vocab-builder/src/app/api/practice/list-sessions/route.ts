@@ -1,13 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-const FIREBASE_PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
-const FIREBASE_API_KEY = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
-const FIRESTORE_BASE_URL = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents`;
-
-function withKey(url: string): string {
-    const separator = url.includes('?') ? '&' : '?';
-    return FIREBASE_API_KEY ? `${url}${separator}key=${FIREBASE_API_KEY}` : url;
-}
+import { queryCollection } from '@/lib/appwrite/database';
 
 /**
  * GET /api/practice/list-sessions
@@ -38,69 +30,41 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ sessions: [] });
         }
 
-        // Query generatedSessions for this user via Firestore REST runQuery
-        const structuredQuery = {
-            from: [{ collectionId: 'generatedSessions' }],
-            where: {
-                fieldFilter: {
-                    field: { fieldPath: 'userId' },
-                    op: 'EQUAL',
-                    value: { stringValue: userId },
-                },
-            },
+        // Query generatedSessions for this user via Appwrite SDK
+        const docs = await queryCollection('generatedSessions', {
+            where: [{ field: 'userId', op: '==', value: userId }],
+            orderBy: [{ field: 'createdAt', direction: 'desc' }],
             limit: 20,
-        };
-
-        const queryUrl = withKey(`${FIRESTORE_BASE_URL}:runQuery`);
-        const queryRes = await fetch(queryUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ structuredQuery }),
         });
 
-        if (!queryRes.ok) {
-            const errText = await queryRes.text();
-            console.error('[list-sessions] Firestore query failed:', queryRes.status, errText);
-            // Return empty rather than 500 — the page will just show no past sessions
-            return NextResponse.json({ sessions: [] });
-        }
+        const sessions = docs.map((doc: any) => {
+            // Parse JSON strings back to arrays for counts
+            let sectionCount = 0;
+            let questionCount = 0;
 
-        const result = await queryRes.json();
+            try {
+                const sections = typeof doc.content === 'string' ? JSON.parse(doc.content) : (doc.content || []);
+                sectionCount = Array.isArray(sections) ? sections.length : 0;
+            } catch { /* ignore parse errors */ }
 
-        const docs = (Array.isArray(result) ? result : [])
-            .filter((item: any) => item?.document)
-            .map((item: any) => {
-                const doc = item.document;
-                const id = doc.name?.split('/').pop() || '';
-                const fields = doc.fields || {};
+            try {
+                const questions = typeof doc.questions === 'string' ? JSON.parse(doc.questions) : (doc.questions || []);
+                questionCount = Array.isArray(questions) ? questions.length : 0;
+            } catch { /* ignore parse errors */ }
 
-                const getString = (key: string) => fields[key]?.stringValue || '';
-                const getInt = (key: string) =>
-                    fields[key]?.integerValue != null
-                        ? parseInt(fields[key].integerValue, 10)
-                        : (fields[key]?.doubleValue || 0);
-                const getArr = (key: string) => fields[key]?.arrayValue?.values || [];
-
-                return {
-                    id,
-                    title: getString('title') || 'Untitled Session',
-                    subtitle: getString('subtitle'),
-                    totalPhrases: getInt('totalPhrases'),
-                    status: getString('status') || 'generated',
-                    sectionCount: getArr('sections').length,
-                    questionCount: getArr('questions').length,
-                    createdAt: getString('createdAt') || fields['createdAt']?.timestampValue || '',
-                };
-            });
-
-        // Sort newest first
-        docs.sort((a: any, b: any) => {
-            const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-            const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-            return timeB - timeA;
+            return {
+                id: doc.id,
+                title: doc.title || 'Untitled Session',
+                subtitle: doc.subtopic || '',
+                totalPhrases: doc.totalPhrases || 0,
+                status: doc.status || 'generated',
+                sectionCount,
+                questionCount,
+                createdAt: doc.createdAt || '',
+            };
         });
 
-        return NextResponse.json({ sessions: docs });
+        return NextResponse.json({ sessions });
 
     } catch (error) {
         console.error('[list-sessions] Unexpected error:', error);

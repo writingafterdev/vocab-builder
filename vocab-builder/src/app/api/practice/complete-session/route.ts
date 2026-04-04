@@ -35,13 +35,8 @@ export async function POST(request: NextRequest) {
         if (isOwner) {
             // 1. Mark session as completed for the owner
             await updateDocument('generatedSessions', sessionId, {
-                status: 'completed',
-                completedAt: serverTimestamp(),
-                results: {
-                    correctCount,
-                    totalQuestions,
-                    accuracy,
-                },
+                status: `completed_${accuracy}pct`,
+                createdAt: serverTimestamp(), // repurpose as last-updated timestamp
             });
 
             // 2. Update SRS for all phrases reviewed in this session
@@ -66,18 +61,20 @@ export async function POST(request: NextRequest) {
                 console.error('SRS update error (non-fatal):', srsError);
             }
         } else {
-            // Extension C: Public Verification
-            // Non-owners taking the quiz helps verify the content and gives them practice.
-            // We do NOT update their SRS (since these probably aren't their active phrases),
-            // and we do NOT mark the original session as 'completed' for the owner.
-            await setDocument('communityAttempts', `${sessionId}_${userId}`, {
-                sessionId,
-                userId,
-                correctCount,
-                totalQuestions,
-                accuracy,
-                completedAt: serverTimestamp(),
-            });
+            // Extension C: Public Verification (non-owners)
+            // Collection may not exist yet — non-fatal
+            try {
+                await setDocument('communityAttempts', `${sessionId}_${userId}`, {
+                    sessionId,
+                    userId,
+                    correctCount,
+                    totalQuestions,
+                    accuracy,
+                    completedAt: serverTimestamp(),
+                });
+            } catch (e) {
+                console.warn('communityAttempts write failed (collection may not exist):', e);
+            }
         }
 
         return NextResponse.json({
