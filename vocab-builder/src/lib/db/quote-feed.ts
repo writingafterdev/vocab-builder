@@ -89,7 +89,7 @@ export async function addQuotesToBank(quotes: Omit<QuoteBankEntry, 'id'>[]): Pro
  * Get all quotes from the bank
  */
 export async function getAllQuotes(): Promise<QuoteBankEntry[]> {
-    const docs = await queryCollection('quotes');
+    const docs = await queryCollection('quotes', { limit: 500 });
     return docs.map(doc => ({
         id: doc.id,
         text: doc.text as string,
