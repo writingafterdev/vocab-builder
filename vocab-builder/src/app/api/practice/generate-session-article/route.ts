@@ -110,15 +110,21 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Step 4: Store in Firestore
-        const session: Omit<GeneratedSession, 'id'> = {
+        // Step 4: Store in Appwrite
+        // Map to existing generatedSessions schema:
+        //   content  → sections (JSON string)
+        //   phrases  → phraseIds (JSON string)
+        //   questions → questions (JSON string)
+        //   subtopic → subtitle
+        //   topic    → quotes (JSON string, repurposed)
+        const sessionData = {
             userId,
             title: articleResult.title,
-            subtitle: articleResult.subtitle,
-            sections: articleResult.sections,
-            questions: articleResult.questions,
-            quotes: articleResult.quotes,
-            phraseIds: duePhrases.map(p => p.id),
+            subtopic: articleResult.subtitle,
+            content: JSON.stringify(articleResult.sections),
+            questions: JSON.stringify(articleResult.questions),
+            topic: JSON.stringify(articleResult.quotes),
+            phrases: JSON.stringify(duePhrases.map(p => p.id)),
             totalPhrases: duePhrases.length,
             status: 'generated',
             createdAt: serverTimestamp(),
@@ -126,16 +132,19 @@ export async function POST(request: NextRequest) {
             reviewDayIndex,
         };
 
-        const docId = `session_${userId}_${Date.now()}`;
-        await setDocument('generatedSessions', docId, session);
+        const docId = `session${userId.substring(0, 10)}${Date.now()}`;
+        await setDocument('generatedSessions', docId, sessionData);
 
-        // Update the user's reviewDayCount using authenticated REST call
-        if (idToken) {
-            await updateDocument('users', userId, {
-                'stats.reviewDayCount': reviewDayIndex,
-            }, idToken);
-        } else {
-            console.warn('No ID token provided, skipping reviewDayCount update');
+        // Update the user's reviewDayCount
+        try {
+            const userDocForStats = await getDocument('users', userId) as any;
+            if (userDocForStats) {
+                const stats = typeof userDocForStats.stats === 'string' ? JSON.parse(userDocForStats.stats) : (userDocForStats.stats || {});
+                stats.reviewDayCount = reviewDayIndex;
+                await updateDocument('users', userId, { stats: JSON.stringify(stats) });
+            }
+        } catch (e) {
+            console.warn('Failed to update reviewDayCount:', e);
         }
 
         // Step 6: Store extracted quotes for the feed and global bank
