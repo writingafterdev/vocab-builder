@@ -25,6 +25,8 @@ export default function UITestPage() {
                         <McqInteraction
                             question={{
                                 id: 'q1',
+                                skillAxis: 'reading_comprehension',
+                                explanation: 'Dev explanation',
                                 type: 'inference_bridge',
                                 prompt: 'Based on the author\'s tone, what can we infer they believe about social media?',
                                 options: [
@@ -47,6 +49,8 @@ export default function UITestPage() {
                         <HighlightInteraction
                             question={{
                                 id: 'q2',
+                                skillAxis: 'critical_thinking',
+                                explanation: 'Dev explanation',
                                 type: 'spot_intruder',
                                 prompt: 'Which sentence breaks the flow of the paragraph?',
                                 options: [
@@ -69,6 +73,8 @@ export default function UITestPage() {
                         <ReorderInteraction
                             question={{
                                 id: 'q3',
+                                skillAxis: 'analytical_writing',
+                                explanation: 'Dev explanation',
                                 type: 'restructure',
                                 prompt: 'Put these sentences in logical order to form a coherent argument.',
                                 items: [
@@ -91,6 +97,8 @@ export default function UITestPage() {
                         <ABPickInteraction
                             question={{
                                 id: 'q4',
+                                skillAxis: 'sociolinguistic',
+                                explanation: 'Dev explanation',
                                 type: 'ab_natural',
                                 prompt: 'Which version sounds more natural for a casual Reddit post?',
                                 options: [
@@ -111,6 +119,8 @@ export default function UITestPage() {
                         <RatingInteraction
                             question={{
                                 id: 'q5',
+                                skillAxis: 'critical_thinking',
+                                explanation: 'Dev explanation',
                                 type: 'rate_argument',
                                 prompt: '"Because I drank water and then got sick, the water made me sick." How strong is this argument?',
                             }}
@@ -126,6 +136,8 @@ export default function UITestPage() {
                         <FreeWriteInteraction
                             question={{
                                 id: 'q6',
+                                skillAxis: 'analytical_writing',
+                                explanation: 'Dev explanation',
                                 type: 'fix_argument',
                                 prompt: 'Rewrite the flawed argument from paragraph 3 to make it logically sound.',
                                 passageReference: 'He argued that since teens use phones and are also depressed, phones directly inject depression juices into the brain.',
