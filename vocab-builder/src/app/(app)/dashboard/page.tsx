@@ -70,6 +70,7 @@ function ActivityMap({ data }: { data: number[] }) {
                     <div
                         key={i}
                         className={`w-[14px] h-[14px] ${getColor(value)}`}
+                    />
                 ))}
                 </div>
             </div>
