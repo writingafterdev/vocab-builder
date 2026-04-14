@@ -84,10 +84,12 @@ export function FloatingDock({ items, className }: FloatingDockProps) {
             onMouseMove={(e) => mouseX.set(e.pageX)}
             onMouseLeave={() => mouseX.set(Infinity)}
             className={cn(
-                "fixed bottom-6 left-1/2 -translate-x-1/2 z-50",
-                "flex items-end gap-2 px-4 py-3",
-                "bg-white/90 backdrop-blur-xl border border-neutral-200",
-                "rounded-none shadow-sm",
+                "fixed bottom-0 md:bottom-6 left-1/2 -translate-x-1/2 z-50",
+                "w-full md:w-auto",
+                "flex items-end justify-evenly md:justify-center gap-1 md:gap-2",
+                "px-2 md:px-4 py-2 pb-6 md:py-3 md:pb-3",
+                "bg-white/95 md:bg-white/90 backdrop-blur-xl border-t md:border border-neutral-200",
+                "rounded-none shadow-sm overflow-x-auto no-scrollbar",
                 className
             )}
         >

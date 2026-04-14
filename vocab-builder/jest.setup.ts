@@ -14,15 +14,6 @@ jest.mock('next/navigation', () => ({
     useSearchParams: () => new URLSearchParams(),
 }));
 
-// Mock Firebase
-jest.mock('@/lib/firebase', () => ({
-    initializeFirebase: jest.fn(),
-    auth: {
-        currentUser: null,
-    },
-}));
-
-// Mock sonner toast
 jest.mock('sonner', () => ({
     toast: {
         success: jest.fn(),

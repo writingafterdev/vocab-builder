@@ -1,8 +1,10 @@
+'use server';
+
 /**
  * Token usage tracking module for admin analytics
  * Logs AI token consumption per user and endpoint
  * 
- * Uses Firestore REST API for Cloudflare Workers compatibility
+ * Uses Appwrite server SDK
  */
 import { addDocument, queryCollection, serverTimestamp } from '../appwrite/database';
 

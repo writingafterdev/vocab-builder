@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDocument, setDocument, updateDocument, serverTimestamp } from '@/lib/appwrite/database';
 import { GlobalPhraseData, CommonUsage, PhraseVariant, Register, Nuance, SocialDistance } from '@/lib/db/types';
-import { normalizePhraseKey } from '@/lib/db/practice-types';
 import { safeParseAIJson } from '@/lib/ai-utils';
 import { getGrokKey } from '@/lib/grok-client';
+import nlp from 'compromise';
+
+/** Normalize a phrase into a deterministic key for dictionary lookups */
+function normalizePhraseKey(phrase: string): string {
+    return phrase.toLowerCase().trim().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, '_');
+}
 
 const XAI_API_KEY = getGrokKey('phrases');
 const DEEPSEEK_API_URL = 'https://api.x.ai/v1/chat/completions';
@@ -31,26 +36,46 @@ export async function POST(request: NextRequest) {
 
         const phraseKey = normalizePhraseKey(phrase.trim());
 
-        // 1. Check global dictionary first (cache hit)
+        // 1. Check global dictionary first (cache hit - literal)
         let existing = null;
         try {
             existing = await getDocument('phraseDictionary', phraseKey);
 
-            if (existing) {
-                // Increment lookup count
-                try {
-                    await updateDocument('phraseDictionary', phraseKey, {
-                        lookupCount: (existing.lookupCount as number || 0) + 1,
-                    });
-                } catch (updateErr) {
-                    console.warn('Failed to update lookup count:', updateErr);
+            // 1b. Check global dictionary second pass (cache hit - lemmatized)
+            if (!existing) {
+                const doc = nlp(phrase);
+                doc.verbs().toInfinitive();
+                doc.nouns().toSingular();
+                const lemmatizedPhrase = doc.text();
+                const lemmatizedKey = normalizePhraseKey(lemmatizedPhrase);
+                
+                if (lemmatizedKey !== phraseKey) {
+                    existing = await getDocument('phraseDictionary', lemmatizedKey);
+                    if (existing) {
+                        console.log(`[Lookup] Lemmatized cache hit for "${phrase}" (${phraseKey} -> ${lemmatizedKey})`);
+                    }
                 }
+            }
 
-                return NextResponse.json({
-                    data: existing as unknown as GlobalPhraseData,
-                    cached: true,
-                    success: true,
-                });
+            if (existing) {
+                // Determine which key we actually hit to increment lookup count properly
+                const hitKey = existing.phraseKey as string || phraseKey;
+                
+                // Increment lookup count (best-effort — attribute may not exist in schema)
+                updateDocument('phraseDictionary', hitKey, {
+                    lookupCount: (existing.lookupCount as number || 0) + 1,
+                }).catch(() => { /* lookupCount attr may not be registered, non-critical */ });
+
+                // Verify the cached doc actually has data (phraseDictionary attrs may not be registered)
+                if (existing.meaning) {
+                    return NextResponse.json({
+                        data: existing as unknown as GlobalPhraseData,
+                        cached: true,
+                        success: true,
+                    });
+                }
+                // Document exists but fields were stripped on write — treat as cache miss
+                console.log(`[Lookup] Cache hit for "${phraseKey}" but meaning is empty — re-generating`);
             }
         } catch (getErr) {
             // Permission error or collection doesn't exist - treat as cache miss

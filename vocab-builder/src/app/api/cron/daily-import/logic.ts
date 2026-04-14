@@ -10,6 +10,9 @@ import {
     runQuery,
     updateDocument,
     addDocument,
+    getDocument,
+    setDocument,
+    safeDocId,
     serverTimestamp,
 } from '@/lib/appwrite/database';
 import { createBatch, addBatchRequests } from '@/lib/grok-batch';
@@ -24,8 +27,33 @@ import {
     type FeedQuizSpec,
     type PhraseForBatch,
 } from '@/lib/batch-prompts';
-import { getUserWeaknesses } from '@/lib/db/user-weaknesses';
+
 import { hasGrokKey } from '@/lib/grok-client';
+import { getWeakestTypes, getRetryContext } from '@/lib/db/question-weaknesses';
+
+/**
+ * Check if a batch of the given type was already created today.
+ * Uses deterministic doc ID AND a secondary query for safety.
+ */
+async function isBatchAlreadyCreatedToday(batchDocId: string, batchType: string): Promise<boolean> {
+    // Primary: deterministic doc ID check
+    const existing = await getDocument('batchJobs', batchDocId);
+    if (existing) return true;
+
+    // Secondary: query for any batch of same type from today (catches race conditions)
+    const dateStr = new Date().toISOString().split('T')[0];
+    const todayBatches = await queryCollection('batchJobs', {
+        where: [{ field: 'type', op: '==', value: batchType }],
+        orderBy: [{ field: '$createdAt', direction: 'desc' }],
+        limit: 10
+    });
+
+    // Check if any batch was created today (by parsing submittedAt)
+    return todayBatches.some(b => {
+        const submitted = b.submittedAt as string;
+        return submitted && submitted.startsWith(dateStr);
+    });
+}
 
 export async function runDailyImportLogic() {
     console.log('[DailyImport] Starting...');
@@ -108,18 +136,29 @@ export async function runDailyImportLogic() {
     if (hasKey) {
         try {
             const dateStr = new Date().toISOString().split('T')[0];
-            const existingArticles = await runQuery('batchJobs', [
-                { field: 'name', op: 'EQUAL', value: `articles_${dateStr}` }
-            ], 1);
+            const batchDocId = safeDocId(`articles_${dateStr}`);
 
-            if (existingArticles.length > 0) {
-                console.log(`[DailyImport] Phase 2: skipped (articles_${dateStr} already submitted today)`);
+            // Dedup: check by deterministic document ID AND by type+date query
+            const alreadyExists = await isBatchAlreadyCreatedToday(batchDocId, 'article_processing');
+            if (alreadyExists) {
+                console.log(`[DailyImport] Phase 2: skipped (article batch already exists for today)`);
             } else {
                 const pendingPosts = await runQuery('posts', [
                     { field: 'processingStatus', op: 'EQUAL', value: 'pending' }
                 ], 50);
 
                 if (pendingPosts.length > 0) {
+                    // Claim the slot FIRST to prevent races
+                    await setDocument('batchJobs', batchDocId, {
+                        name: `articles_${dateStr}`,
+                        provider: 'grok',
+                        type: 'article_processing',
+                        status: 'creating',
+                        batchId: 'pending',
+                        requestCount: pendingPosts.length,
+                        submittedAt: new Date().toISOString(),
+                    });
+
                     articleBatchId = await createBatch(`articles_${dateStr}`);
 
                     const articleRequests = pendingPosts.map(post =>
@@ -132,15 +171,10 @@ export async function runDailyImportLogic() {
 
                     await addBatchRequests(articleBatchId, articleRequests);
 
-                    await addDocument('batchJobs', {
+                    // Update with real batch ID and mark as submitted
+                    await updateDocument('batchJobs', batchDocId, {
                         batchId: articleBatchId,
-                        name: `articles_${dateStr}`,
-                        provider: 'grok',
-                        type: 'article_processing',
                         status: 'submitted',
-                        requestIds: pendingPosts.map(p => p.id),
-                        requestCount: pendingPosts.length,
-                        submittedAt: new Date().toISOString(),
                     });
 
                     await Promise.all(pendingPosts.map(post => 
@@ -170,12 +204,11 @@ export async function runDailyImportLogic() {
     if (hasKey) {
         try {
             const dateStr = new Date().toISOString().split('T')[0];
-            const existingFeedQuizzes = await runQuery('batchJobs', [
-                { field: 'name', op: 'EQUAL', value: `feed_quizzes_${dateStr}` }
-            ], 1);
+            const batchDocId = safeDocId(`feedquizzes_${dateStr}`);
 
-            if (existingFeedQuizzes.length > 0) {
-                console.log(`[DailyImport] Phase 3: skipped (feed_quizzes_${dateStr} already submitted today)`);
+            const alreadyExists = await isBatchAlreadyCreatedToday(batchDocId, 'feed_quiz_generation');
+            if (alreadyExists) {
+                console.log(`[DailyImport] Phase 3: skipped (feed quiz batch already exists for today)`);
             } else {
                 const users = await queryCollection('users', { limit: 100 });
 
@@ -205,42 +238,46 @@ export async function runDailyImportLogic() {
 
                             if (todayDue.length === 0) continue;
 
-                            let weaknesses: { id: string; category: string; specific: string; examples: string[]; correction: string; explanation: string }[] = [];
-                            try {
-                                const profile = await getUserWeaknesses(userId);
-                                if (profile?.weaknesses) {
-                                    const oneDayAgo = Date.now() / 1000 - 24 * 60 * 60;
-                                    weaknesses = profile.weaknesses
-                                        .filter(w => {
-                                            const lp = w.lastPracticed?.seconds || 0;
-                                            return lp < oneDayAgo && w.improvementScore < 80;
-                                        })
-                                        .slice(0, 4)
-                                        .map(w => ({
-                                            id: w.id,
-                                            category: w.category,
-                                            specific: w.specific,
-                                            examples: w.examples,
-                                            correction: w.correction,
-                                            explanation: w.explanation,
-                                        }));
-                                }
-                            } catch (e) {
-                                console.error(`[DailyImport] Weakness fetch failed for ${userId}:`, e);
+                            // ── Skip phrases that already have unconsumed quiz cards ──
+                            // Check up to 3 recent days for existing quiz cards
+                            const coveredPhraseIds = new Set<string>();
+                            for (let daysAgo = 0; daysAgo < 3; daysAgo++) {
+                                const d = new Date();
+                                d.setDate(d.getDate() - daysAgo);
+                                const checkDate = d.toISOString().split('T')[0];
+                                const quizDocId = safeDocId(`${checkDate}_${userId}`);
+                                try {
+                                    const existingQuiz = await getDocument('feedQuizzes', quizDocId);
+                                    if (existingQuiz) {
+                                        const cards = (existingQuiz.cards || []) as Array<{ phraseId?: string }>;
+                                        for (const card of cards) {
+                                            if (card.phraseId && !card.phraseId.startsWith('unknown_')) {
+                                                coveredPhraseIds.add(card.phraseId);
+                                            }
+                                        }
+                                    }
+                                } catch { /* doc doesn't exist, fine */ }
                             }
 
-                            const feedQuizSpecs: FeedQuizSpec[] = todayDue.map(p => {
-                                const learningStep = (p.learningStep as number) || 1;
-                                const phase = getPhaseForStep(learningStep);
-                                const phaseTypes = FEED_PHASE_TYPES[phase] || FEED_PHASE_TYPES.recognition;
+                            // Filter out phrases that already have pending quiz cards
+                            const freshDue = coveredPhraseIds.size > 0
+                                ? todayDue.filter(p => !coveredPhraseIds.has(p.id as string))
+                                : todayDue;
 
-                                const completedFormats = (p.completedFormats || []) as string[];
-                                const unused = phaseTypes.filter(t => !completedFormats.includes(t));
-                                const pool = unused.length > 0 ? unused : phaseTypes;
+                            if (freshDue.length === 0) {
+                                console.log(`[DailyImport] Phase 3: user ${userId} — all ${todayDue.length} due phrases already covered by recent quizzes, skipping`);
+                                continue;
+                            }
+
+                            if (coveredPhraseIds.size > 0) {
+                                console.log(`[DailyImport] Phase 3: user ${userId} — ${todayDue.length} due, ${todayDue.length - freshDue.length} already covered, ${freshDue.length} fresh`);
+                            }
+
+                            const weakTypes = await getWeakestTypes(userId);
+
+                            const feedQuizSpecs: FeedQuizSpec[] = freshDue.map(p => {
+                                const pool = ['ab_natural', 'spot_flaw', 'spot_intruder'];
                                 const questionType = pool[Math.floor(Math.random() * pool.length)];
-
-                                const isListeningCompatible = LISTENING_COMPATIBLE_TYPES.includes(questionType);
-                                const isListening = isListeningCompatible && Math.random() < 0.25;
 
                                 return {
                                     phraseId: p.id as string,
@@ -249,22 +286,29 @@ export async function runDailyImportLogic() {
                                     register: (p.register as string) || 'neutral',
                                     questionType,
                                     source: 'phrase' as const,
-                                    isListening,
                                 };
                             });
 
-                            const DRILL_TYPES = ['error_detection', 'sentence_correction', 'appropriateness_judgment', 'fill_gap_mcq'];
-                            const drillSpecs: FeedQuizSpec[] = weaknesses.slice(0, 2).map(w => ({
-                                phraseId: w.id,
-                                phrase: w.specific,
-                                meaning: w.explanation,
-                                register: 'neutral',
-                                questionType: DRILL_TYPES[Math.floor(Math.random() * DRILL_TYPES.length)],
-                                source: 'drill' as const,
-                                weaknessCategory: w.category,
-                                example: w.examples[0] || '',
-                                correction: w.correction,
-                            }));
+                            const drillSpecs: FeedQuizSpec[] = [];
+                            for (const weakType of weakTypes.slice(0, 1)) {
+                                const context = await getRetryContext(userId, weakType as any);
+                                const lastError = context[0];
+                                drillSpecs.push({
+                                    phraseId: weakType,
+                                    phrase: lastError?.vocabPhrase || '',
+                                    meaning: '',
+                                    register: 'neutral',
+                                    questionType: 'retry',
+                                    source: 'drill' as const,
+                                    weaknessCategory: weakType,
+                                    example: lastError?.userAnswer || '',
+                                    correction: '',
+                                });
+                            }
+
+                            if (feedQuizSpecs.length > 0) {
+                                feedQuizSpecs[feedQuizSpecs.length - 1].questionType = 'fix_it';
+                            }
 
                             const feedReq = buildFeedQuizBatchRequest(userId, [...feedQuizSpecs, ...drillSpecs]);
                             allFeedQuizRequests.push(feedReq);
@@ -275,18 +319,24 @@ export async function runDailyImportLogic() {
                     }
 
                     if (allFeedQuizRequests.length > 0) {
+                        // Claim the slot FIRST
+                        await setDocument('batchJobs', batchDocId, {
+                            name: `feed_quizzes_${dateStr}`,
+                            provider: 'grok',
+                            type: 'feed_quiz_generation',
+                            status: 'creating',
+                            batchId: 'pending',
+                            requestCount: allFeedQuizRequests.length,
+                            submittedAt: new Date().toISOString(),
+                        });
+
                         feedQuizBatchId = await createBatch(`feed_quizzes_${dateStr}`, 'exercises');
                         await addBatchRequests(feedQuizBatchId, allFeedQuizRequests, 'exercises');
                         feedQuizRequestCount = allFeedQuizRequests.length;
 
-                        await addDocument('batchJobs', {
+                        await updateDocument('batchJobs', batchDocId, {
                             batchId: feedQuizBatchId,
-                            name: `feed_quizzes_${dateStr}`,
-                            provider: 'grok',
-                            type: 'feed_quiz_generation',
                             status: 'submitted',
-                            requestCount: allFeedQuizRequests.length,
-                            submittedAt: new Date().toISOString(),
                         });
 
                         console.log(`[DailyImport] Phase 3: submitted ${allFeedQuizRequests.length} feed quiz requests to Grok batch ${feedQuizBatchId}`);
@@ -310,12 +360,11 @@ export async function runDailyImportLogic() {
     if (hasKey) {
         try {
             const dateStr = new Date().toISOString().split('T')[0];
-            const existingPracticeArticles = await runQuery('batchJobs', [
-                { field: 'name', op: 'EQUAL', value: `practice_articles_${dateStr}` }
-            ], 1);
+            const batchDocId = safeDocId(`practicearticles_${dateStr}`);
 
-            if (existingPracticeArticles.length > 0) {
-                console.log(`[DailyImport] Phase 4: skipped (practice_articles_${dateStr} already submitted today)`);
+            const alreadyExists = await isBatchAlreadyCreatedToday(batchDocId, 'practice_article_generation');
+            if (alreadyExists) {
+                console.log(`[DailyImport] Phase 4: skipped (practice article batch already exists for today)`);
             } else {
                 const users = await queryCollection('users', { limit: 100 });
                 const tomorrow = new Date();
@@ -368,7 +417,11 @@ export async function runDailyImportLogic() {
                         }));
 
                         const clusters = clusterPhrasesByTopic(phrasesForBatch);
-                        const req = buildPracticeArticleBatchRequest(userId, phrasesForBatch, clusters);
+                        const weakTypes = await getWeakestTypes(userId);
+                        const PLATFORMS = ['linkedin', 'whatsapp', 'twitter', 'reddit', 'email', 'cover_letter', 'yelp_review', 'news_oped'];
+                        const sourcePlatform = PLATFORMS[Math.floor(Math.random() * PLATFORMS.length)];
+                        
+                        const req = buildPracticeArticleBatchRequest(userId, phrasesForBatch, clusters, weakTypes, sourcePlatform);
                         allArticleRequests.push(req);
                         userPhraseMap[userId] = listeningPhrases.map(p => p.id as string);
 
@@ -378,19 +431,24 @@ export async function runDailyImportLogic() {
                 }
 
                 if (allArticleRequests.length > 0) {
+                    // Claim the slot FIRST
+                    await setDocument('batchJobs', batchDocId, {
+                        name: `practice_articles_${dateStr}`,
+                        provider: 'grok',
+                        type: 'practice_article_generation',
+                        status: 'creating',
+                        batchId: 'pending',
+                        requestCount: allArticleRequests.length,
+                        submittedAt: new Date().toISOString(),
+                    });
+
                     practiceArticleBatchId = await createBatch(`practice_articles_${dateStr}`, 'exercises');
                     await addBatchRequests(practiceArticleBatchId, allArticleRequests, 'exercises');
                     practiceArticleRequestCount = allArticleRequests.length;
 
-                    await addDocument('batchJobs', {
+                    await updateDocument('batchJobs', batchDocId, {
                         batchId: practiceArticleBatchId,
-                        name: `practice_articles_${dateStr}`,
-                        provider: 'grok',
-                        type: 'practice_article_generation',
                         status: 'submitted',
-                        userPhraseMap,
-                        requestCount: allArticleRequests.length,
-                        submittedAt: new Date().toISOString(),
                     });
 
                     console.log(`[DailyImport] Phase 4: submitted ${allArticleRequests.length} practice article requests to batch ${practiceArticleBatchId}`);

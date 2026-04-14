@@ -153,22 +153,21 @@ export type SocialDistance =
 // Lexile/CEFR reading levels
 export type LexileLevel = 'A1' | 'A2' | 'B1' | 'B2';
 
-// Passive exercise question types (vocab-focused through story comprehension)
-// Questions test vocabulary indirectly by asking about narrative, not words
-export type QuestionType =
-    | 'character_motivation'   // Why people act/react (nuance + context)
-    | 'outcome_consequence'    // Cause-effect chains (collocations)
-    | 'problem_identification' // Central conflict (multiple root words)
-    | 'turning_point'          // Story direction change (phrases)
-    | 'tone_mood_shift'        // Atmosphere changes (register + nuance)
-    | 'relationship_dynamics'  // Social interactions (register awareness)
-    | 'attitude_reading'       // Inferring feelings (connotation)
-    | 'decision_reasoning'     // Why choices made (vocab in logic)
-    | 'communication_intent'   // Speaker's goal (social tact)
-    | 'detail_tracking'        // Specific info (factual context)
-    | 'comparison_contrast'    // Similar situations (near-synonyms)
-    | 'gap_inference'          // Predicting missing info (context)
-    | 'perspective_analysis';  // Different viewpoints (register + nuance)
+/** @deprecated Replaced by new PassiveQuestionType in v2 exercise system */
+export type LegacyQuestionType =
+    | 'character_motivation'
+    | 'outcome_consequence'
+    | 'problem_identification'
+    | 'turning_point'
+    | 'tone_mood_shift'
+    | 'relationship_dynamics'
+    | 'attitude_reading'
+    | 'decision_reasoning'
+    | 'communication_intent'
+    | 'detail_tracking'
+    | 'comparison_contrast'
+    | 'gap_inference'
+    | 'perspective_analysis';
 
 // Active exercise scenario types (role-play production)
 // User produces vocabulary naturally through authentic communication challenges
@@ -187,7 +186,7 @@ export type ActiveScenarioType =
 // Embedded question shown during reading/listening
 export interface EmbeddedQuestion {
     id: string;
-    type: QuestionType;
+    type: LegacyQuestionType;
     question: string;
     options: string[];
     correctIndex: number;           // 0-3
@@ -287,9 +286,9 @@ export interface SavedPhrase {
     nextReviewDate: Timestamp;
     lastReviewDate?: Timestamp;
 
-    // ====== INLINE EXERCISE SYSTEM (Blended Learning) ======
-    // Tracks which question formats have been used for round-robin variety
-    completedFormats?: ExerciseQuestionType[];
+    // ====== EXERCISE TRACKING ======
+    // Tracks which question types have been used for variety
+    completedFormats?: QuestionType[];
     // Last surface where this phrase was reviewed (for analytics)
     lastReviewSource?: ExerciseSurface;
     // Prevents double-serving across surfaces on the same day
@@ -795,476 +794,254 @@ export interface ConversationExercise {
 }
 
 // ============================================================================
-// DUOLINGO-STYLE EXERCISE SYSTEM
+// PASSAGE-CENTRIC EXERCISE SYSTEM (v2)
+// Thinking-first design: all questions derive from a single anchor passage.
+// Vocabulary is embedded naturally, never headlined.
 // ============================================================================
 
-// Session types for the new exercise system
-export type ExerciseSessionType = 'quick_practice' | 'story' | 'listening';
+// ── Skill Axes ──
+export type SkillAxis = 'cohesion' | 'task_achievement' | 'naturalness';
 
-// ============================================================================
-// INLINE EXERCISE SYSTEM (Blended Learning)
-// ============================================================================
+// ── Question Types (12-type MVP) ──
+export type PassiveQuestionType =
+    // Cohesion & Coherence
+    | 'spot_intruder'           // Which sentence breaks paragraph unity?
+    | 'restructure'             // Reorder scrambled sentences into logical flow
+    | 'match_pairs'             // Connect matching items (synonym, register, meaning)
+    | 'tap_passage'             // Tap on sentence/phrase/word in the passage
+    // Task Achievement
+    | 'fallacy_id'              // Name the logical flaw in the argument
+    | 'inference_bridge'        // Given the claim, what logically follows?
+    | 'rate_argument'           // Solid / has holes / falls apart
+    // Naturalness & Flexibility
+    | 'ab_natural'              // Pick which sentence sounds more natural
+    | 'register_sort'           // Sort sentences by formality
+    | 'tone_interpretation'     // What does the author's tone signal?
+    | 'fill_blank'              // Fill the blank from a word bank
+    | 'swipe_judge'             // Swipe right (natural) or left (unnatural)
+    // Categorization & Pragmatics
+    | 'category_sort'           // Sort items into labeled bins (register, connotation, etc.)
+    | 'best_response'           // Pick the best conversational response in a dialogue
+    | 'cloze_passage';          // Fill multiple blanks in a paragraph from a shared word bank
 
-// Where exercises can appear in the app
-export type ExerciseSurface =
-    | 'quote_swiper'    // Feed QuoteSwiper cards
-    | 'swipe_reader'    // Article SwipeReader cards
-    | 'full_article'    // Inline callout in full article
-    | 'action_gate'     // Before save/unlock actions
-    | 'dead_time'       // During loading states
-    | 'exercises_page'; // Dedicated /practice page
+export type ActiveQuestionType =
+    // Task Achievement
+    | 'fix_argument'            // Repair broken reasoning
+    // Naturalness
+    | 'register_shift'          // Rewrite for a different audience
+    // Synthesis (all axes)
+    | 'synthesis_response'      // Free-form position + vocab usage
+    // Assembly & Correction
+    | 'build_sentence'          // Arrange word chips into a correct sentence
+    | 'spot_and_fix';           // Tap the error word, type the correction
 
-// Simplified to 2 learning phases (was 4)
-export type LearningPhase = 'recognition' | 'production';
+export type QuestionType = PassiveQuestionType | ActiveQuestionType;
 
-// Question types organized into 2 phases
-export type ExerciseQuestionType =
-    // Recognition Phase (Review 1-3) — All surfaces
-    | 'social_consequence_prediction'  // What happens if you say this?
-    | 'situation_phrase_matching'      // Which phrase fits this situation? (MCQ)
-    | 'tone_interpretation'            // How does the speaker feel?
-    | 'contrast_exposure'              // What's the difference between X and Y?
-    | 'why_did_they_say'               // Why did they use THIS phrase?
-    | 'appropriateness_judgment'       // Is this phrase appropriate here?
-    | 'error_detection'                // What's wrong with this usage?
-    | 'fill_gap_mcq'                   // Complete the blank (MCQ)
-    | 'register_sorting'               // Sort phrases by formality
-    | 'reading_comprehension'          // GMAT RC: understand phrase in passage
-    | 'sentence_correction'            // GMAT SC: fix subtly misused phrase
+// ── Surfaces ──
+export type ExerciseSurface = 'session' | 'feed_card';
 
-    // Production Phase (Review 4+) — Exercises page + Full Article only
-    | 'constrained_production'         // Use phrase with given constraints
-    | 'transformation_exercise'        // Change register (casual→formal)
-    | 'dialogue_completion_open'       // Complete dialogue (open response)
-    | 'text_completion'                // GMAT TC: fill blanks in paragraph
-    | 'scenario_production'            // Generate full response using phrase
-    | 'multiple_response_generation'   // Give 2+ valid responses
-    | 'explain_to_friend'              // Teach someone when to use this
-    | 'creative_context_use'           // Create your own context
+// ── Feed Card Types ──
+export type FeedCardType =
+    | 'ab_natural'       // A/B pick — fastest to attempt
+    | 'retry'            // Error-driven retry (reframed question)
+    | 'spot_flaw'        // Logical flaw MCQ
+    | 'spot_intruder'    // Unity break detection
+    | 'fix_it';          // Active redirect → pre-generated session
 
-    // Story session specific (kept for story/listening modes)
-    | 'story_intro'                    // Read context (no answer required)
-    | 'listen_select'                  // Hear audio, pick phrase
-    | 'type_what_you_hear';            // Dictation
+export type SourcePlatform =
+    | 'linkedin' | 'whatsapp' | 'twitter' | 'reddit'
+    | 'email' | 'cover_letter' | 'yelp_review' | 'news_oped';
 
-// Universal inline question format — used by all exercise surfaces
-export interface InlineQuestion {
+// ── Anchor Passage (core of every session) ──
+export interface AnchorPassage {
+    text: string;                    // 600-900 word generated passage
+    topic: string;                   // e.g. "AI ethics in hiring"
+    centralClaim: string;            // The passage's arguable position
+    deliberateFlaws: {
+        logicalGap: string;          // Description of embedded logical gap
+        weakTransition: string;      // Which transition is weak
+        registerBreak: string;       // Which sentence has register inconsistency
+    };
+    embeddedVocab: string[];         // Vocab words naturally embedded
+    sourcePlatform?: SourcePlatform; // What real-world format it mimics
+}
+
+// ── Session Question ──
+export interface SessionQuestion {
     id: string;
-    phraseId: string;
-    phrase: string;
-    surface: ExerciseSurface;
-    phase: LearningPhase;
-    questionType: ExerciseQuestionType;
-
-    // Context-rich scenario (2-3 sentences, not one-liners)
-    scenario: string;
-    // Cluster phrases woven into the scenario for passive exposure
-    clusterPhrases?: string[];
-
-    // For recognition types (MCQ / binary)
+    type: QuestionType;
+    skillAxis: SkillAxis;
+    // Excerpt grouping: questions sharing an excerptId are shown under the same passage block
+    excerptId?: string;              // e.g. "ex_1" — groups questions under same excerpt
+    excerptText?: string;            // The shared excerpt text (set on first question of group)
+    // Content
+    prompt: string;                  // The question text
+    passageReference?: string;       // Specific excerpt from anchor passage (legacy / fallback)
+    // For passive (MCQ-based)
     options?: string[];
     correctIndex?: number;
-
-    // For production types (text input)
-    prompt?: string;
-
-    explanation?: string;
-    emotion?: string;  // e.g. 'sarcasm', 'panic', 'tenderness' — for UI badge
-    format?: string;   // e.g. 'fill_blank', 'tone_read', 'spot_error', 'best_response', 'true_false'
-    xpReward: number;
-}
-
-// Base interface for all question content types
-interface BaseQuestionContent {
-    type: ExerciseQuestionType;
-}
-
-// Story Intro - just displays text, no answer
-export interface StoryIntroContent extends BaseQuestionContent {
-    type: 'story_intro';
-    title: string;
-    narrative: string;
-    setting?: string;
-    characters?: string[];
-    segments?: StorySegment[]; // NEW: For structured conversational display
-}
-
-// Fill Gap MCQ - fill blank in conversation (was complete_dialogue)
-export interface FillGapMCQContent extends BaseQuestionContent {
-    type: 'fill_gap_mcq';
-    dialogue: Array<{
-        speaker: string;
+    // For reorder types
+    items?: string[];                // Sentences to reorder
+    correctOrder?: number[];         // Correct order indices
+    // For active (free response)
+    evaluationCriteria?: string[];   // What AI checks for
+    // For fill_blank
+    blankSentence?: string;          // Sentence with ____ placeholder
+    wordBank?: string[];             // Options to fill the blank
+    correctWord?: string;            // The correct word
+    // For swipe_judge
+    swipeCards?: Array<{             // Cards to swipe on
         text: string;
-        isBlank?: boolean;  // True if this is the blank to fill
+        isNatural: boolean;          // true = swipe right, false = swipe left
     }>;
-    options: string[];
-    correctIndex: number;
-    explanation?: string;
-}
-
-// Situation Phrase Matching - choose best response (was what_would_you_say)
-export interface SituationPhraseMatchingContent extends BaseQuestionContent {
-    type: 'situation_phrase_matching';
-    context: string;       // Situation description
-    prompt: string;        // What the other person said or did
-    options: string[];
-    correctIndex: number;
-    explanation?: string;
-}
-
-// Listen & Select - audio with MCQ
-export interface ListenSelectContent extends BaseQuestionContent {
-    type: 'listen_select';
-    audioText: string;     // Text that will be converted to audio
-    audioUrl?: string;     // Generated audio URL
-    question: string;      // "What phrase did you hear?"
-    options: string[];
-    correctIndex: number;
-    explanation?: string;
-}
-
-// Why Did They Say - comprehension question (was story_recall)
-export interface WhyDidTheySayContent extends BaseQuestionContent {
-    type: 'why_did_they_say';
-    question: string;      // "What happened when Maya used this phrase?"
-    options: string[];
-    correctIndex: number;
-    explanation?: string;
-    relatedParagraph?: string;  // Reference to story section
-}
-
-// Social Consequence Prediction - predict outcomes (was complete_the_story)
-export interface SocialConsequenceContent extends BaseQuestionContent {
-    type: 'social_consequence_prediction';
-    storyExcerpt: string;  // Story text with _____ for blank
-    blankPosition: number; // Character position of blank
-    options: string[];
-    correctIndex: number;
-    explanation?: string;
-}
-
-// Error Detection - find wrong word (was spot_mistake)
-export interface ErrorDetectionContent extends BaseQuestionContent {
-    type: 'error_detection';
-    sentence: string;      // Sentence with mistake
-    wrongWord: string;     // The incorrect word
-    options: string[];     // Possible correct words
-    correctIndex: number;
-    explanation?: string;
-}
-
-// Type What You Hear - dictation
-export interface TypeWhatYouHearContent extends BaseQuestionContent {
-    type: 'type_what_you_hear';
-    audioText: string;     // Text to be spoken
-    audioUrl?: string;     // Generated audio URL
-    acceptableAnswers: string[];  // Variations that are correct
-    hint?: string;         // Optional hint
-}
-
-// Appropriateness Judgment - when to use (was choose_situation)
-export interface AppropriatenessJudgmentContent extends BaseQuestionContent {
-    type: 'appropriateness_judgment';
-    phrase: string;        // The phrase in question
-    question: string;      // "When would you use this?"
-    options: string[];     // Situation descriptions
-    correctIndex: number;
-    explanation?: string;
-}
-
-// Constrained Production - write using phrase with constraints (was free_response)
-export interface ConstrainedProductionContent extends BaseQuestionContent {
-    type: 'constrained_production';
-    targetPhrase: string;
-    prompt: string;        // "Write a sentence using..."
-    hint?: string;
-    context: string;       // Context for AI evaluation
-}
-
-// Transformation Exercise - formal/casual conversion (was register_swap)
-export interface TransformationExerciseContent extends BaseQuestionContent {
-    type: 'transformation_exercise';
-    originalPhrase: string;
-    originalRegister: Register;
-    targetRegister: Register;
-    prompt: string;        // "Make this more formal/casual"
-    hint?: string;
-    acceptableAnswers?: string[];  // For client-side validation
-}
-// Tone Interpretation - identify speaker's emotion
-export interface ToneInterpretationContent extends BaseQuestionContent {
-    type: 'tone_interpretation';
-    context: string;        // Brief situation
-    dialogue: string;       // Speaker says target phrase
-    question: string;       // "How does [speaker] feel?"
-    options: string[];      // Emotion options
-    correctIndex: number;
-    explanation?: string;
-}
-
-// Contrast Exposure - show differences between similar phrases
-export interface ContrastExposureContent extends BaseQuestionContent {
-    type: 'contrast_exposure';
-    phrase1: string;
-    phrase2: string;
-    context: string;        // Situation where difference matters
-    scenario1: string;      // Outcome when phrase1 used
-    scenario2: string;      // Outcome when phrase2 used
-    question: string;       // "What's the difference?"
+    // For match_pairs
+    pairs?: Array<{                  // Items to match
+        left: string;
+        right: string;
+    }>;
+    // For tap_passage
+    tappableSegments?: string[];     // Segments the passage is split into
+    correctSegmentIndex?: number;    // Which segment is the correct answer
+    // Feedback
     explanation: string;
-}
-
-// Register Sorting - categorize phrases by formality
-export interface RegisterSortingContent extends BaseQuestionContent {
-    type: 'register_sorting';
-    phrases: string[];      // Phrases to sort
-    categories: string[];   // e.g., ["Casual", "Neutral", "Formal"]
-    correctAssignment: Record<string, string>;  // phrase → category
-    explanation?: string;
-}
-
-// Dialogue Completion Open - free-form dialogue completion
-export interface DialogueCompletionOpenContent extends BaseQuestionContent {
-    type: 'dialogue_completion_open';
-    context: string;        // Situation description
-    dialogueBefore: string; // Dialogue leading up to blank
-    targetPhrase: string;   // Phrase that should be used
-    hint?: string;
-    rubric: {
-        phrase_used: boolean;
-        natural_flow: boolean;
-        context_appropriate: boolean;
-    };
-}
-
-// Scenario Production - full response generation
-export interface ScenarioProductionContent extends BaseQuestionContent {
-    type: 'scenario_production';
-    scenario: string;       // Full scenario description
-    targetPhrase: string;   // Phrase to use naturally
-    evaluationCriteria: {
-        phrase_present: boolean;
-        natural_use: string;     // 4-tier rubric result
-        context_appropriate: boolean;
-        social_awareness: boolean;
-    };
-}
-
-// Multiple Response Generation - generate 2+ valid responses
-export interface MultipleResponseGenerationContent extends BaseQuestionContent {
-    type: 'multiple_response_generation';
-    context: string;        // Situation description
-    targetPhrase: string;   // Phrase to demonstrate
-    requiredCount: number;  // Min responses (usually 2)
-    hint?: string;
-}
-
-// Explain to Friend - teach the phrase
-export interface ExplainToFriendContent extends BaseQuestionContent {
-    type: 'explain_to_friend';
-    setup: string;          // "Your friend who's learning English asks..."
-    targetPhrase: string;
-    requirements: string[]; // What to include in explanation
-}
-
-// Creative Context Use - create own context
-export interface CreativeContextUseContent extends BaseQuestionContent {
-    type: 'creative_context_use';
-    targetPhrase: string;
-    prompt: string;         // "Create a situation where you'd use this"
-    constraints?: string[]; // Optional constraints
-}
-
-// GMAT-Style: Reading Comprehension - understand phrase in passage context
-export interface ReadingComprehensionContent extends BaseQuestionContent {
-    type: 'reading_comprehension';
-    passage: string;           // 3-5 sentence paragraph using the phrase naturally
-    targetPhrase: string;      // The phrase being tested
-    question: string;          // "What does X mean in this context?" or inference Q
-    options: string[];
-    correctIndex: number;
-    explanation?: string;
-}
-
-// GMAT-Style: Sentence Correction - identify and fix misused phrase
-export interface SentenceCorrectionContent extends BaseQuestionContent {
-    type: 'sentence_correction';
-    sentence: string;          // Sentence with subtly misused phrase
-    underlinedPortion: string; // The misused part (highlighted in UI)
-    options: string[];         // 4 correction options (one is "No change needed")
-    correctIndex: number;
-    explanation?: string;
-}
-
-// GMAT-Style: Text Completion - fill blanks in paragraph from word bank
-export interface TextCompletionContent extends BaseQuestionContent {
-    type: 'text_completion';
-    paragraph: string;         // Text with [BLANK_1] and [BLANK_2] placeholders
-    blanks: Array<{            // Info for each blank
-        id: string;            // e.g. "BLANK_1"
-        correctAnswer: string; // The right phrase
+    // Phase-based session: which learning phase this question targets
+    learningPhase?: 'recognition' | 'active_recall' | 'production';
+    // Production tracking: phrases the user should use in freewrite
+    expectedPhrases?: string[];          // Phrase text to use
+    expectedPhraseIds?: string[];        // Corresponding phrase doc IDs
+    phraseUsageResults?: Array<{         // Filled after AI evaluation
+        phraseId: string;
+        phrase: string;
+        used: boolean;
+        usageQuality: 'natural' | 'forced' | 'missing';
     }>;
-    wordBank: string[];        // 5-6 options including correct + distractors
-    explanation?: string;
+    // For category_sort
+    categories?: string[];               // Bin labels (e.g. ["Formal", "Casual"])
+    categoryItems?: Array<{              // Items to sort into bins
+        text: string;
+        correctCategory: number;         // Index into categories array
+    }>;
+    // For build_sentence
+    sentenceChips?: string[];            // Word/phrase chips to arrange
+    correctSentence?: string;            // The correct assembled sentence
+    // For spot_and_fix
+    errorSentence?: string;              // Sentence containing an error
+    errorSegments?: string[];            // Sentence split into tappable segments
+    errorIndex?: number;                 // Index of the error segment
+    correctFix?: string;                 // The correct replacement
+    // For best_response (dialogue turn)
+    dialogueTurns?: Array<{              // Conversation thread
+        speaker: string;                 // Speaker name/label
+        text: string;                    // What they said
+    }>;
+    responseOptions?: string[];          // Response choices
+    correctResponseIndex?: number;       // Index of correct response
+    // For cloze_passage
+    clozeText?: string;                  // Paragraph with __(1)__, __(2)__ etc.
+    blanks?: Array<{                     // Blank definitions
+        index: number;                   // Blank number (1-based)
+        correctWord: string;             // Correct fill
+    }>;
+    // Listening mode: audio-first presentation of the question
+    isListening?: boolean;               // If true, passage/options are heard, not read
+    listeningText?: string;              // Text to synthesize (defaults to passageReference)
+    // Chaining: references a previous question this builds on
+    chainedFrom?: string;            // ID of the Phase 2 question this extends
 }
 
-// Skill categories for GMAT-style node labeling
-export type SkillCategory =
-    | 'Contextual Usage'
-    | 'Register Awareness'
-    | 'Pragmatic Reasoning'
-    | 'Error Analysis'
-    | 'Reading Comprehension'
-    | 'Active Recall'
-    | 'Meta-Knowledge';
-
-// Maps each skill to its question types
-export const SKILL_QUESTION_MAP: Record<SkillCategory, ExerciseQuestionType[]> = {
-    'Contextual Usage': ['situation_phrase_matching', 'fill_gap_mcq', 'social_consequence_prediction', 'appropriateness_judgment'],
-    'Register Awareness': ['register_sorting', 'transformation_exercise'],
-    'Pragmatic Reasoning': ['why_did_they_say', 'tone_interpretation', 'contrast_exposure'],
-    'Error Analysis': ['error_detection', 'sentence_correction'],
-    'Reading Comprehension': ['reading_comprehension'],
-    'Active Recall': ['constrained_production', 'dialogue_completion_open', 'scenario_production', 'text_completion'],
-    'Meta-Knowledge': ['explain_to_friend', 'multiple_response_generation', 'creative_context_use'],
-};
-
-// Union type for all question content
-export type ExerciseQuestionContent =
-    | StoryIntroContent
-    | FillGapMCQContent
-    | SituationPhraseMatchingContent
-    | ListenSelectContent
-    | WhyDidTheySayContent
-    | SocialConsequenceContent
-    | ErrorDetectionContent
-    | TypeWhatYouHearContent
-    | AppropriatenessJudgmentContent
-    | ConstrainedProductionContent
-    | TransformationExerciseContent
-    | ToneInterpretationContent
-    | ContrastExposureContent
-    | RegisterSortingContent
-    | DialogueCompletionOpenContent
-    | ScenarioProductionContent
-    | MultipleResponseGenerationContent
-    | ExplainToFriendContent
-    | CreativeContextUseContent
-    | ReadingComprehensionContent
-    | SentenceCorrectionContent
-    | TextCompletionContent;
-
-// ============================================================================
-// BACKWARD COMPATIBILITY ALIASES
-// These aliases maintain compatibility with existing components using old names
-// ============================================================================
-/** @deprecated Use FillGapMCQContent instead */
-export type CompleteDialogueContent = FillGapMCQContent;
-/** @deprecated Use SituationPhraseMatchingContent instead */
-export type WhatWouldYouSayContent = SituationPhraseMatchingContent;
-/** @deprecated Use WhyDidTheySayContent instead */
-export type StoryRecallContent = WhyDidTheySayContent;
-/** @deprecated Use SocialConsequenceContent instead */
-export type CompleteTheStoryContent = SocialConsequenceContent;
-/** @deprecated Use ErrorDetectionContent instead */
-export type SpotMistakeContent = ErrorDetectionContent;
-/** @deprecated Use AppropriatenessJudgmentContent instead */
-export type ChooseSituationContent = AppropriatenessJudgmentContent;
-/** @deprecated Use ConstrainedProductionContent instead */
-export type FreeResponseContent = ConstrainedProductionContent;
-/** @deprecated Use TransformationExerciseContent instead */
-export type RegisterSwapContent = TransformationExerciseContent;
-
-
-export interface ExerciseQuestion {
-    id: string;
-    type: ExerciseQuestionType;
-    content: ExerciseQuestionContent;
-    targetPhraseIds: string[];   // Phrases being TESTED
-    contextPhraseIds: string[];  // Phrases for context only (not tested)
-    xpReward: number;
-    explanation?: string;
-    trivia?: string;
-}
-
-// Story context for a session
-export interface StorySegment {
-    type: 'dialogue' | 'narration';
-    text: string;
-    speaker?: string;      // Name of speaker (e.g. "Marcus")
-    speakerRole?: string;  // Role/Title (e.g. "Philosopher")
-}
-
-export interface ExerciseStoryContext {
-    title: string;
-    setting: string;
-    characters: string[];
-    narrative: string;           // Full story text (legacy/fallback)
-    paragraphs: string[];        // Story split into paragraphs (legacy/fallback)
-    segments: StorySegment[];    // NEW: Structured segments for conversational UI
-    audioUrl?: string;           // For listening sessions
-}
-
-// Complete exercise session
+// ── Exercise Session ──
 export interface ExerciseSession {
     id: string;
     userId: string;
-    type: ExerciseSessionType;
-    clusterId: string;
-    storyContext: ExerciseStoryContext;
-    questions: ExerciseQuestion[];
-    testedPhraseIds: string[];
-    contextPhraseIds: string[];
-    usagesIncluded?: Array<{
-        parentPhraseId: string;
-        parentPhrase: string;
-        usage: { phrase: string; meaning: string; type: string };
-    }>;
-    status: 'pending' | 'in_progress' | 'completed';
-    createdAt: Timestamp;
-    completedAt?: Timestamp;
+    anchorPassage: AnchorPassage;
+    questions: SessionQuestion[];
+    vocabWordIds: string[];          // SavedPhrase IDs embedded in passage
+    status: 'generated' | 'in_progress' | 'completed';
+    createdAt: string;
+    completedAt?: string;
+    results?: SessionQuestionResult[];
 }
 
-// Result of answering a question
-export interface QuestionResult {
+// ── Session Question Result ──
+export interface SessionQuestionResult {
     questionId: string;
+    type: QuestionType;
+    skillAxis: SkillAxis;
     correct: boolean;
-    userAnswer: string;
-    xpEarned: number;
-    timeTaken: number;           // Seconds
-}
-
-// Result of completing a session
-export interface SessionResult {
-    sessionId: string;
-    questionsAnswered: number;
-    correctAnswers: number;
-    totalXpEarned: number;
-    accuracy: number;            // 0-100
-    timeTaken: number;           // Total seconds
-    phraseResults: Array<{
+    userAnswer: string;              // Index for MCQ, text for active
+    timeTaken: number;               // Seconds
+    aiFeedback?: string;             // For active questions
+    // Production tracking: per-phrase usage results from freewrite evaluation
+    phraseUsageResults?: Array<{
         phraseId: string;
-        correct: boolean;
-        newLearningStep?: number;
+        phrase: string;
+        used: boolean;
+        usageQuality: 'natural' | 'forced' | 'missing';
     }>;
 }
 
-// User daily progress
-export interface DailyProgress {
+// ── Feed Card ──
+export interface FeedCard {
+    id: string;
     userId: string;
-    date: string;                // YYYY-MM-DD
-    quickPracticeCompleted: boolean;
-    storyCompleted: boolean;
-    listeningCompleted: boolean;
-    totalXp: number;
-    streakMaintained: boolean;
+    cardType: FeedCardType;
+    skillAxis: SkillAxis;
+    // Source content block (real-world format)
+    sourceContent: string;           // The LinkedIn post / WhatsApp message / etc.
+    sourcePlatform: SourcePlatform;
+    sourceLabel: string;             // "💼 LinkedIn post"
+    // Question
+    prompt: string;
+    options?: string[];
+    correctIndex?: number;
+    explanation: string;
+    // Vocab (embedded, never headlined)
+    vocabWordId?: string;
+    vocabPhrase?: string;
+    // Retry-specific
+    isRetry?: boolean;
+    retryQuestionType?: QuestionType;
+    daysSinceError?: number;
+    // Fix It redirect
+    linkedSessionId?: string;        // Pre-generated session to redirect to
+    // Timing
+    estimatedSeconds: number;        // Shows on card
+    createdAt: string;
+    answeredAt?: string;
+    answeredCorrectly?: boolean;
 }
 
-// AI evaluation result for free response / register swap
+// ── Per-Question-Type Weakness Tracking ──
+// One doc per user per question type (max 12 docs per user in MVP)
+export interface QuestionTypeWeakness {
+    id: string;                      // `${userId}_${questionType}`
+    userId: string;
+    questionType: QuestionType;
+    skillAxis: SkillAxis;
+    wrongCount: number;
+    correctCount: number;
+    weight: number;                  // wrongs / (wrongs + corrects), 0-1
+    lastWrongAt: string;
+    lastCorrectAt?: string;
+    // Recent error instances for retry card context
+    recentErrors: Array<{
+        vocabPhrase?: string;
+        sessionId?: string;
+        feedCardId?: string;
+        userAnswer: string;
+        timestamp: string;
+    }>;
+}
+
+// ── AI Evaluation Result (for active questions) ──
 export interface AIEvaluationResult {
     correct: boolean;
-    naturalness: 'natural' | 'forced' | 'incorrect';
-    feedback: string;
-    suggestion?: string;         // Better phrasing if not natural
+    criteria: {
+        logicalValidity?: boolean;   // Does the claim follow from premises?
+        cohesion?: boolean;          // Does it read as a unified piece?
+        registerFit?: boolean;       // Is the tone appropriate?
+        vocabUsage?: 'natural' | 'forced' | 'absent'; // Target word usage
+    };
+    feedback: string;                // One-paragraph diagnosis
+    suggestion?: string;             // Better phrasing if applicable
 }
-

@@ -6,22 +6,22 @@ import { useRouter } from 'next/navigation';
 import { Quote } from './QuoteCard';
 import { ArrowLeft, ArrowRight, Heart } from 'lucide-react';
 import { useVocabHighlighter } from '@/components/article/useVocabHighlighter';
-import { VocabPopupCard } from '@/components/article/VocabPopupCard';
+import { TapToSelect } from '@/components/vocab/TapToSelect';
+import { useDictionaryStore } from '@/stores/dictionary-store';
 import { EditorialLoader } from '@/components/ui/editorial-loader';
-import { QuizCard } from '@/components/exercise/QuizCard';
+import FeedCardComponent from '@/components/exercise/FeedCard';
 import { TopicPicker } from '@/components/quotes/TopicPicker';
 import { cn } from '@/lib/utils';
 import { useTTS } from '@/hooks/use-tts';
-import type { InlineQuestion } from '@/lib/db/types';
+import type { FeedCard } from '@/lib/db/types';
 
 interface DeckItem {
     id: string;
     type: 'quote' | 'quiz';
-    data: any; // Quote | InlineQuestion
+    data: any; // Quote | FeedCard
     quizState?: {
         hasAnswered: boolean;
         result: 'correct' | 'wrong' | null;
-        xpEarned: number;
     };
 }
 
@@ -117,6 +117,10 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
     const viewedBufferRef = useRef<string[]>([]);
     const FLUSH_EVERY = 5;
 
+    // Dwell-time tracking: implicit preference signal
+    const cardShownAtRef = useRef<number>(Date.now());
+    const dwellSignalBufferRef = useRef<Array<{ topic: string; weight: number; tags?: string[] }>>([]);
+
     // Smart Injection state
     const quizQueueRef = useRef<any[]>([]);
     const targetQuizSwipesRef = useRef<Set<number>>(new Set());
@@ -126,21 +130,8 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
 
     const { stop: stopAudio } = useTTS();
 
-    // Vocab popup state
-    const [vocabPopup, setVocabPopup] = useState<{
-        phrase: string;
-        meaning: string;
-        register?: string | string[];
-        nuance?: string | string[];
-        context?: string;
-        contextTranslation?: string;
-        pronunciation?: string;
-        topic?: string | string[];
-        subtopic?: string;
-        isHighFrequency?: boolean;
-    } | null>(null);
-    const [bounceKey, setBounceKey] = useState(0);
-    const [savedPhrases, setSavedPhrases] = useState<Set<string>>(new Set());
+    // Global dictionary store (replaces local vocabPopup state)
+    const { openPopup: globalOpenPopup, userId: storeUserId, userEmail: storeUserEmail, reviewOpen, reviewCards, loadReviewCards } = useDictionaryStore();
     // Apply rough-notation highlights when active card changes (only for quotes)
     useVocabHighlighter(cardStackRef, [activeIndex, deck]);
 
@@ -148,11 +139,18 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
     const dragX = useMotionValue(0);
     const dragRotate = useTransform(dragX, [-200, 0, 200], [-8, 0, 8]);
 
-    // Flush viewed buffer to API
+    // Reset dwell timer when active card changes
+    useEffect(() => {
+        cardShownAtRef.current = Date.now();
+    }, [activeIndex]);
+
+    // Flush viewed buffer to API (includes dwell-time signals)
     const flushViewedBuffer = useCallback(async (topicBoost?: string, tagsBoost?: string[]) => {
         const ids = [...viewedBufferRef.current];
-        if (ids.length === 0 && !topicBoost && (!tagsBoost || tagsBoost.length === 0)) return;
+        const dwellSignals = [...dwellSignalBufferRef.current];
+        if (ids.length === 0 && !topicBoost && (!tagsBoost || tagsBoost.length === 0) && dwellSignals.length === 0) return;
         viewedBufferRef.current = [];
+        dwellSignalBufferRef.current = [];
 
         try {
             const { account } = await import('@/lib/appwrite/client');
@@ -172,12 +170,14 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
                     quoteIds: ids,
                     boostTopicName: topicBoost,
                     boostTags: tagsBoost,
+                    dwellSignals: dwellSignals.length > 0 ? dwellSignals : undefined,
                 }),
             });
         } catch (err) {
             console.error('[ViewTracking] Flush failed:', err);
             // Put IDs back in buffer
             viewedBufferRef.current = [...ids, ...viewedBufferRef.current];
+            dwellSignalBufferRef.current = [...dwellSignals, ...dwellSignalBufferRef.current];
         }
     }, [userId]);
 
@@ -350,10 +350,34 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
         // Stop any currently playing audio from quiz cards
         stopAudio();
 
-        // Track viewed quote
+        // Track viewed quote + compute dwell-time signal
         const currentItem = deck[activeIndex];
         if (currentItem?.type === 'quote' && currentItem.id) {
             viewedBufferRef.current.push(currentItem.id);
+
+            // Dwell-time implicit signal
+            const dwellMs = Date.now() - cardShownAtRef.current;
+            const quoteData = currentItem.data as any;
+            const quoteTopic = quoteData?.topic;
+            if (quoteTopic) {
+                let dwellWeight = 0;
+                if (dwellMs < 1500) {
+                    // Quick skip (<1.5s) — user probably isn't interested in this topic
+                    dwellWeight = -0.5;
+                } else if (dwellMs > 4000) {
+                    // Long dwell (>4s) — user is genuinely reading/enjoying this content
+                    dwellWeight = 2;
+                }
+                // Neutral zone (1.5-4s) = no signal (normal reading pace)
+                if (dwellWeight !== 0) {
+                    dwellSignalBufferRef.current.push({
+                        topic: quoteTopic,
+                        weight: dwellWeight,
+                        tags: quoteData?.tags,
+                    });
+                }
+            }
+
             // Flush every N swipes
             if (viewedBufferRef.current.length >= FLUSH_EVERY) {
                 flushViewedBuffer();
@@ -391,7 +415,6 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
                             quizState: {
                                 hasAnswered: false,
                                 result: null,
-                                xpEarned: 0,
                             },
                         };
 
@@ -503,7 +526,7 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
         const currentItem = deck[activeIndex];
         if (!currentItem || currentItem.type !== 'quiz' || currentItem.quizState?.hasAnswered) return;
 
-        const question = currentItem.data as InlineQuestion;
+        const question = currentItem.data as any;
         const isCorrect = answerIndex === question.correctIndex;
         const resultStatus = isCorrect ? 'correct' : 'wrong';
 
@@ -515,7 +538,6 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
                 quizState: {
                     hasAnswered: true,
                     result: resultStatus,
-                    xpEarned: isCorrect ? question.xpReward : 0
                 }
             };
             return next;
@@ -544,91 +566,25 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
         }, isCorrect ? 1500 : 3000);
     };
 
-    // Handle clicks on highlighted vocab marks
-    const handleMarkClick = useCallback((e: React.MouseEvent) => {
-        const target = e.target as HTMLElement;
-        if (target.tagName !== 'MARK' || !target.dataset.phrase) return;
+    // Handle lookup from TapToSelect — pipe to global dictionary store
+    const handleTapLookup = useCallback((phrase: string, context: string) => {
+        if (!storeUserId || !storeUserEmail) return;
+        globalOpenPopup(phrase, context, storeUserId, storeUserEmail);
+    }, [storeUserId, storeUserEmail, globalOpenPopup]);
 
-        e.stopPropagation();
-        const phrase = (target as any).target?.dataset?.phrase || target.dataset.phrase;
-        
-        const currentItem = deck[activeIndex];
-        const quoteText = currentItem?.type === 'quote' ? (currentItem.data as Quote).text : '';
+    // Handle clicking a highlighted review phrase — also pipe to global store
+    const handleHighlightClick = useCallback((phrase: string, context: string) => {
+        if (!storeUserId || !storeUserEmail) return;
+        globalOpenPopup(phrase, context, storeUserId, storeUserEmail);
+    }, [storeUserId, storeUserEmail, globalOpenPopup]);
 
-        // Same phrase clicked again → bounce
-        if (vocabPopupPhraseRef.current?.toLowerCase() === phrase.toLowerCase()) {
-            setBounceKey(k => k + 1);
-            return;
-        }
-
-        vocabPopupPhraseRef.current = phrase;
-        setBounceKey(0);
-        setVocabPopup({
-            phrase,
-            meaning: 'Looking up...',
-            context: quoteText,
-        });
-
-        // Fetch phrase data from API
-        fetch('/api/user/lookup-phrase', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'x-user-id': userId },
-            body: JSON.stringify({ phrase, context: quoteText }),
-        })
-            .then(res => res.ok ? res.json() : null)
-            .then(data => {
-                if (!data) return;
-                const result = data.data || data;
-                setVocabPopup(prev => {
-                    if (!prev || prev.phrase.toLowerCase() !== phrase.toLowerCase()) return prev;
-                    return {
-                        ...prev,
-                        phrase: prev.phrase,
-                        meaning: result.meaning || prev.meaning,
-                        register: result.register,
-                        nuance: result.nuance,
-                        context: result.context || prev.context,
-                        contextTranslation: result.contextTranslation,
-                        pronunciation: result.pronunciation,
-                        topic: result.topic,
-                        subtopic: result.subtopic,
-                        isHighFrequency: result.isHighFrequency,
-                    };
-                });
-            })
-            .catch(err => console.error('Phrase lookup failed:', err));
-    }, [activeIndex, deck, userId]);
-
-    // Save phrase to user vocab
-    const handleSavePhrase = useCallback(async () => {
-        if (!vocabPopup || !userId) return;
-        try {
-            const res = await fetch('/api/user/save-phrase', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'x-user-id': userId },
-                body: JSON.stringify({
-                    phrase: vocabPopup.phrase,
-                    meaning: vocabPopup.meaning,
-                    context: vocabPopup.context || '',
-                    register: vocabPopup.register || 'consultative',
-                    nuance: vocabPopup.nuance,
-                    topics: vocabPopup.topic ? (Array.isArray(vocabPopup.topic) ? vocabPopup.topic : [vocabPopup.topic]) : undefined,
-                    subtopics: vocabPopup.subtopic ? [vocabPopup.subtopic] : undefined,
-                }),
-            });
-            if (res.ok) {
-                setSavedPhrases(prev => new Set(prev).add(vocabPopup.phrase.toLowerCase()));
-            }
-        } catch (e) {
-            console.error('Save phrase failed:', e);
-        }
-    }, [vocabPopup, userId]);
-
-    // Dismiss popup when card changes
+    // Load review cards when active card text changes
     useEffect(() => {
-        setVocabPopup(null);
-        vocabPopupPhraseRef.current = null;
-    }, [activeIndex]);
+        const currentItem = deck[activeIndex];
+        if (currentItem?.type === 'quote' && storeUserId) {
+            loadReviewCards((currentItem.data as Quote).text, storeUserId);
+        }
+    }, [activeIndex, deck, storeUserId, loadReviewCards]);
 
     if (loading) {
         return (
@@ -684,7 +640,7 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
     return (
         <div className="relative">
             {/* Topic Filter Bar */}
-            <div className="bg-neutral-50/60 backdrop-blur-sm p-3 rounded-2xl border border-neutral-100 flex gap-2 overflow-x-auto pb-3 mb-6 mt-2 px-3 no-scrollbar scroll-smooth">
+            <div className="flex gap-2 overflow-x-auto pb-3 mb-6 mt-2 no-scrollbar scroll-smooth border-b border-neutral-200">
                 {FEED_TOPICS.map(topic => {
                     const isSelected = selectedTopics.includes(topic.id);
                     return (
@@ -697,13 +653,13 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
                                         : [...prev, topic.id]
                                 );
                             }}
-                            className={`flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full border text-sm font-medium transition-all duration-200 ${
+                            className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 border text-[11px] font-bold uppercase tracking-[0.08em] transition-all duration-200 ${
                                 isSelected 
-                                ? 'bg-neutral-900 border-neutral-900 text-white shadow-sm scale-105' 
-                                : 'bg-white border-neutral-200 text-neutral-500 hover:border-neutral-400 hover:text-neutral-900 shadow-sm'
+                                ? 'bg-neutral-900 border-neutral-900 text-white' 
+                                : 'bg-transparent border-neutral-200 text-neutral-500 hover:border-neutral-900 hover:text-neutral-900'
                             }`}
                         >
-                            <span className="text-base">{topic.emoji}</span>
+                            <span className="text-sm">{topic.emoji}</span>
                             <span>{topic.label}</span>
                         </button>
                     )
@@ -738,14 +694,24 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
                             transition={SPRING}
                         >
                             {item.type === 'quiz' ? (
-                                /* Quiz Card — rendered inline, same size as quote cards */
-                                <QuizCard
-                                    question={item.data as InlineQuestion}
-                                    onAnswer={handleQuizAnswer}
-                                    onSkip={() => { sendToBack(); }}
-                                    hasAnswered={item.quizState?.hasAnswered || false}
-                                    result={item.quizState?.result || null}
-                                    xpEarned={item.quizState?.xpEarned || 0}
+                                <FeedCardComponent
+                                    card={item.data as FeedCard}
+                                    onAnswer={(cardId, correct) => {
+                                        setDeck(prev => {
+                                            const next = [...prev];
+                                            const idx = prev.indexOf(item);
+                                            if (idx >= 0) {
+                                                next[idx] = {
+                                                    ...next[idx],
+                                                    quizState: { hasAnswered: true, result: correct ? 'correct' : 'wrong' },
+                                                };
+                                            }
+                                            return next;
+                                        });
+                                        // Auto-advance after answer
+                                        setTimeout(() => sendToBack(), 2000);
+                                    }}
+                                    onFixIt={(sessionId) => router.push(`/practice/session/${sessionId}`)}
                                 />
                             ) : (
                                 /* Regular Quote Card */
@@ -767,21 +733,16 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
                                     )}
 
                                     {/* Quote Text */}
-                                    <div className="flex-1 flex items-center px-10 md:px-14 py-8 overflow-hidden" onClick={isTop ? handleMarkClick : undefined}>
-                                        {(item.data as Quote).highlightedPhrases && (item.data as Quote).highlightedPhrases!.length > 0 ? (
-                                            <p
-                                                className="text-xl md:text-[24px] md:leading-[1.6] text-neutral-900 tracking-tight line-clamp-5"
-                                                style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
-                                                dangerouslySetInnerHTML={{ __html: highlightQuoteText((item.data as Quote).text, (item.data as Quote).highlightedPhrases || []) }}
-                                            />
-                                        ) : (
-                                            <p
-                                                className="text-xl md:text-[24px] md:leading-[1.6] text-neutral-900 tracking-tight line-clamp-5"
-                                                style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
-                                            >
-                                                {decodeHtmlEntities((item.data as Quote).text)}
-                                            </p>
-                                        )}
+                                    <div className="flex-1 flex items-center px-10 md:px-14 py-8 overflow-hidden">
+                                        <TapToSelect
+                                            text={decodeHtmlEntities((item.data as Quote).text)}
+                                            className="text-xl md:text-[24px] md:leading-[1.6] text-neutral-900 tracking-tight line-clamp-5"
+                                            style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
+                                            onLookup={handleTapLookup}
+                                            highlightedPhrases={isTop && reviewOpen ? reviewCards.map(c => c.phrase) : []}
+                                            onHighlightClick={handleHighlightClick}
+                                            disabled={!isTop}
+                                        />
                                     </div>
 
                                     {/* Bottom bar */}
@@ -842,43 +803,7 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
                 </button>
             </div>
 
-            {/* Vocab Popup */}
-            <AnimatePresence mode="wait">
-                {vocabPopup && (
-                    <VocabPopupCard
-                        key={vocabPopup.phrase}
-                        phrase={vocabPopup.phrase}
-                        meaning={vocabPopup.meaning}
-                        register={vocabPopup.register}
-                        nuance={vocabPopup.nuance}
-                        context={vocabPopup.context}
-                        contextTranslation={vocabPopup.contextTranslation}
-                        pronunciation={vocabPopup.pronunciation}
-                        topic={vocabPopup.topic}
-                        subtopic={vocabPopup.subtopic}
-                        isHighFrequency={vocabPopup.isHighFrequency}
-                        bounceKey={bounceKey}
-                        onSave={handleSavePhrase}
-                        onDismiss={() => { vocabPopupPhraseRef.current = null; setVocabPopup(null); }}
-                        isSaved={savedPhrases.has(vocabPopup.phrase.toLowerCase())}
-                    />
-                )}
-            </AnimatePresence>
-
-            {/* Vocab highlight styles */}
-            <style jsx global>{`
-                .vocab-highlight {
-                    background: transparent;
-                    color: inherit;
-                    cursor: pointer;
-                    padding: 0 2px;
-                    margin: 0 -2px;
-                }
-                .vocab-highlight:hover {
-                    background: rgba(245, 158, 11, 0.15);
-                    border-radius: 2px;
-                }
-            `}</style>
+            {/* Vocab Popup is now handled globally by DictionaryWidget in layout.tsx */}
         </div>
     );
 }

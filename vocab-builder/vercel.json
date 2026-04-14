@@ -1,16 +1,2 @@
 {
-    "crons": [
-        {
-            "path": "/api/cron/daily-import",
-            "schedule": "0 21 * * *"
-        },
-        {
-            "path": "/api/cron/collect-batch",
-            "schedule": "0 22 * * *"
-        },
-        {
-            "path": "/api/cron/generate-facts",
-            "schedule": "0 23 * * *"
-        }
-    ]
 }

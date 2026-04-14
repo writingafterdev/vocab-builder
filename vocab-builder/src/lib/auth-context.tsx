@@ -21,11 +21,7 @@ interface UserProfile {
         currentStreak: number;
         longestStreak: number;
         lastStudyDate: Date | string | null;
-        xp?: number;
-        level?: number;
-        xpToday?: number;
-        xpTodayDate?: string | null;
-        redeemedDays?: number;
+
     };
     subscription: {
         status: 'trial' | 'active' | 'expired' | 'cancelled';
@@ -106,11 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                         currentStreak: 0,
                         longestStreak: 0,
                         lastStudyDate: null,
-                        xp: 0,
-                        level: 1,
-                        xpToday: 0,
-                        xpTodayDate: null,
-                        redeemedDays: 0,
+
                     }),
                     subscription: JSON.stringify({
                         status: 'trial',

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { AnimatePresence } from 'framer-motion';
 import { useRouter, usePathname } from 'next/navigation';
 import { Post, ArticleSection, LexileLevel, Comment as FirestoreComment, RedditComment } from '@/lib/db/types';
 import { updatePost } from '@/lib/db/admin';
@@ -11,7 +10,7 @@ import { SwipeReader } from './SwipeReader';
 import { LevelSwitcher } from './LevelSwitcher';
 import { ArticleDock, ArticleDockGroup } from './ArticleDock';
 import { FloatingDock, DockItem } from '@/components/ui/floating-dock';
-import { VocabPopupCard } from './VocabPopupCard';
+import { useDictionaryStore } from '@/stores/dictionary-store';
 import { ArrowLeft, Volume2, Bookmark, ArrowLeftRight, Loader2, Sparkles, MessageSquare } from 'lucide-react';
 import { BookOpen, BookmarkSimple, PencilSimple, SquaresFour, User, Gear } from '@phosphor-icons/react';
 
@@ -65,6 +64,9 @@ export function ArticleReadingMode({
     const [showNavDock, setShowNavDock] = useState(false);
     const [extractedPhrases, setExtractedPhrases] = useState<string[]>([]);
     const [bounceKey, setBounceKey] = useState(0);
+
+    // Global dictionary store
+    const { openPopup: globalOpenPopup } = useDictionaryStore();
 
     // === Level Switcher State ===
     const availableLevels = useMemo<LexileLevel[]>(() => {
@@ -240,124 +242,27 @@ export function ArticleReadingMode({
     // Track current popup phrase via ref to keep handlePhraseClick stable
     const vocabPopupPhraseRef = useRef<string | null>(null);
 
-    // Handle phrase click — show popup
+    // Handle phrase click — delegate to global dictionary store
     const handlePhraseClick = useCallback(
         (phrase: string, context: string, _rect: DOMRect) => {
-            if (vocabPopupPhraseRef.current?.toLowerCase() === phrase.toLowerCase()) {
-                setBounceKey(k => k + 1);
-                return;
-            }
-
-            const phraseData = post.phraseData?.find(
-                p => p.phrase.toLowerCase() === phrase.toLowerCase()
-            );
-
-            // Check level-specific vocab data
-            const levelVocab = post.levels?.[selectedLevel]?.vocabularyData?.[phrase.toLowerCase()];
-            const vocabData = post.vocabularyData?.[phrase.toLowerCase()];
-
-            vocabPopupPhraseRef.current = phrase;
-            setBounceKey(0);
-            setVocabPopup({
-                phrase,
-                meaning: levelVocab?.meaning || phraseData?.meaning || vocabData?.meaning || 'Looking up...',
-                example: levelVocab?.example || vocabData?.example,
-                register: levelVocab?.register || phraseData?.register || vocabData?.register,
-                nuance: phraseData?.nuance,
-                context: context || undefined,
-                pronunciation: undefined,
-                topic: levelVocab?.topic || phraseData?.topic || phraseData?.topics || vocabData?.topic,
-                subtopic: levelVocab?.subtopic || phraseData?.subtopic || vocabData?.subtopic,
-                isHighFrequency: levelVocab?.isHighFrequency || phraseData?.isHighFrequency,
-            });
-
-            if (!phraseData && !vocabData && !levelVocab && userId) {
-                lookupPhrase(phrase, context);
-            }
+            if (!userId || !userEmail) return;
+            globalOpenPopup(phrase, context, userId, userEmail);
         },
-        [post.phraseData, post.vocabularyData, post.levels, selectedLevel, userId]
+        [userId, userEmail, globalOpenPopup]
     );
 
-    // Lookup phrase via API
+    // Lookup phrase via API (kept for backwards compatibility with embedded vocab data)
     const lookupPhrase = async (phrase: string, context: string) => {
-        try {
-            const res = await fetch('/api/user/lookup-phrase', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-user-id': userId || '',
-                    'x-user-email': userEmail || '',
-                },
-                body: JSON.stringify({ phrase, context }),
-            });
-            if (res.ok) {
-                const data = await res.json();
-                const result = data.data || data;
-                setVocabPopup(prev =>
-                    prev?.phrase.toLowerCase() === phrase.toLowerCase()
-                        ? {
-                            ...prev,
-                            meaning: result.meaning,
-                            register: result.register,
-                            nuance: result.nuance,
-                            context: result.context || prev.context,
-                            contextTranslation: result.contextTranslation,
-                            pronunciation: result.pronunciation,
-                            topic: result.topic,
-                            subtopic: result.subtopic,
-                            isHighFrequency: result.isHighFrequency,
-                        }
-                        : prev
-                );
-            }
-        } catch (e) {
-            console.error('Lookup failed:', e);
-        }
+        if (!userId || !userEmail) return;
+        globalOpenPopup(phrase, context, userId, userEmail);
     };
 
-    // Handle save phrase wrapper
+    // Handle save phrase — delegate to global store
     const handleSavePhrase = async () => {
-        if (!vocabPopup || !userId || !userEmail) {
-            import('sonner').then(({ toast }) => toast.error('Please log in to save phrases.'));
-            return;
-        }
-
-        try {
-            const res = await fetch('/api/user/save-phrase', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-user-id': userId,
-                    'x-user-email': userEmail,
-                },
-                body: JSON.stringify({
-                    phrase: vocabPopup.phrase,
-                    meaning: vocabPopup.meaning,
-                    context: vocabPopup.context || '',
-                    register: vocabPopup.register || 'consultative',
-                    nuance: vocabPopup.nuance,
-                    topics: vocabPopup.topic ? (Array.isArray(vocabPopup.topic) ? vocabPopup.topic : [vocabPopup.topic]) : [],
-                    subtopics: vocabPopup.subtopic ? (Array.isArray(vocabPopup.subtopic) ? vocabPopup.subtopic : [vocabPopup.subtopic]) : [],
-                }),
-            });
-
-            const data = await res.json();
-
-            if (res.ok) {
-                setSavedPhrases(prev => new Set(prev).add(vocabPopup.phrase.toLowerCase()));
-                import('sonner').then(({ toast }) => toast.success(`Saved "${vocabPopup.phrase}"!`, {
-                    action: {
-                        label: 'View in Bank',
-                        onClick: () => router.push('/vocab')
-                    }
-                }));
-            } else {
-                import('sonner').then(({ toast }) => toast.error(data.error || 'Failed to save phrase'));
-            }
-        } catch (e) {
-            console.error('Save failed:', e);
-            import('sonner').then(({ toast }) => toast.error('Network error. Failed to save.'));
-        }
+        if (!vocabPopup || !userId || !userEmail) return;
+        // Use global store's savePhrase which handles everything
+        const { savePhrase } = useDictionaryStore.getState();
+        await savePhrase();
     };
 
     // Admin: Extract phrases
@@ -516,28 +421,7 @@ export function ArticleReadingMode({
                 />
             )}
 
-            {/* Vocab Popup */}
-            <AnimatePresence mode="wait">
-                {vocabPopup && (
-                    <VocabPopupCard
-                        key={vocabPopup.phrase}
-                        phrase={vocabPopup.phrase}
-                        meaning={vocabPopup.meaning}
-                        register={vocabPopup.register}
-                        nuance={vocabPopup.nuance}
-                        context={vocabPopup.context}
-                        contextTranslation={vocabPopup.contextTranslation}
-                        pronunciation={vocabPopup.pronunciation}
-                        topic={vocabPopup.topic}
-                        subtopic={vocabPopup.subtopic}
-                        isHighFrequency={vocabPopup.isHighFrequency}
-                        bounceKey={bounceKey}
-                        onSave={handleSavePhrase}
-                        onDismiss={() => { vocabPopupPhraseRef.current = null; setVocabPopup(null); }}
-                        isSaved={savedPhrases.has(vocabPopup.phrase.toLowerCase())}
-                    />
-                )}
-            </AnimatePresence>
+            {/* Vocab Popup is now handled globally by DictionaryWidget in layout.tsx */}
 
             {/* Dock — toggle between article dock and navigation dock */}
             {showNavDock ? (

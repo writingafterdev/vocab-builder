@@ -156,7 +156,7 @@ export default function LearningDashboard({ stats }: LearningDashboardProps) {
                     {/* Scenarios Completed */}
                     <div className="bg-white border border-neutral-200 p-5 flex items-center justify-between">
                         <div>
-                            <p className="text-[11px] uppercase tracking-[0.15em] text-neutral-400 font-medium">Scenarios</p>
+                            <p className="text-[11px] uppercase tracking-[0.15em] text-neutral-400 font-medium">Sessions</p>
                             <p className="text-2xl font-serif text-neutral-900">{stats.scenariosCompleted}</p>
                         </div>
                         <div className="h-9 w-9 border border-[#1e3a5f]/20 bg-[#1e3a5f]/5 flex items-center justify-center">
@@ -237,10 +237,10 @@ export default function LearningDashboard({ stats }: LearningDashboardProps) {
                     </div>
                 </div>
 
-                {/* Recent Scenarios */}
+                {/* Recent Sessions */}
                 <div className="border border-neutral-200 bg-white p-5">
                     <div className="flex items-center justify-between mb-6">
-                        <h3 className="text-sm font-semibold text-neutral-900 uppercase tracking-[0.1em]">Recent Scenarios</h3>
+                        <h3 className="text-sm font-semibold text-neutral-900 uppercase tracking-[0.1em]">Recent Sessions</h3>
                         <Trophy className="h-4 w-4 text-neutral-400" />
                     </div>
 
@@ -272,7 +272,7 @@ export default function LearningDashboard({ stats }: LearningDashboardProps) {
                     ) : (
                         <div className="flex flex-col items-center justify-center py-8 text-center text-neutral-500">
                             <BookOpen className="h-6 w-6 mb-2 opacity-20" />
-                            <p className="text-sm">No scenarios yet.</p>
+                            <p className="text-sm">No sessions yet.</p>
                             <p className="text-xs opacity-60">Start practicing to track progress!</p>
                         </div>
                     )}

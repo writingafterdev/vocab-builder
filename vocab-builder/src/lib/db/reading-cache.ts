@@ -181,3 +181,34 @@ export async function getSessionById(
         return null;
     }
 }
+
+/**
+ * Get recent reading sessions
+ */
+export async function getRecentReadingSessions(
+    userId: string,
+    limitCount: number = 5
+): Promise<ReadingSession[]> {
+    const firestore = await getDbAsync();
+    const sessionsRef = collection(firestore, 'readingSessions');
+
+    const q = query(
+        sessionsRef,
+        where('userId', '==', userId),
+        orderBy('createdAt', 'desc'),
+        limit(limitCount)
+    );
+
+    try {
+        const snapshot = await getDocs(q);
+        if (snapshot.empty) return [];
+
+        return snapshot.docs.map((doc: any) => ({
+            id: doc.id,
+            ...doc.data(),
+        })) as ReadingSession[];
+    } catch (error) {
+        console.error('Error getting recent sessions:', error);
+        return [];
+    }
+}

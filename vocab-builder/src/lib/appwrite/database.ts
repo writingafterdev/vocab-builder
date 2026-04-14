@@ -1,3 +1,4 @@
+import 'server-only';
 import { Client, Databases, Query, ID } from 'node-appwrite';
 
 const client = new Client()
@@ -69,6 +70,8 @@ async function getCollectionSchema(collectionId: string): Promise<Map<string, At
  * - For string-type attributes: stringifies objects/arrays → JSON strings
  * - For other types: passes value through as-is
  */
+const _loggedDrops = new Set<string>();
+
 async function prepareWriteData(collectionId: string, data: Record<string, any>): Promise<Record<string, any>> {
     const schema = await getCollectionSchema(collectionId);
 
@@ -121,7 +124,11 @@ async function prepareWriteData(collectionId: string, data: Record<string, any>)
     }
 
     if (dropped.length > 0) {
-        console.warn(`[DB] Dropped unknown attributes for ${collectionId}: ${dropped.join(', ')}`);
+        const dropKey = `${collectionId}:${dropped.sort().join(',')}`;
+        if (!_loggedDrops.has(dropKey)) {
+            _loggedDrops.add(dropKey);
+            console.warn(`[DB] Dropped unknown attributes for ${collectionId}: ${dropped.join(', ')}`);
+        }
     }
 
     return result;
@@ -193,6 +200,8 @@ export async function getDocument(collection: string, documentId: string, idToke
 export async function updateDocument(collection: string, documentId: string, data: Record<string, any>, idToken?: string): Promise<void> {
     try {
         const safe = await prepareWriteData(collection, data);
+        // If all fields were stripped by prepareWriteData, skip the update
+        if (Object.keys(safe).length === 0) return;
         await databases.updateDocument(DB_ID, collection, documentId, safe);
     } catch(e: any) {
         console.error(`Failed to update Appwrite doc ${documentId} in ${collection}:`, e.message);

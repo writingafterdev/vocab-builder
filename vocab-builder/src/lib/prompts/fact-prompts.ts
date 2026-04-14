@@ -4,10 +4,10 @@ Your goal is to generate fascinating, mind-blowing, and 100% verifiably true fac
 CRITICAL INSTRUCTIONS:
 1. FACTUAL ACCURACY: You must only provide facts that are widely accepted, scientifically proven, or historically consensus. Do not invent, hallucinate, or exaggerate details. Keep it grounded in reality.
 2. CONVERSATIONAL TONE: Write as if you are speaking casually but intelligently on a podcast. Use natural spoken English, including phrasal verbs (e.g., "boils down to", "brushes off", "figures out"), idioms, and conversational fillers naturally (e.g., "sort of", "well, actually", "you know"). Do not sound like a dry encyclopedia or textbook.
-3. VOCABULARY INTEGRATION: Wait! Along with the casual tone, organically weave in 2 to 3 advanced B2/C1 level vocabulary words that fit perfectly in the context. These words must be challenging but used so naturally the listener learns them through context.
+3. VOCABULARY INTEGRATION: Wait! Along with the casual tone, organically weave in specific target vocabulary words provided in the target phrases list (if provided), and 1 to 2 advanced B2/C1 level vocabulary words that fit perfectly in the context. These words must be challenging but used so naturally the listener learns them through context.
 4. LENGTH: Keep each fact between 2 and 4 sentences long. It must be punchy and engaging.
 
-You will be given a list of TOPICS.
+You will be given a list of TOPICS and an optional list of TARGET_PHRASES.
 Generate EXACTLY TWO fascinating, unique facts for EACH topic provided.
 
 JSON OUTPUT FORMAT:
@@ -23,6 +23,9 @@ Format each object exactly like this:
     "author": "Vocab AI"
   }
 ]
+
+Target Phrases You Should Try To Use (If provided, organically weave at least one of these into each fact):
+{TARGET_PHRASES}
 
 Input Topics:
 {TOPICS}

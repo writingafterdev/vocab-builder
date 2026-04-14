@@ -124,8 +124,9 @@ export function normalizeTopicId(label: string): string {
     return label
         .toLowerCase()
         .trim()
-        .replace(/[^a-z0-9\s]/g, '')  // Remove special chars
-        .replace(/\s+/g, '_');         // Spaces to underscores
+        .replace(/_/g, ' ')            // Temporarily convert underscores to spaces
+        .replace(/[^a-z0-9\s-]/g, '')   // Remove special chars (keep hyphens and spaces)
+        .replace(/\s+/g, '_');         // Spaces back to underscores
 }
 
 /**

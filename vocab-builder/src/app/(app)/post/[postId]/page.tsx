@@ -1263,8 +1263,9 @@ export default function PostPage() {
         });
     };
 
-    // Article View
-    if (post.isArticle) {
+    // Article View (Any post with a title or explicitly marked as article)
+    const isArticleView = post.isArticle || !!post.title || !!post.source;
+    if (isArticleView) {
         return (
             <>
                 {DialogComponent}

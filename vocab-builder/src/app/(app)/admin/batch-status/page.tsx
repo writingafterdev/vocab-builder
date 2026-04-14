@@ -128,6 +128,7 @@ export default function BatchStatusPage() {
         switch (status) {
             case 'completed': return <CheckCircle className="w-4 h-4 text-emerald-500" />;
             case 'failed': return <XCircle className="w-4 h-4 text-red-500" />;
+            case 'creating':
             case 'submitted':
             case 'processing': return <Clock className="w-4 h-4 text-amber-500" />;
             default: return <Clock className="w-4 h-4 text-neutral-400" />;
@@ -138,6 +139,7 @@ export default function BatchStatusPage() {
         switch (status) {
             case 'completed': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
             case 'failed': return 'bg-red-50 text-red-700 border-red-200';
+            case 'creating':
             case 'submitted':
             case 'processing': return 'bg-amber-50 text-amber-700 border-amber-200';
             default: return 'bg-neutral-50 text-neutral-600 border-neutral-200';

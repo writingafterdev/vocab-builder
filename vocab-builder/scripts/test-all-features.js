@@ -396,7 +396,7 @@ async function testAPIRoutes() {
             const res = await fetch(`${BASE}${route.path}`, {
                 method: route.method,
                 headers: { 'x-user-id': 'test_health_check' },
-                signal: AbortSignal.timeout(10000),
+                signal: AbortSignal.timeout(30000), // Extended for AI-based endpoints
             });
             
             if (res.status < 500) {

@@ -24,16 +24,21 @@ import type { UserProfile } from '@/types';
 // ============ SETTINGS ============
 
 export async function getLearningCycleSettings(): Promise<LearningCycleSettings> {
-    const firestore = await getDbAsync();
-    const settingsRef = doc(firestore, 'settings', 'learningCycle');
-    const snapshot = await getDoc(settingsRef);
+    try {
+        const firestore = await getDbAsync();
+        const settingsRef = doc(firestore, 'settings', 'learningCycle');
+        const snapshot = await getDoc(settingsRef);
 
-    if (!snapshot.exists()) {
-        await setDoc(settingsRef, DEFAULT_LEARNING_CYCLE);
+        if (!snapshot.exists()) {
+            // We don't automatically create it to avoid failing on client side permissions
+            return DEFAULT_LEARNING_CYCLE;
+        }
+
+        return snapshot.data() as LearningCycleSettings;
+    } catch (error) {
+        console.warn('Failed to load learning cycle settings:', error);
         return DEFAULT_LEARNING_CYCLE;
     }
-
-    return snapshot.data() as LearningCycleSettings;
 }
 
 export async function updateLearningCycleSettings(settings: LearningCycleSettings): Promise<void> {
@@ -49,7 +54,10 @@ export async function getAllUsers(): Promise<UserProfile[]> {
     const usersRef = collection(firestore, 'users');
     const q = query(usersRef, orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserProfile));
+    return snapshot.docs.map(doc => {
+        const data = doc.data();
+        return { ...data, uid: data.uid || doc.id } as UserProfile;
+    });
 }
 
 export async function deletePost(postId: string): Promise<void> {

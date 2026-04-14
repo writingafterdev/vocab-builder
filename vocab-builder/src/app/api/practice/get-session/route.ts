@@ -4,7 +4,7 @@ import { getDocument } from '@/lib/appwrite/database';
 /**
  * GET /api/practice/get-session?sessionId=xxx
  * Fetches a generated session by ID and deserializes stored JSON fields
- * back into the shape the frontend expects.
+ * back into the ExerciseSession shape the frontend expects.
  */
 export async function GET(request: NextRequest) {
     try {
@@ -27,15 +27,16 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: 'Session not found' }, { status: 404 });
         }
 
-        // Deserialize JSON string fields back to the GeneratedSession shape
-        // Storage mapping (Appwrite schema → frontend interface):
-        //   content   → sections     (JSON string → GeneratedSection[])
-        //   subtopic  → subtitle     (string)
-        //   phrases   → phraseIds    (JSON string → string[])
-        //   topic     → quotes       (JSON string → Quote[])
-        //   questions → questions    (JSON string → ComprehensionQuestion[])
+        // Deserialize JSON string fields back to ExerciseSession shape
+        // Appwrite schema mapping:
+        //   content   → anchorPassage  (JSON string → AnchorPassage)
+        //   questions → questions      (JSON string → SessionQuestion[])
+        //   phrases   → vocabWordIds   (JSON string → string[])
+        //   title     → topic
+        //   subtopic  → centralClaim
 
         const safeParse = (val: any, fallback: any = []) => {
+            if (typeof val === 'object' && val !== null && !Array.isArray(val)) return val;
             if (Array.isArray(val)) return val;
             if (typeof val === 'string') {
                 try { return JSON.parse(val); } catch { return fallback; }
@@ -43,20 +44,34 @@ export async function GET(request: NextRequest) {
             return fallback;
         };
 
+        const anchorPassage = safeParse(raw.content, null);
+        const questions = safeParse(raw.questions, []);
+        const vocabWordIds = safeParse(raw.phrases || raw.vocabWordIds, []);
+
+        // Handle both new and legacy session formats
         const session = {
             id: raw.id,
             userId: raw.userId,
-            title: raw.title || 'Untitled Session',
-            subtitle: raw.subtopic || raw.subtitle || '',
-            sections: safeParse(raw.content || raw.sections),
-            questions: safeParse(raw.questions),
-            quotes: safeParse(raw.topic && raw.topic.startsWith?.('[') ? raw.topic : raw.quotes),
-            phraseIds: safeParse(raw.phrases || raw.phraseIds),
+            anchorPassage: anchorPassage && anchorPassage.text
+                ? anchorPassage
+                : {
+                    // Legacy fallback: construct from old fields
+                    text: typeof anchorPassage === 'string' ? anchorPassage : (raw.title || ''),
+                    topic: raw.title || 'Untitled Session',
+                    centralClaim: raw.subtopic || '',
+                    deliberateFlaws: { logicalGap: '', weakTransition: '', registerBreak: '' },
+                    embeddedVocab: [],
+                    sourcePlatform: undefined,
+                },
+            questions: Array.isArray(questions) ? questions : [],
+            vocabWordIds,
             totalPhrases: raw.totalPhrases || 0,
             status: raw.status || 'generated',
             createdAt: raw.createdAt || '',
-            isListeningDay: raw.isListeningDay || false,
-            reviewDayIndex: raw.reviewDayIndex || 0,
+            results: safeParse(raw.results, []),
+            // Resume support: partial progress
+            partialResults: safeParse(raw.partialResults, []),
+            currentIndex: raw.currentIndex ?? 0,
         };
 
         return NextResponse.json({ session });

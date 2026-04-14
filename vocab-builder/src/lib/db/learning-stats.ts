@@ -1,6 +1,6 @@
+'use server';
+
 import { queryCollection } from '@/lib/appwrite/database';
-
-
 export interface DailyActivity {
     date: string; // YYYY-MM-DD
     count: number;
@@ -40,41 +40,63 @@ interface SavedPhraseDoc {
     children?: ChildExpression[];
 }
 
-interface ScenarioDoc {
+interface ReadingSessionDoc {
     id: string;
     userId: string;
-    status: string;
-    scenario: string;
     createdAt: Date | string;
-    phrases: Array<{ used?: boolean }>;
+    completedAt?: Date | string | null;
+    article?: { title: string };
+    phraseIds?: string[];
+}
+
+interface CompletedSessionDoc {
+    id: string;
+    userId: string;
+    type: string;
+    score: number;
+    completedAt: Date | string;
 }
 
 export async function getLearningStats(userId: string): Promise<LearningStatsData> {
     try {
-        // 1. Fetch SavedPhrases via REST API
-        const allPhrases = await queryCollection('savedPhrases') as unknown as SavedPhraseDoc[];
-        const phrases = allPhrases.filter(p => p.userId === userId);
+        // 1. Fetch SavedPhrases for this user
+        const phrases = await queryCollection('savedPhrases', {
+            where: [{ field: 'userId', op: '==', value: userId }],
+            limit: 500,
+        }) as unknown as SavedPhraseDoc[];
 
-        // 2. Fetch Scenarios via REST API
-        const allScenarios = await queryCollection('scenarios') as unknown as ScenarioDoc[];
-        const scenarios = allScenarios
-            .filter(d => d.userId === userId && d.status === 'completed')
-            .sort((a, b) => {
-                const dateA = new Date(a.createdAt);
-                const dateB = new Date(b.createdAt);
-                return dateB.getTime() - dateA.getTime();
-            });
+        // 2. Fetch Practice & Reading Sessions for this user
+        const [readingSessionsRaw, completedSessionsRaw] = await Promise.all([
+            queryCollection('readingSessions', {
+                where: [{ field: 'userId', op: '==', value: userId }],
+                orderBy: [{ field: 'createdAt', direction: 'desc' }],
+                limit: 500,
+            }),
+            queryCollection('completedSessions', {
+                where: [{ field: 'userId', op: '==', value: userId }],
+                orderBy: [{ field: 'completedAt', direction: 'desc' }],
+                limit: 500,
+            })
+        ]);
 
-        // 3. Process Scenarios for Activity & Streaks
-        const scenariosCompleted = scenarios.length;
+        const readingSessions = (readingSessionsRaw as unknown as ReadingSessionDoc[]).filter(s => s.completedAt != null);
+        const completedSessions = completedSessionsRaw as unknown as CompletedSessionDoc[];
+
+        // 3. Process Sessions for Activity & Streaks
+        const scenariosCompleted = readingSessions.length + completedSessions.length;
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
         const activityMap = new Map<string, number>();
         const dates: Date[] = [];
 
-        scenarios.forEach(scenario => {
-            const date = new Date(scenario.createdAt);
+        // Consolidate timestamps
+        const allTimestamps = [
+            ...readingSessions.map(s => new Date(s.completedAt as string)),
+            ...completedSessions.map(s => new Date(s.completedAt as string))
+        ];
+
+        allTimestamps.forEach(date => {
             const dateKey = date.toISOString().split('T')[0];
             activityMap.set(dateKey, (activityMap.get(dateKey) || 0) + 1);
 
@@ -146,17 +168,26 @@ export async function getLearningStats(userId: string): Promise<LearningStatsDat
         const totalPhrasesCount = phrases.length;
         const masteredCount = masteredPhrasesList.length;
 
-        // 5. Recent Scenarios
-        const recentScenarios = scenarios.slice(0, 5).map(scenario => {
-            const usedCount = (scenario.phrases || []).filter(p => p.used).length;
-            return {
-                id: scenario.id,
-                scenario: scenario.scenario,
-                phrasesUsed: usedCount,
-                totalPhrases: (scenario.phrases || []).length,
-                date: new Date(scenario.createdAt)
-            };
-        });
+        // 5. Recent Sessions (Merged)
+        const mergedSessions = [
+            ...readingSessions.map(s => ({
+                id: s.id,
+                scenario: s.article?.title || 'Immersive Reading',
+                phrasesUsed: s.phraseIds?.length || 0,
+                totalPhrases: s.phraseIds?.length || 0,
+                date: new Date(s.completedAt as string)
+            })),
+            ...completedSessions.map(s => ({
+                id: s.id,
+                scenario: s.type === 'quick' ? 'Quick Practice' : 'Community Challenge',
+                phrasesUsed: 0,
+                totalPhrases: 0,
+                date: new Date(s.completedAt as string)
+            }))
+        ];
+        
+        mergedSessions.sort((a, b) => b.date.getTime() - a.date.getTime());
+        const recentScenarios = mergedSessions.slice(0, 5);
 
         return {
             scenariosCompleted,

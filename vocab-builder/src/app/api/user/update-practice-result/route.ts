@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDocument, updateDocument, addDocument, setDocument } from '@/lib/appwrite/database';
-import { QuestionResult } from '@/lib/db/practice-types';
+type QuestionResult = 'correct' | 'wrong' | 'partial' | 'skipped' | 'revealed';
 import { SavedPhrase, DEFAULT_LEARNING_CYCLE } from '@/lib/db/types';
 
 interface UpdateResultRequest {

@@ -229,3 +229,20 @@
 .article-clickable-text mark:hover {
   background-color: hsl(var(--accent) / 0.4);
 }
+
+/* ─── Utilities ───────────────────────────────────────── */
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Safe area for fixed bottom panels (iOS home indicator) */
+.safe-area-pb {
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 1rem);
+}
+

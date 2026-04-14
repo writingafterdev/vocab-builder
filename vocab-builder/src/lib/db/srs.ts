@@ -18,9 +18,9 @@ import {
     Timestamp,
 } from '@/lib/appwrite/firestore';
 import { getDbAsync } from './core';
-import type { SavedPhrase, Post, ExerciseSurface, LearningPhase } from './types';
-import type { ExerciseQuestionType } from './types';
+import type { SavedPhrase, Post } from './types';
 import { DEFAULT_LEARNING_CYCLE } from './types';
+// ExerciseQuestionType, LearningPhase, ExerciseSurface removed — now handled by exercise/config.ts
 
 // Daily limit for phrase saving (optimal learning)
 export const DAILY_PHRASE_LIMIT = 15;
@@ -736,39 +736,6 @@ export async function addChildToPhrase(
     return { childId };
 }
 
-// ============================================================================
-// GUIDED PRACTICE SRS INTEGRATION
-// ============================================================================
-
-import { PracticeMode, DEFAULT_PRACTICE_CONFIG } from './practice-types';
-
-/**
- * Determine practice mode based on phrase age (days since created)
- * - Day 1-14: In-Context (MCQ)
- * - Day 14+: Open Production
- */
-export function getPracticeMode(phrase: SavedPhrase): PracticeMode {
-    const config = DEFAULT_PRACTICE_CONFIG;
-
-    // Calculate days since phrase was saved
-    let createdAt: Date;
-    if (phrase.createdAt && typeof (phrase.createdAt as Timestamp).toDate === 'function') {
-        createdAt = (phrase.createdAt as Timestamp).toDate();
-    } else if (phrase.createdAt instanceof Date) {
-        createdAt = phrase.createdAt;
-    } else {
-        createdAt = new Date();
-    }
-
-    const now = new Date();
-    const daysSinceCreated = Math.floor(
-        (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24)
-    );
-
-    return daysSinceCreated >= config.switchToOpenProductionDay
-        ? 'open_production'
-        : 'in_context';
-}
 
 /**
  * Update phrase SRS data after practice
@@ -876,29 +843,7 @@ export async function updatePracticeResult(
     }
 }
 
-/**
- * Get phrases grouped by practice mode for a user
- */
-export async function getDuePhrasesByMode(
-    userId: string,
-    limitCount: number = 30
-): Promise<{ inContext: SavedPhrase[]; openProduction: SavedPhrase[] }> {
-    const duePhrases = await getDuePhrases(userId, limitCount);
 
-    const inContext: SavedPhrase[] = [];
-    const openProduction: SavedPhrase[] = [];
-
-    for (const phrase of duePhrases) {
-        const mode = getPracticeMode(phrase);
-        if (mode === 'in_context') {
-            inContext.push(phrase);
-        } else {
-            openProduction.push(phrase);
-        }
-    }
-
-    return { inContext, openProduction };
-}
 
 /**
  * CASCADING TRIGGER SYSTEM
@@ -912,236 +857,92 @@ export async function unlockChildren(phraseId: string, count: number = 2): Promi
     if (!phraseDoc.exists()) return 0;
 
     const data = phraseDoc.data() as SavedPhrase;
-    const children = data.children || [];
-
-    // Find currently locked children (nextReviewDate is null or far future)
-    // Note: We used nextReviewDate: null for locked items in addChildToPhrase
-    const lockedChildren = children.filter(c => c.nextReviewDate === null);
-
-    if (lockedChildren.length === 0) return 0;
+    
+    // In V2, silent metadata is stored in potentialUsages. (Fallback to children for legacy phrases).
+    const usages = data.potentialUsages || [];
+    
+    // Find unexposed potential usages (locked children)
+    const lockedUsages = usages.filter(u => !u.exposed);
+    
+    if (lockedUsages.length === 0) {
+        // Fallback or skip
+        return 0;
+    }
 
     // Unlock top X
-    const toUnlock = lockedChildren.slice(0, count);
+    const toUnlock = lockedUsages.slice(0, count);
     const tomorow = new Date();
     tomorow.setDate(tomorow.getDate() + 1);
     tomorow.setHours(0, 0, 0, 0);
 
-    const updatedChildren = children.map(c => {
-        if (toUnlock.find(u => u.id === c.id)) {
+    const updatedUsages = usages.map(u => {
+        if (toUnlock.find(un => un.phrase === u.phrase)) {
             return {
-                ...c,
-                nextReviewDate: tomorow, // Unlock: Schedule for tomorrow
-                learningStep: 0
+                ...u,
+                exposed: true // Mark as officially promoted to standalone phrase
             };
         }
-        return c;
+        return u;
     });
 
-    await updateDoc(phraseRef, { children: updatedChildren });
-    console.log(`Unlocked ${toUnlock.length} children for phrase ${phraseId}`);
+    // 1. Update the parent phrase to mark children as unlocked/promoted
+    await updateDoc(phraseRef, { potentialUsages: updatedUsages });
+
+    // 2. Insert each unlocked child as a standalone document to enter the global SRS loop
+    const newRef = collection(firestore, 'savedPhrases');
+    for (const child of toUnlock) {
+        try {
+            const newDoc = {
+                userId: data.userId,
+                phrase: child.phrase || '',
+                baseForm: (child.phrase || '').toLowerCase(),
+                meaning: child.meaning || '',
+                context: `Derived from: ${data.phrase}`,
+                register: JSON.stringify(['neutral']),
+                nuance: JSON.stringify(['neutral']),
+                socialDistance: JSON.stringify(['neutral']),
+                topic: JSON.stringify(data.topic || 'pending_ai'),
+                subtopic: JSON.stringify(data.subtopic || null),
+                topics: data.topics && data.topics.length > 0 ? data.topics : (data.topic ? (Array.isArray(data.topic) ? data.topic : [data.topic]) : []),
+                subtopics: JSON.stringify(data.subtopic ? (Array.isArray(data.subtopic) ? data.subtopic : [data.subtopic]) : []),
+                usedForGeneration: false,
+                usageCount: 0,
+                practiceCount: 0,
+                createdAt: serverTimestamp(),
+                learningStep: 0,
+                nextReviewDate: tomorow.toISOString(),
+                lastReviewDate: null,
+                children: JSON.stringify([]),
+                potentialUsages: JSON.stringify([]),
+                contexts: JSON.stringify([{
+                    id: `ctx_${Date.now()}`,
+                    type: 'scenario',
+                    sourcePostId: null,
+                    question: '',
+                    unlocked: true,
+                    masteryLevel: 0,
+                    lastPracticed: null,
+                }]),
+                currentContextIndex: 0,
+                parentPhraseId: phraseId,
+                layer: (data.layer || 0) + 1,
+                hasAppearedInExercise: false,
+            };
+            
+            await addDoc(newRef, newDoc);
+            console.log(`Promoted child '${child.phrase}' to standalone document.`);
+        } catch (err) {
+            console.error(`Failed to promote child '${child.phrase}':`, err);
+        }
+    }
+
+    console.log(`Unlocked and promoted ${toUnlock.length} children for phrase ${phraseId}`);
     return toUnlock.length;
 }
 
 // ============================================================================
-// INLINE EXERCISE SYSTEM (Blended Learning)
+// INLINE EXERCISE SYSTEM — Removed in v2 rewrite.
+// Exercise logic now lives in:
+//   - @/lib/exercise/config.ts (question type taxonomy, skill axes)
+//   - @/lib/db/question-weaknesses.ts (per-question-type weakness tracking)
 // ============================================================================
-
-// Recognition formats — usable on ALL surfaces
-const RECOGNITION_FORMATS: ExerciseQuestionType[] = [
-    'social_consequence_prediction',
-    'situation_phrase_matching',
-    'tone_interpretation',
-    'contrast_exposure',
-    'why_did_they_say',
-    'appropriateness_judgment',
-    'error_detection',
-    'fill_gap_mcq',
-    'register_sorting',
-    'reading_comprehension',
-    'sentence_correction',
-];
-
-// Production formats — exercises page + full article only
-const PRODUCTION_FORMATS: ExerciseQuestionType[] = [
-    'constrained_production',
-    'transformation_exercise',
-    'dialogue_completion_open',
-    'text_completion',
-    'scenario_production',
-    'multiple_response_generation',
-    'explain_to_friend',
-    'creative_context_use',
-];
-
-// Fast recognition formats suitable for inline surfaces (2-3 options, quick answer)
-const FAST_RECOGNITION_FORMATS: ExerciseQuestionType[] = [
-    'situation_phrase_matching',
-    'tone_interpretation',
-    'contrast_exposure',
-    'appropriateness_judgment',
-    'fill_gap_mcq',
-];
-
-/**
- * Determine learning phase from review count.
- * Recognition: reviews 0-3 (observe, recognize, recall)
- * Production: reviews 4+ (use, create, teach)
- */
-export function getLearningPhase(reviewCount: number): LearningPhase {
-    const config = DEFAULT_PRACTICE_CONFIG;
-    return reviewCount < config.inline.productionThreshold
-        ? 'recognition'
-        : 'production';
-}
-
-/**
- * Get question formats compatible with a given surface and learning phase.
- * Inline surfaces (swiper, action gate, dead time) only get fast recognition formats.
- * Full article gets all recognition + production.
- * Exercises page gets everything.
- */
-export function getSurfaceCompatibleFormats(
-    surface: ExerciseSurface,
-    phase: LearningPhase
-): ExerciseQuestionType[] {
-    switch (surface) {
-        case 'quote_swiper':
-        case 'action_gate':
-        case 'dead_time':
-            // Only fast recognition — binary/3-option MCQ, quick to answer
-            return FAST_RECOGNITION_FORMATS;
-
-        case 'swipe_reader':
-            // All recognition formats (user is in reading mode, slightly more engaged)
-            return RECOGNITION_FORMATS;
-
-        case 'full_article':
-            // Recognition + production (user is deeply engaged)
-            return phase === 'recognition' ? RECOGNITION_FORMATS : PRODUCTION_FORMATS;
-
-        case 'exercises_page':
-            // Everything for the current phase
-            return phase === 'recognition' ? RECOGNITION_FORMATS : PRODUCTION_FORMATS;
-
-        default:
-            return FAST_RECOGNITION_FORMATS;
-    }
-}
-
-/**
- * Pick the next question format for a phrase using round-robin.
- * Avoids repeating formats until all have been used, then resets.
- * Returns a randomly selected format from the unused pool.
- */
-export function getNextQuestionFormat(
-    completedFormats: ExerciseQuestionType[],
-    surface: ExerciseSurface,
-    phase: LearningPhase
-): ExerciseQuestionType {
-    const availableFormats = getSurfaceCompatibleFormats(surface, phase);
-
-    // Filter out already-completed formats
-    const unused = availableFormats.filter(f => !completedFormats.includes(f));
-
-    // If all exhausted, reset (pick from full list)
-    const pool = unused.length > 0 ? unused : availableFormats;
-
-    // Random pick from pool
-    return pool[Math.floor(Math.random() * pool.length)];
-}
-
-/**
- * Mark a phrase as reviewed inline to prevent double-serving across surfaces.
- * Also tracks which format was used and which surface served it.
- */
-export async function markInlineReviewed(
-    phraseId: string,
-    surface: ExerciseSurface,
-    questionType: ExerciseQuestionType,
-    failed: boolean = false
-): Promise<void> {
-    const firestore = await getDbAsync();
-    const phraseRef = doc(firestore, 'savedPhrases', phraseId);
-    const phraseDoc = await getDoc(phraseRef);
-
-    if (!phraseDoc.exists()) return;
-
-    const data = phraseDoc.data() as SavedPhrase;
-    const existingFormats = data.completedFormats || [];
-
-    // Add format to completed list (for round-robin tracking)
-    const updatedFormats = existingFormats.includes(questionType)
-        ? existingFormats
-        : [...existingFormats, questionType];
-
-    await updateDoc(phraseRef, {
-        lastReviewedAt: Timestamp.now(),
-        lastReviewSource: surface,
-        completedFormats: updatedFormats,
-        ...(failed ? { failedInline: true } : {}),
-    });
-}
-
-/**
- * Get due phrases filtered for inline exercise use.
- * Excludes phrases already reviewed today (lastReviewedAt === today).
- * Optionally filters by content topics for contextual relevance.
- */
-export async function getInlineDuePhrases(
-    userId: string,
-    options: {
-        contentTopics?: string[];
-        surface: ExerciseSurface;
-        limit?: number;
-    }
-): Promise<SavedPhrase[]> {
-    const duePhrases = await getDuePhrases(userId, options.limit || 10);
-
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const todayStartMs = todayStart.getTime();
-
-    // Helper: get timestamp millis
-    const getMs = (t: any): number => {
-        if (!t) return 0;
-        if (typeof t.toMillis === 'function') return t.toMillis();
-        if (typeof t.getTime === 'function') return t.getTime();
-        return 0;
-    };
-
-    // Filter out phrases already reviewed today
-    let filtered = duePhrases.filter(p => {
-        const lastReviewMs = getMs(p.lastReviewedAt);
-        return lastReviewMs < todayStartMs; // Not reviewed today
-    });
-
-    // If content topics provided, prioritize matching phrases
-    if (options.contentTopics && options.contentTopics.length > 0) {
-        const topicSet = new Set(options.contentTopics.map(t => t.toLowerCase()));
-
-        const matching = filtered.filter(p => {
-            const phraseTopics = Array.isArray(p.topic) ? p.topic : p.topic ? [p.topic] : [];
-            const allTopics = [...phraseTopics, ...(p.topics || [])];
-            return allTopics.some(t => topicSet.has(t.toLowerCase()));
-        });
-
-        // Return matching only if we have any; otherwise return empty
-        // (empty > irrelevant — we never show off-topic questions inline)
-        if (matching.length > 0) {
-            filtered = matching;
-        } else {
-            return []; // No contextual match — don't serve anything
-        }
-    }
-
-    // Sort: failedInline first (escalation), then by priority (new > weak > due)
-    filtered.sort((a, b) => {
-        // Failed inline phrases get priority
-        if (a.failedInline && !b.failedInline) return -1;
-        if (!a.failedInline && b.failedInline) return 1;
-        // Then by learning step (lower = newer/weaker)
-        return (a.learningStep || 0) - (b.learningStep || 0);
-    });
-
-    return filtered.slice(0, options.limit || 5);
-}

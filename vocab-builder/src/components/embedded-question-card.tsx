@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle2, XCircle, HelpCircle, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { EmbeddedQuestion, QuestionType } from '@/lib/db/types';
+import type { EmbeddedQuestion, LegacyQuestionType } from '@/lib/db/types';
 
 interface EmbeddedQuestionCardProps {
     question: EmbeddedQuestion;
@@ -14,7 +14,7 @@ interface EmbeddedQuestionCardProps {
     compact?: boolean;
 }
 
-const questionTypeLabels: Record<QuestionType, string> = {
+const questionTypeLabels: Record<LegacyQuestionType, string> = {
     character_motivation: 'Motivation',
     outcome_consequence: 'Consequence',
     problem_identification: 'Problem',

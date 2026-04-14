@@ -6,7 +6,7 @@
  */
 
 import { SpeakingAnalysisResult, extractWeaknesses } from '@/lib/speaking-feedback';
-import { saveSessionWeaknesses } from '@/lib/db/user-weaknesses';
+
 import { ScoreCircle } from './ScoreCircle';
 import { VocabFeedbackSection } from './VocabFeedbackSection';
 import { SkillsRadar } from './SkillsRadar';
@@ -30,22 +30,9 @@ export function SpeakingAnalysisView({
 
     // Save weaknesses for Daily Drill on mount
     useEffect(() => {
-        async function saveWeaknesses() {
-            if (weaknessesSaved) return;
-
-            try {
-                const weaknesses = extractWeaknesses(result);
-                if (weaknesses.length > 0) {
-                    await saveSessionWeaknesses(userId, weaknesses);
-                }
-                setWeaknessesSaved(true);
-            } catch (error) {
-                console.error('[SpeakingAnalysisView] Failed to save weaknesses:', error);
-            }
-        }
-
-        saveWeaknesses();
-    }, [result, userId, weaknessesSaved]);
+        // Legacy user-weaknesses tracking removed.
+        // Speaking weaknesses will be integrated into the new QuestionTypeWeakness system in a future phase.
+    }, [result, userId]);
 
     return (
         <div className="min-h-screen bg-slate-50 p-4 md:p-6 lg:p-8">

@@ -1,6 +1,7 @@
 import { getGrokKey } from '@/lib/grok-client';
 import { GENERATE_FACTS_PROMPT } from '@/lib/prompts/fact-prompts';
 import { addQuotesToBank } from '@/lib/db/quote-feed';
+import { queryCollection } from '@/lib/appwrite/database';
 
 const XAI_URL = 'https://api.x.ai/v1/chat/completions';
 
@@ -70,79 +71,200 @@ export async function runGenerateFactsLogic() {
         throw new Error('No Grok API key configured');
     }
 
-    const numTopics = Math.floor(Math.random() * 2) + 3; // 3 or 4 (keep output manageable)
-    const selectedTopics = pickRandom(TOPIC_POOL, numTopics);
-    console.log(`[FactGen] Generating facts for topics: ${selectedTopics.join(', ')}`);
-
-    const prompt = GENERATE_FACTS_PROMPT.replace('{TOPICS}', selectedTopics.map(t => `- ${t}`).join('\n'));
-
-    const response = await fetch(XAI_URL, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-            model: 'grok-4-1-fast-non-reasoning',
-            messages: [{ role: 'user', content: prompt }],
-            max_tokens: 4000,
-            temperature: 0.6,
-        }),
-    });
-
-    if (!response.ok) {
-        const errorText = await response.text();
-        console.error('[FactGen] Grok API error:', response.status, errorText);
-        throw new Error('Grok API error');
-    }
-
-    const data = await response.json();
-    const text = data.choices?.[0]?.message?.content || '';
-
-    const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    let generatedFacts: any[] = [];
+    const nowStr = new Date().toISOString();
+    let users: any[] = [];
     try {
-        generatedFacts = JSON.parse(cleaned);
+        // Limit to 10 users per run to prevent scaling timeouts.
+        users = await queryCollection('users', { limit: 10 });
+        console.log(`[FactGen] Fetched ${users.length} active users.`);
     } catch (e) {
-        // Try to salvage complete objects from truncated JSON array
-        console.warn('[FactGen] JSON parse failed, attempting to salvage...');
-        generatedFacts = salvageTruncatedJSON(cleaned);
-        if (generatedFacts.length === 0) {
-            console.error('[FactGen] Could not salvage any facts from Grok output');
-            // Return empty instead of crashing the whole pipeline
-            return { success: true, generatedCount: 0, topics: selectedTopics, facts: [] };
+        console.error('[FactGen] Failed to fetch users', e);
+        throw e;
+    }
+
+    let totalGeneratedCount = 0;
+    const allGeneratedFacts: any[] = [];
+
+    for (const user of users) {
+        const userId = user.id;
+
+        let userDuePhrases: string[] = [];
+        try {
+            const duePhrasesDocs = await queryCollection('savedPhrases', {
+                where: [
+                    { field: 'userId', op: '==', value: userId },
+                    { field: 'nextReviewDate', op: '<=', value: nowStr }
+                ],
+                limit: 100
+            });
+            const phrases = duePhrasesDocs.map(d => (d.phrase as string)?.toLowerCase().trim()).filter(Boolean);
+            const uniquePhrases = [...new Set(phrases)];
+            // Pick up to 5 target phrases for their personalized prompt
+            userDuePhrases = pickRandom(uniquePhrases, 5);
+        } catch (e) {
+            console.error(`[FactGen] Failed to fetch due phrases for user ${userId}`, e);
+            continue;
         }
-        console.log(`[FactGen] Salvaged ${generatedFacts.length} facts from truncated response`);
+
+        // Only generate personalized facts if they have due phrases, otherwise skip
+        // (to preserve API quota and prevent generating random facts per user endlessly)
+        if (userDuePhrases.length === 0) {
+            console.log(`[FactGen] Skipping user ${userId} - no due phrases today.`);
+            continue;
+        }
+
+        console.log(`[FactGen] Generating facts for user ${userId} targeting ${userDuePhrases.length} phrases.`);
+
+        const numTopics = Math.floor(Math.random() * 2) + 3;
+        const selectedTopics = pickRandom(TOPIC_POOL, numTopics);
+
+        let prompt = GENERATE_FACTS_PROMPT.replace('{TOPICS}', selectedTopics.map(t => `- ${t}`).join('\n'));
+        prompt = prompt.replace('{TARGET_PHRASES}', userDuePhrases.map(p => `- ${p}`).join('\n'));
+
+        try {
+            const response = await fetch(XAI_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`,
+                },
+                body: JSON.stringify({
+                    model: 'grok-4-1-fast-non-reasoning',
+                    messages: [{ role: 'user', content: prompt }],
+                    max_tokens: 4000,
+                    temperature: 0.6,
+                }),
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error(`[FactGen] Grok API error for user ${userId}:`, response.status, errorText);
+                continue;
+            }
+
+            const data = await response.json();
+            const text = data.choices?.[0]?.message?.content || '';
+            const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+            
+            let generatedFacts: any[] = [];
+            try {
+                generatedFacts = JSON.parse(cleaned);
+            } catch (e) {
+                generatedFacts = salvageTruncatedJSON(cleaned);
+            }
+
+            if (!Array.isArray(generatedFacts)) continue;
+
+            const validFacts = generatedFacts.filter(f => f.text && f.topic);
+            
+            const quoteEntries = validFacts.map(fact => {
+                let isCommunityPick = false;
+                const textLower = fact.text.toLowerCase();
+                for (const cp of userDuePhrases) {
+                    if (textLower.includes(cp)) {
+                        isCommunityPick = true;
+                        break;
+                    }
+                }
+                
+                let author = fact.author || 'Vocab AI';
+                const tags = Array.isArray(fact.tags) ? fact.tags.map((t: string) => t.toLowerCase()) : [];
+                if (isCommunityPick) {
+                    author = 'Vocab AI (Community Pick)';
+                    if (!tags.includes('community_pick')) tags.push('community_pick');
+                }
+
+                return {
+                    text: fact.text,
+                    postId: `generated_fact_${Date.now()}_${Math.random().toString(36).slice(2,7)}`,
+                    postTitle: `Fascinating ${fact.topic} Fact`,
+                    author,
+                    source: 'Fact Generator',
+                    topic: fact.topic.toLowerCase(),
+                    highlightedPhrases: Array.isArray(fact.highlightedPhrases) ? fact.highlightedPhrases : [],
+                    tags,
+                    sourceType: 'generated_fact' as const,
+                    createdAt: new Date().toISOString(),
+                    userId: userId // Explicitly assign ownership to the user
+                };
+            });
+
+            if (quoteEntries.length > 0) {
+                await addQuotesToBank(quoteEntries);
+                totalGeneratedCount += quoteEntries.length;
+                allGeneratedFacts.push(...quoteEntries);
+            }
+        } catch (err) {
+            console.error(`[FactGen] Error processing user ${userId}:`, err);
+        }
     }
 
-    if (!Array.isArray(generatedFacts)) {
-        throw new Error('Invalid output format from LLM');
+    // Platform Health check - if no users had due phrases, generate a generic fallback batch for the global feed
+    if (totalGeneratedCount === 0) {
+        console.log('[FactGen] No personalized facts generated. Creating 1 global fallback batch.');
+        const numTopics = 3;
+        const selectedTopics = pickRandom(TOPIC_POOL, numTopics);
+        let prompt = GENERATE_FACTS_PROMPT.replace('{TOPICS}', selectedTopics.map(t => `- ${t}`).join('\n'));
+        prompt = prompt.replace('{TARGET_PHRASES}', 'None provided.');
+
+        try {
+            const response = await fetch(XAI_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`,
+                },
+                body: JSON.stringify({
+                    model: 'grok-4-1-fast-non-reasoning',
+                    messages: [{ role: 'user', content: prompt }],
+                    max_tokens: 4000,
+                    temperature: 0.6,
+                }),
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                const text = data.choices?.[0]?.message?.content || '';
+                const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+                let generatedFacts: any[] = [];
+                try {
+                    generatedFacts = JSON.parse(cleaned);
+                } catch (e) {
+                    generatedFacts = salvageTruncatedJSON(cleaned);
+                }
+
+                if (Array.isArray(generatedFacts)) {
+                    const validFacts = generatedFacts.filter(f => f.text && f.topic);
+                    const quoteEntries = validFacts.map(fact => ({
+                        text: fact.text,
+                        postId: `generated_fact_${Date.now()}_${Math.random().toString(36).slice(2,7)}`,
+                        postTitle: `Fascinating ${fact.topic} Fact`,
+                        author: fact.author || 'Vocab AI',
+                        source: 'Fact Generator',
+                        topic: fact.topic.toLowerCase(),
+                        highlightedPhrases: Array.isArray(fact.highlightedPhrases) ? fact.highlightedPhrases : [],
+                        tags: Array.isArray(fact.tags) ? fact.tags.map((t: string) => t.toLowerCase()) : [],
+                        sourceType: 'generated_fact' as const,
+                        createdAt: new Date().toISOString(),
+                    }));
+
+                    if (quoteEntries.length > 0) {
+                        await addQuotesToBank(quoteEntries);
+                        totalGeneratedCount += quoteEntries.length;
+                        allGeneratedFacts.push(...quoteEntries);
+                    }
+                }
+            }
+        } catch (err) {
+            console.error('[FactGen] Global fallback batch failed:', err);
+        }
     }
 
-    const validFacts = generatedFacts.filter(f => f.text && f.topic);
-    
-    const quoteEntries = validFacts.map(fact => ({
-        text: fact.text,
-        postId: `generated_fact_${Date.now()}_${Math.random().toString(36).slice(2,7)}`,
-        postTitle: `Fascinating ${fact.topic} Fact`,
-        author: fact.author || 'Vocab AI',
-        source: 'Fact Generator',
-        topic: fact.topic.toLowerCase(),
-        highlightedPhrases: Array.isArray(fact.highlightedPhrases) ? fact.highlightedPhrases : [],
-        tags: Array.isArray(fact.tags) ? fact.tags.map((t: string) => t.toLowerCase()) : [],
-        sourceType: 'generated_fact' as const,
-        createdAt: new Date().toISOString(),
-    }));
-
-    if (quoteEntries.length > 0) {
-        await addQuotesToBank(quoteEntries);
-        console.log(`[FactGen] Successfully generated and stored ${quoteEntries.length} new facts.`);
-    }
+    console.log(`[FactGen] Complete. Generated ${totalGeneratedCount} total facts.`);
 
     return {
         success: true,
-        generatedCount: quoteEntries.length,
-        topics: selectedTopics,
-        facts: quoteEntries
+        generatedCount: totalGeneratedCount,
+        facts: allGeneratedFacts
     };
 }

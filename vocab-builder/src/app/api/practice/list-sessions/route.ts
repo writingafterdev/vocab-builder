@@ -38,27 +38,31 @@ export async function GET(request: NextRequest) {
         });
 
         const sessions = docs.map((doc: any) => {
-            // Parse JSON strings back to arrays for counts
-            let sectionCount = 0;
+            // Parse JSON fields
             let questionCount = 0;
-
-            try {
-                const sections = typeof doc.content === 'string' ? JSON.parse(doc.content) : (doc.content || []);
-                sectionCount = Array.isArray(sections) ? sections.length : 0;
-            } catch { /* ignore parse errors */ }
+            let topic = '';
+            let centralClaim = '';
 
             try {
                 const questions = typeof doc.questions === 'string' ? JSON.parse(doc.questions) : (doc.questions || []);
                 questionCount = Array.isArray(questions) ? questions.length : 0;
-            } catch { /* ignore parse errors */ }
+            } catch { /* ignore */ }
+
+            // Try to extract topic from anchorPassage (new format) or title (legacy)
+            try {
+                const passage = typeof doc.content === 'string' ? JSON.parse(doc.content) : doc.content;
+                if (passage && typeof passage === 'object' && passage.topic) {
+                    topic = passage.topic;
+                    centralClaim = passage.centralClaim || '';
+                }
+            } catch { /* ignore */ }
 
             return {
                 id: doc.id,
-                title: doc.title || 'Untitled Session',
-                subtitle: doc.subtopic || '',
+                topic: topic || doc.title || 'Untitled Session',
+                centralClaim: centralClaim || doc.subtopic || '',
                 totalPhrases: doc.totalPhrases || 0,
                 status: doc.status || 'generated',
-                sectionCount,
                 questionCount,
                 createdAt: doc.createdAt || '',
             };
@@ -68,7 +72,6 @@ export async function GET(request: NextRequest) {
 
     } catch (error) {
         console.error('[list-sessions] Unexpected error:', error);
-        // Always return 200 with empty sessions rather than crashing the UI
         return NextResponse.json({ sessions: [] });
     }
 }

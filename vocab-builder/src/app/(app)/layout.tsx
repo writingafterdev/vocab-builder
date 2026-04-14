@@ -29,6 +29,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FloatingDock, DockItem } from '@/components/ui/floating-dock';
 import { EditorialLoader } from '@/components/ui/editorial-loader';
 import { useOnlineStatus } from '@/hooks/use-online-status';
+import { DictionaryWidget } from '@/components/vocab/DictionaryWidget';
+import { useDictionaryStore } from '@/stores/dictionary-store';
 
 export default function AppLayout({ children }: { children: ReactNode }) {
     const { user, profile, loading, signOut } = useAuth();
@@ -36,6 +38,14 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     const pathname = usePathname();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     useOnlineStatus(); // Show toast on offline/online
+
+    // Hydrate global dictionary store with user credentials
+    const setDictionaryUser = useDictionaryStore(s => s.setUser);
+    useEffect(() => {
+        if (user?.$id && user?.email) {
+            setDictionaryUser(user.$id, user.email);
+        }
+    }, [user?.$id, user?.email, setDictionaryUser]);
 
     // Check if practice has uncompleted exercises today
     const [hasPendingPractice, setHasPendingPractice] = useState(false);
@@ -143,6 +153,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     // Check if we're on an article page (uses its own ArticleDock)
     const isArticlePage = pathname.startsWith('/post/');
 
+    // Check if we're in an active session (hide dock, bypass padding)
+    const isSessionPage = pathname.startsWith('/practice/session/');
+
     // For scenario mode, render without the main navigation
     if (isScenarioMode) {
         return (
@@ -154,12 +167,17 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
     return (
         <div className="min-h-screen bg-white">
-            {/* Floating Dock - Bottom Navigation (hidden on article pages which use ArticleDock) */}
-            {!isArticlePage && <FloatingDock items={dockItems} />}
+            {/* Global Dictionary Widget — available on all pages */}
+            <DictionaryWidget />
+
+            {/* Floating Dock - Bottom Navigation (hidden during sessions and article pages) */}
+            {!isArticlePage && !isSessionPage && <FloatingDock items={dockItems} />}
 
             {/* Main Content - Full width now */}
-            <main className="min-h-screen pb-24">
-                {pathname.startsWith('/vocab') || pathname.startsWith('/post') ? (
+            <main className={`${isSessionPage ? '' : 'min-h-screen'} ${isSessionPage ? '' : 'pb-24'}`}>
+                {pathname.startsWith('/vocab') || pathname.startsWith('/post') || isSessionPage ? (
+                    children
+                ) : pathname.startsWith('/practice') ? (
                     children
                 ) : (
                     <div className="py-8 px-4 lg:px-8 max-w-7xl mx-auto">
@@ -184,72 +202,80 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                             animate={{ x: 0 }}
                             exit={{ x: '100%' }}
                             transition={{ type: 'spring', damping: 20 }}
-                            className="fixed right-0 top-0 bottom-0 z-50 w-72 bg-white"
+                            className="fixed right-0 top-0 bottom-0 z-50 w-72 bg-white flex flex-col font-sans"
                         >
-                            <div className="flex items-center justify-between px-4 py-4 border-b border-neutral-100">
-                                <span className="font-semibold">Menu</span>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
+                            {/* Close Bar */}
+                            <div className="flex justify-end p-4">
+                                <button
                                     onClick={() => setSidebarOpen(false)}
+                                    className="p-2 -mr-2 text-neutral-300 hover:text-neutral-900 transition-colors"
                                 >
                                     <X className="h-5 w-5" />
-                                </Button>
+                                </button>
                             </div>
 
-                            <div className="p-4">
-                                {/* User info */}
-                                <div className="flex items-center gap-3 px-2 py-3 mb-4">
-                                    <Avatar className="h-10 w-10">
+                            <div className="px-8 flex-1 flex flex-col">
+                                {/* User Info (Editorial Header) */}
+                                <div className="mb-12 flex flex-col gap-4">
+                                    <Avatar className="h-16 w-16 border border-neutral-100 shadow-sm">
                                         <AvatarImage src={profile?.photoURL} alt={profile?.displayName} />
-                                        <AvatarFallback className="bg-neutral-200">{profile?.displayName?.charAt(0) || 'U'}</AvatarFallback>
+                                        <AvatarFallback className="bg-neutral-50 text-neutral-400 text-lg font-serif italic">{profile?.displayName?.charAt(0) || 'U'}</AvatarFallback>
                                     </Avatar>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-medium truncate">{profile?.displayName}</p>
-                                        <p className="text-xs text-neutral-500 truncate">@{profile?.username}</p>
+                                    <div>
+                                        <h2 
+                                            className="text-[26px] text-neutral-900 tracking-tight italic leading-none" 
+                                            style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
+                                        >
+                                            {profile?.displayName}
+                                        </h2>
+                                        <p className="text-[10px] text-neutral-400 uppercase tracking-[0.15em] mt-2 font-medium">@{profile?.username}</p>
                                     </div>
                                 </div>
 
+                                {/* Navigation Links */}
+                                <div className="flex flex-col gap-5 border-t border-neutral-100 pt-8">
+                                    <Link
+                                        href={`/profile/${profile?.username || 'me'}`}
+                                        onClick={() => setSidebarOpen(false)}
+                                        className="text-[14px] text-neutral-500 hover:text-neutral-900 transition-colors tracking-wide"
+                                    >
+                                        View Profile
+                                    </Link>
+                                    
+                                    <Link
+                                        href="/settings"
+                                        onClick={() => setSidebarOpen(false)}
+                                        className="text-[14px] text-neutral-500 hover:text-neutral-900 transition-colors tracking-wide"
+                                    >
+                                        Settings
+                                    </Link>
 
-                                {/* View Profile */}
-                                <Link
-                                    href={`/profile/${profile?.username || 'me'}`}
-                                    onClick={() => setSidebarOpen(false)}
-                                    className="flex items-center gap-2 px-3 py-2 mb-2 text-sm text-neutral-600 hover:bg-neutral-50 rounded-lg transition-colors"
-                                >
-                                    <User className="h-4 w-4" weight="regular" />
-                                    View Profile
-                                </Link>
-
-                                {/* Upgrade CTA */}
-                                {profile?.subscription?.status === 'trial' && (
-                                    <div className="mb-4">
-                                        <Link href="/subscription" className="block group">
-                                            <div className="flex items-center justify-between p-1.5 pl-4 bg-neutral-900 border border-neutral-800 rounded-xl shadow-[0_2px_12px_-4px_rgba(0,0,0,0.2)] hover:shadow-[0_4px_16px_-4px_rgba(0,0,0,0.3)] transition-all duration-300">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-sm font-medium text-neutral-300">Upgrade to</span>
-                                                    <span className="bg-white text-neutral-900 text-[10px] font-bold px-2 py-1 rounded-[6px] leading-none flex items-center tracking-wide shadow-sm">PRO</span>
-                                                </div>
-                                                <div className="w-8 h-8 bg-neutral-800 rounded-lg flex items-center justify-center group-hover:bg-neutral-700 transition-colors duration-300">
-                                                    <ArrowUpRight className="w-4 h-4 text-white" />
-                                                </div>
-                                            </div>
+                                    {/* Quiet Premium CTA */}
+                                    {profile?.subscription?.status === 'trial' && (
+                                        <Link 
+                                            href="/subscription" 
+                                            onClick={() => setSidebarOpen(false)}
+                                            className="text-[14px] text-neutral-500 hover:text-neutral-900 transition-colors flex items-center gap-1.5 group tracking-wide mt-2"
+                                        >
+                                            <Sparkle className="w-4 h-4 text-neutral-300 group-hover:text-amber-500 transition-colors" weight="fill" />
+                                            Upgrade Premium
                                         </Link>
-                                    </div>
-                                )}
+                                    )}
+                                </div>
 
-                                {/* Logout */}
-                                <Button
-                                    variant="ghost"
-                                    className="w-full justify-start gap-2 text-neutral-600"
-                                    onClick={() => {
-                                        handleSignOut();
-                                        setSidebarOpen(false);
-                                    }}
-                                >
-                                    <SignOut className="h-4 w-4" />
-                                    Log out
-                                </Button>
+                                {/* Bottom Anchor */}
+                                <div className="mt-auto pb-10">
+                                    <button
+                                        onClick={() => {
+                                            handleSignOut();
+                                            setSidebarOpen(false);
+                                        }}
+                                        className="flex items-center gap-2 text-[11px] uppercase tracking-[0.1em] font-semibold text-neutral-400 hover:text-neutral-900 transition-colors"
+                                    >
+                                        <SignOut className="h-3.5 w-3.5" weight="bold" />
+                                        Log Out
+                                    </button>
+                                </div>
                             </div>
                         </motion.aside>
                     </>

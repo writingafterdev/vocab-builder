@@ -92,7 +92,7 @@ export function VocabPopupCard({
                 damping: 26,
                 ...(bounce ? { scale: { duration: 0.35 } } : {}),
             }}
-            className="fixed bottom-6 right-6 z-40 w-[340px] bg-white border border-neutral-200 shadow-[0_8px_40px_rgba(0,0,0,0.12)] font-sans overflow-hidden"
+            className="fixed bottom-[100px] md:bottom-6 left-4 right-4 md:left-auto md:right-6 z-40 w-auto md:w-[340px] bg-white border border-neutral-200 shadow-[0_8px_40px_rgba(0,0,0,0.12)] font-sans overflow-hidden"
         >
             {/* Header */}
             <div className="px-5 pt-4 pb-0 flex items-start justify-between">

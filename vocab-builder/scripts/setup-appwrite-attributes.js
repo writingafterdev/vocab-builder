@@ -56,6 +56,7 @@ const SCHEMAS = {
     ],
 
     quote_feed_state: [
+        { key: 'userId', type: 'string', size: 255 },
         { key: 'viewedQuoteIds', type: 'string', size: 10000 },   // JSON array of IDs
         { key: 'topicScores', type: 'string', size: 5000 },       // JSON object
         { key: 'hasCompletedOnboarding', type: 'boolean' },
@@ -251,14 +252,25 @@ const SCHEMAS = {
     ],
 
     phraseDictionary: [
+        { key: 'phraseKey', type: 'string', size: 500 },
         { key: 'phrase', type: 'string', size: 500 },
-        { key: 'definition', type: 'string', size: 2000 },
-        { key: 'examples', type: 'string', size: 5000 },       // JSON array
-        { key: 'synonyms', type: 'string', size: 1000 },
-        { key: 'difficulty', type: 'string', size: 50 },
-        { key: 'frequency', type: 'integer' },
-        { key: 'createdAt', type: 'string', size: 100 },
-        { key: 'updatedAt', type: 'string', size: 100 },
+        { key: 'baseForm', type: 'string', size: 500 },
+        { key: 'meaning', type: 'string', size: 2000 },
+        { key: 'context', type: 'string', size: 2000 },
+        { key: 'contextTranslation', type: 'string', size: 2000 },
+        { key: 'pronunciation', type: 'string', size: 255 },
+        { key: 'register', type: 'string', size: 500 },         // JSON (string or array)
+        { key: 'nuance', type: 'string', size: 500 },           // JSON (string or array)
+        { key: 'socialDistance', type: 'string', size: 500 },    // JSON array
+        { key: 'topic', type: 'string', size: 500 },            // JSON (string or array)
+        { key: 'subtopic', type: 'string', size: 500 },         // JSON (string or array)
+        { key: 'isHighFrequency', type: 'boolean' },
+        { key: 'commonUsages', type: 'string', size: 3000 },    // JSON array
+        { key: 'registerVariants', type: 'string', size: 2000 },// JSON array
+        { key: 'nuanceVariants', type: 'string', size: 2000 },  // JSON array
+        { key: 'lookupCount', type: 'integer' },
+        { key: 'saveCount', type: 'integer' },
+        { key: 'generatedAt', type: 'string', size: 100 },
     ],
 
     globalPhraseData: [
@@ -299,6 +311,12 @@ const SCHEMAS = {
         { key: 'level', type: 'string', size: 50 },
         { key: 'scores', type: 'string', size: 5000 },          // JSON blob
         { key: 'updatedAt', type: 'string', size: 100 },
+    ],
+
+    userProgress: [
+        { key: 'userId', type: 'string', size: 255 },
+        { key: 'xp', type: 'integer' },
+        { key: 'level', type: 'integer' },
     ],
 
     userWeaknesses: [

@@ -4,700 +4,116 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-    ArrowLeft, Check, ChevronRight, Loader2, BookOpen,
-    Trophy, Sparkles, Lock,
-} from 'lucide-react';
+import { ArrowLeft, BookOpen, ChevronDown, Headphones, Volume2 } from 'lucide-react';
 import { EditorialLoader } from '@/components/ui/editorial-loader';
 import { toast } from 'sonner';
 import Link from 'next/link';
-import { AudioSection } from '@/components/exercise/ListeningArticle';
 
-// ─── Types ────────────────────────────────────────────
+import McqInteraction from '@/components/exercise/interactions/McqInteraction';
+import ReorderInteraction from '@/components/exercise/interactions/ReorderInteraction';
+import HighlightInteraction from '@/components/exercise/interactions/HighlightInteraction';
+import RatingInteraction from '@/components/exercise/interactions/RatingInteraction';
+import FreeWriteInteraction from '@/components/exercise/interactions/FreeWriteInteraction';
+import ABPickInteraction from '@/components/exercise/interactions/ABPickInteraction';
+import FillBlankInteraction from '@/components/exercise/interactions/FillBlankInteraction';
+import SwipeJudgeInteraction from '@/components/exercise/interactions/SwipeJudgeInteraction';
+import MatchPairsInteraction from '@/components/exercise/interactions/MatchPairsInteraction';
+import TapPassageInteraction from '@/components/exercise/interactions/TapPassageInteraction';
+import CategorySortInteraction from '@/components/exercise/interactions/CategorySortInteraction';
+import WordBuilderInteraction from '@/components/exercise/interactions/WordBuilderInteraction';
+import ErrorTapFixInteraction from '@/components/exercise/interactions/ErrorTapFixInteraction';
+import DialoguePickInteraction from '@/components/exercise/interactions/DialoguePickInteraction';
+import MultiBlankInteraction from '@/components/exercise/interactions/MultiBlankInteraction';
 
-interface GeneratedSection {
-    id: string;
-    content: string;
-    vocabPhrases: string[];
-}
-
-interface ComprehensionQuestion {
-    id: string;
-    afterSectionId: string;
-    question: string;
-    options: string[];
-    correctIndex: number;
-    targetPhrase: string;
-    explanation: string;
-}
-
-interface GeneratedSession {
-    userId: string;
-    title: string;
-    subtitle: string;
-    sections: GeneratedSection[];
-    questions: ComprehensionQuestion[];
-    quotes: Array<{ text: string; highlightedPhrases: string[] }>;
-    phraseIds: string[];
-    totalPhrases: number;
-    status: 'generated' | 'in_progress' | 'completed';
-    createdAt: string;
-    isListeningDay?: boolean;
-    reviewDayIndex?: number;
-}
-
-// ─── Question Card (non-skippable) ────────────────────
-
-function QuestionGate({
-    question,
-    onCorrect,
-    isCompleted,
-}: {
-    question: ComprehensionQuestion;
-    onCorrect: () => void;
-    isCompleted: boolean;
-}) {
-    const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-    const [showResult, setShowResult] = useState(false);
-    const [isCorrect, setIsCorrect] = useState(false);
-    const [attempts, setAttempts] = useState(0);
-
-    if (isCompleted) {
-        return (
-            <div className="my-12 p-8 border border-neutral-200 bg-neutral-50">
-                <div className="flex items-center gap-2 text-neutral-900 mb-4">
-                    <Check className="w-4 h-4" />
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-neutral-500">Completed</span>
-                </div>
-                <p className="text-[15px] leading-relaxed text-neutral-700 italic" style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}>
-                    {question.explanation}
-                </p>
-            </div>
-        );
-    }
-
-    const handleSubmit = () => {
-        if (selectedIndex === null) return;
-
-        const correct = selectedIndex === question.correctIndex;
-        setIsCorrect(correct);
-        setShowResult(true);
-        setAttempts(prev => prev + 1);
-
-        if (correct) {
-            setTimeout(() => onCorrect(), 1500);
-        }
-    };
-
-    const handleRetry = () => {
-        setSelectedIndex(null);
-        setShowResult(false);
-        setIsCorrect(false);
-    };
-
-    return (
-        <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="my-12 relative"
-        >
-            <div className="bg-white border border-neutral-200 p-8 md:p-10">
-                {/* Header */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 pb-4 border-b border-neutral-100">
-                    <div className="flex items-center gap-2">
-                        <Lock className="w-3.5 h-3.5 text-neutral-400" />
-                        <span className="text-[10px] font-bold text-neutral-900 uppercase tracking-widest">
-                            Comprehension Check
-                        </span>
-                    </div>
-                    {question.targetPhrase && (
-                        <span className="text-[10px] text-neutral-400 uppercase tracking-wider">
-                            Testing: "{question.targetPhrase}"
-                        </span>
-                    )}
-                </div>
-
-                {/* Question */}
-                <p className="text-xl md:text-2xl text-neutral-900 mb-8 leading-relaxed"
-                   style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}>
-                    {question.question}
-                </p>
-
-                {/* Options */}
-                <div className="space-y-3">
-                    {question.options.map((option, idx) => {
-                        let optionStyle = 'border-neutral-200 hover:border-neutral-900 bg-white text-neutral-600 hover:text-neutral-900';
-                        if (showResult) {
-                            if (idx === question.correctIndex) {
-                                optionStyle = 'border-emerald-500 bg-emerald-50 text-emerald-900';
-                            } else if (idx === selectedIndex && !isCorrect) {
-                                optionStyle = 'border-red-200 bg-red-50 text-red-900';
-                            } else {
-                                optionStyle = 'border-neutral-100 bg-neutral-50 text-neutral-400';
-                            }
-                        } else if (idx === selectedIndex) {
-                            optionStyle = 'border-neutral-900 bg-neutral-900 text-white';
-                        }
-
-                        return (
-                            <button
-                                key={idx}
-                                onClick={() => !showResult && setSelectedIndex(idx)}
-                                disabled={showResult}
-                                className={`w-full text-left p-4 md:p-5 border transition-all duration-200 outline-none focus-visible:ring-1 focus-visible:ring-neutral-900 ${optionStyle}`}
-                            >
-                                <div className="flex items-start gap-4">
-                                    <span className={`flex-shrink-0 w-6 h-6 border flex items-center justify-center text-[10px] font-bold mt-0.5 ${
-                                        idx === selectedIndex && !showResult ? 'border-neutral-700 text-white' : 'border-current'
-                                    }`}>
-                                        {String.fromCharCode(65 + idx)}
-                                    </span>
-                                    <span className="text-sm tracking-wide leading-relaxed font-medium">{option}</span>
-                                </div>
-                            </button>
-                        );
-                    })}
-                </div>
-
-                {/* Result feedback */}
-                <AnimatePresence>
-                    {showResult && (
-                        <motion.div
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: 'auto' }}
-                            className="mt-8 overflow-hidden"
-                        >
-                            {isCorrect ? (
-                                <div className="p-6 border border-emerald-200 bg-emerald-50/50">
-                                    <h4 className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-3">
-                                        Correct
-                                    </h4>
-                                    <p className="text-[15px] text-emerald-800 leading-relaxed italic" style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}>
-                                        {question.explanation}
-                                    </p>
-                                </div>
-                            ) : (
-                                <div className="p-6 border border-amber-200 bg-amber-50/50 flex flex-col items-start gap-4">
-                                    <div>
-                                        <h4 className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-3">
-                                            {attempts < 3 ? 'Incorrect' : 'Answer'}
-                                        </h4>
-                                        {attempts >= 3 && (
-                                            <p className="text-[15px] text-amber-800 leading-relaxed italic mb-4" style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}>
-                                                {question.explanation}
-                                            </p>
-                                        )}
-                                    </div>
-                                    <button
-                                        onClick={attempts >= 3 ? onCorrect : handleRetry}
-                                        className="text-[10px] font-bold uppercase tracking-widest text-neutral-900 border-b border-neutral-900 pb-0.5 hover:text-neutral-500 hover:border-neutral-500 transition-colors"
-                                    >
-                                        {attempts >= 3 ? 'Continue reading' : 'Try again'}
-                                    </button>
-                                </div>
-                            )}
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-
-                {/* Submit button */}
-                {!showResult && (
-                    <button
-                        onClick={handleSubmit}
-                        disabled={selectedIndex === null}
-                        className={`mt-8 w-full py-4 text-[10px] font-bold uppercase tracking-widest transition-all outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
-                            selectedIndex !== null
-                                ? 'bg-neutral-900 text-white hover:bg-neutral-800 focus-visible:ring-neutral-900'
-                                : 'bg-neutral-50 text-neutral-300 border border-neutral-200 cursor-not-allowed'
-                        }`}
-                    >
-                        Check Answer
-                    </button>
-                )}
-            </div>
-        </motion.div>
-    );
-}
-
-// ─── Progress Bar ─────────────────────────────────────
-
-function SessionProgress({
-    completed,
-    total,
-}: {
-    completed: number;
-    total: number;
-}) {
-    const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
-
-    return (
-        <div className="flex items-center gap-3">
-            <div className="flex-1 h-1.5 bg-neutral-100 rounded-full overflow-hidden">
-                <motion.div
-                    className="h-full bg-neutral-900 rounded-full"
-                    initial={{ width: 0 }}
-                    animate={{ width: `${percent}%` }}
-                    transition={{ duration: 0.5, ease: 'easeOut' }}
-                />
-            </div>
-            <span className="text-xs text-neutral-400 font-medium tabular-nums">
-                {completed}/{total}
-            </span>
-        </div>
-    );
-}
-
-// ─── Completion Screen ────────────────────────────────
-
-function CompletionScreen({
-    session,
-    correctCount,
-    totalQuestions,
-}: {
-    session: GeneratedSession;
-    correctCount: number;
-    totalQuestions: number;
-}) {
-    const router = useRouter();
-    const { user } = useAuth();
-    const accuracy = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0;
-    const isOwner = user?.$id === session.userId;
-
-    return (
-        <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="min-h-[60vh] flex items-center justify-center py-20"
-        >
-            <div className="text-center max-w-md mx-auto px-6">
-                <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
-                    className="w-20 h-20 bg-neutral-900 rounded-none flex items-center justify-center mx-auto mb-8"
-                >
-                    <Trophy className="w-8 h-8 text-white" />
-                </motion.div>
-
-                <h2
-                    className="text-3xl md:text-4xl font-normal text-neutral-900 mb-4"
-                    style={{ fontFamily: 'var(--font-serif, Georgia, serif)' }}
-                >
-                    Session Complete
-                </h2>
-
-                {isOwner ? (
-                    <p className="text-neutral-500 mb-10 tracking-wide font-medium">
-                        You reviewed {session.totalPhrases} phrases with {accuracy}% accuracy.
-                    </p>
-                ) : (
-                    <p className="text-emerald-600 mb-10 tracking-wide font-medium text-sm">
-                        You helped verify a community article with {accuracy}% accuracy!
-                    </p>
-                )}
-
-                {/* Stats */}
-                <div className="grid grid-cols-3 gap-4 mb-10">
-                    <div className="p-5 bg-neutral-50 border border-neutral-100">
-                        <div className="text-[28px] font-normal font-serif text-neutral-900">{session.totalPhrases}</div>
-                        <div className="text-[10px] uppercase tracking-widest text-neutral-400 mt-2 font-bold">Phrases</div>
-                    </div>
-                    <div className="p-5 bg-neutral-50 border border-neutral-100">
-                        <div className="text-[28px] font-normal font-serif text-neutral-900">{correctCount}</div>
-                        <div className="text-[10px] uppercase tracking-widest text-neutral-400 mt-2 font-bold">Correct</div>
-                    </div>
-                    <div className="p-5 bg-neutral-50 border border-neutral-100">
-                        <div className="text-[28px] font-normal font-serif text-neutral-900">{accuracy}%</div>
-                        <div className="text-[10px] uppercase tracking-widest text-emerald-600 mt-2 font-bold">Accuracy</div>
-                    </div>
-                </div>
-
-                <div className="space-y-3">
-                    <button
-                        onClick={() => router.push('/feed')}
-                        className="w-full py-4 bg-neutral-900 text-white text-[10px] font-bold uppercase tracking-widest hover:bg-neutral-800 transition-colors border border-neutral-900"
-                    >
-                        Back to Library
-                    </button>
-                    <button
-                        onClick={() => router.push('/practice')}
-                        className="w-full py-4 bg-white text-neutral-900 border border-neutral-200 text-[10px] font-bold uppercase tracking-widest hover:border-neutral-900 hover:bg-neutral-50 transition-colors"
-                    >
-                        Start Another Session
-                    </button>
-                </div>
-            </div>
-        </motion.div>
-    );
-}
+import type { AnchorPassage, SessionQuestion, SessionQuestionResult } from '@/lib/db/types';
+import { QUESTION_INTERACTION_MAP, QUESTION_TYPE_LABELS, QUESTION_SKILL_MAP, SKILL_AXIS_META } from '@/lib/exercise/config';
+import { useTTS } from '@/hooks/use-tts';
 
 // ─── Main Page ────────────────────────────────────────
 
 export default function SessionPage() {
-    const params = useParams();
+    const { id } = useParams();
     const router = useRouter();
-    const sessionId = params.id as string;
     const { user } = useAuth();
+    const userId = user?.$id || '';
 
-    const [session, setSession] = useState<GeneratedSession | null>(null);
+    // Session data
+    const [anchorPassage, setAnchorPassage] = useState<AnchorPassage | null>(null);
+    const [questions, setQuestions] = useState<SessionQuestion[]>([]);
+    const [vocabWordIds, setVocabWordIds] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [completedQuestionIds, setCompletedQuestionIds] = useState<Set<string>>(new Set());
-    const [firstAttemptCorrect, setFirstAttemptCorrect] = useState<Set<string>>(new Set());
-    const [isCompleted, setIsCompleted] = useState(false);
 
-    // Load session data
+    // Progress state
+    const [currentIndex, setCurrentIndex] = useState(0);
+    const [results, setResults] = useState<SessionQuestionResult[]>([]);
+    const [completed, setCompleted] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
+    const [showFullPassage, setShowFullPassage] = useState(false);
+
+    // Active question AI evaluation
+    const [evaluating, setEvaluating] = useState(false);
+    const [activeFeedback, setActiveFeedback] = useState<Record<string, { correct: boolean; feedback: string; suggestion?: string }>>({});
+
+    // Listening mode
+    const tts = useTTS();
+    const [listenedQuestions, setListenedQuestions] = useState<Set<string>>(new Set());
+
+    // ─── Fetch Session ────────────────────────────────
+
     useEffect(() => {
-        async function loadSession() {
-            if (!sessionId || !user?.$id) return;
+        if (!id || !userId) return;
+        fetchSession();
+    }, [id, userId]);
 
-            try {
-                const res = await fetch(`/api/practice/get-session?sessionId=${sessionId}`, {
-                    headers: { 'x-user-id': user.$id },
-                });
-
-                if (!res.ok) {
-                    throw new Error('Session not found');
-                }
-
-                const data = await res.json();
-                setSession(data.session);
-            } catch (err) {
-                console.error('Failed to load session:', err);
-                setError('Session not found or expired.');
-            } finally {
-                setLoading(false);
-            }
-        }
-
-        loadSession();
-    }, [sessionId, user?.$id]);
-
-    // Build the reading flow: sections interleaved with questions
-    const readingFlow = useMemo(() => {
-        if (!session) return [];
-
-        const flow: Array<
-            | { type: 'section'; data: GeneratedSection }
-            | { type: 'question'; data: ComprehensionQuestion }
-        > = [];
-
-        for (const section of session.sections) {
-            flow.push({ type: 'section', data: section });
-
-            // Insert questions that go after this section
-            const questionsAfter = session.questions.filter(
-                q => q.afterSectionId === section.id
-            );
-            for (const q of questionsAfter) {
-                flow.push({ type: 'question', data: q });
-            }
-        }
-
-        return flow;
-    }, [session]);
-
-    // Find the first unanswered question to determine blur boundary
-    const firstUnansweredIndex = useMemo(() => {
-        for (let i = 0; i < readingFlow.length; i++) {
-            const item = readingFlow[i];
-            if (item.type === 'question' && !completedQuestionIds.has(item.data.id)) {
-                return i;
-            }
-        }
-        return -1; // All completed
-    }, [readingFlow, completedQuestionIds]);
-
-    const handleQuestionCorrect = useCallback(async (questionId: string) => {
-        setCompletedQuestionIds(prev => {
-            const next = new Set(prev);
-            next.add(questionId);
-            return next;
-        });
-
-        // Check if this was the last question
-        if (session) {
-            const allCompleted = session.questions.every(
-                q => completedQuestionIds.has(q.id) || q.id === questionId
-            );
-
-            if (allCompleted) {
-                // Mark session as completed + update SRS
-                setIsCompleted(true);
-
-                try {
-                    await fetch('/api/practice/complete-session', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'x-user-id': user?.$id || '',
-                        },
-                        body: JSON.stringify({
-                            sessionId,
-                            phraseIds: session.phraseIds,
-                            correctCount: firstAttemptCorrect.size + 1,
-                            totalQuestions: session.questions.length,
-                        }),
-                    });
-                } catch (e) {
-                    console.error('Failed to complete session:', e);
-                }
-            }
-        }
-    }, [session, completedQuestionIds, sessionId, user?.$id, firstAttemptCorrect]);
-
-    const handleListeningComplete = useCallback(async () => {
-        if (!session) return;
-        setIsCompleted(true);
-
+    const fetchSession = async () => {
         try {
-            await fetch('/api/practice/complete-session', {
-                method: 'POST',
+            setLoading(true);
+            const token = await user?.getJwt();
+            const res = await fetch(`/api/practice/get-session?sessionId=${id}`, {
                 headers: {
-                    'Content-Type': 'application/json',
-                    'x-user-id': user?.$id || '',
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+                    'x-user-id': userId,
                 },
-                body: JSON.stringify({
-                    sessionId,
-                    phraseIds: session.phraseIds,
-                    correctCount: session.questions.length, // Full credit for now
-                    totalQuestions: session.questions.length,
-                }),
             });
-        } catch (e) {
-            console.error('Failed to complete session:', e);
+
+            if (!res.ok) throw new Error('Failed to fetch session');
+
+            const data = await res.json();
+            const session = data.session;
+
+            setAnchorPassage(session.anchorPassage);
+            setQuestions(session.questions || []);
+            setVocabWordIds(session.vocabWordIds || []);
+
+            if (session.status?.startsWith('completed')) {
+                setCompleted(true);
+                setResults(session.results || []);
+            } else if (session.status === 'in_progress' && session.partialResults?.length > 0) {
+                // Resume: restore saved progress
+                setResults(session.partialResults);
+                setCurrentIndex(session.currentIndex || session.partialResults.length);
+            }
+        } catch (err) {
+            console.error('Failed to fetch session:', err);
+            toast.error('Could not load session');
+        } finally {
+            setLoading(false);
         }
-    }, [session, sessionId, user?.$id]);
+    };
 
-    // Highlight vocab phrases in section content
-    const highlightPhrases = useCallback((content: string, phrases: string[]) => {
-        if (!phrases || phrases.length === 0) return content;
+    // ─── Derived State ────────────────────────────────
 
-        let result = content;
-        for (const phrase of phrases) {
-            const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            const regex = new RegExp(`(${escaped})`, 'gi');
-            result = result.replace(
-                regex,
-                '<mark class="bg-amber-100 text-amber-900 px-1 rounded font-medium">$1</mark>'
-            );
-        }
-        return result;
-    }, []);
+    const currentQuestion = questions[currentIndex] || null;
+    const totalCorrect = useMemo(() => results.filter(r => r.correct).length, [results]);
+    const accuracy = results.length > 0 ? Math.round((totalCorrect / results.length) * 100) : 0;
 
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center min-h-screen bg-white">
-                <EditorialLoader size="md" />
-            </div>
-        );
-    }
+    // ─── Answer Handlers ──────────────────────────────
 
-    if (error || !session) {
-        return (
-            <div className="flex flex-col items-center justify-center min-h-screen bg-white gap-4">
-                <BookOpen className="w-12 h-12 text-neutral-300" />
-                <p className="text-neutral-500">{error || 'Session not found'}</p>
-                <Link
-                    href="/practice"
-                    className="text-sm font-semibold text-neutral-900 underline underline-offset-2"
-                >
-                    ← Back to Practice
-                </Link>
-            </div>
-        );
-    }
-
-    if (isCompleted) {
-        return (
-            <div className="min-h-screen bg-white">
-                <CompletionScreen
-                    session={session}
-                    correctCount={firstAttemptCorrect.size}
-                    totalQuestions={session.questions.length}
-                />
-            </div>
-        );
-    }
-
-    return (
-        <div className="min-h-screen bg-white">
-            {/* Sticky header */}
-            <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-sm border-b border-neutral-100">
-                <div className="max-w-2xl mx-auto px-6 py-3 flex items-center justify-between">
-                    <button
-                        onClick={() => router.back()}
-                        className="flex items-center gap-1.5 text-neutral-500 hover:text-neutral-900 transition-colors"
-                    >
-                        <ArrowLeft className="w-4 h-4" />
-                        <span className="text-xs font-medium">Back</span>
-                    </button>
-
-                    <SessionProgress
-                        completed={completedQuestionIds.size}
-                        total={session.questions.length}
-                    />
-
-                    <div className="flex items-center gap-1.5 text-neutral-400">
-                        <Sparkles className="w-4 h-4" />
-                        <span className="text-xs font-semibold">
-                            {session.totalPhrases} phrases
-                        </span>
-                    </div>
-                </div>
-            </header>
-
-            {/* Article content */}
-            <div className="max-w-[900px] mx-auto py-12 md:py-20 px-4 md:px-6 pb-32">
-                <article className="bg-white shadow-[0_4px_50px_rgba(0,0,0,0.12)] min-h-[80vh] px-10 md:px-20 py-14 md:py-20">
-                        {/* Title */}
-                        <header className="text-center mb-10">
-                            <div className="inline-block px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] font-bold text-white bg-violet-600 rounded-sm mb-4">
-                                Practice Session
-                            </div>
-                            <h1
-                                className="text-3xl md:text-[44px] md:leading-[1.15] font-normal text-neutral-900 tracking-tight mb-4"
-                                style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
-                            >
-                                {session.title}
-                            </h1>
-                            <p
-                                className="text-sm md:text-base text-neutral-500 italic max-w-[500px] mx-auto"
-                                style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
-                            >
-                                {session.subtitle}
-                            </p>
-                            <div className="mt-6 flex items-center justify-center gap-4 text-xs text-neutral-400 font-sans">
-                                <span>{session.sections.length} sections</span>
-                                <span className="w-1 h-1 rounded-full bg-neutral-300" />
-                                <span>{session.questions.length} questions</span>
-                                <span className="w-1 h-1 rounded-full bg-neutral-300" />
-                                <span>{session.totalPhrases} vocab phrases</span>
-                            </div>
-                        </header>
-
-                        {/* Divider */}
-                        <div className="w-full border-t border-neutral-200 mb-10" />
-
-                        {/* Reading flow */}
-                        <div className="prose prose-neutral max-w-none leading-[1.9] text-[17px] text-neutral-800 prose-headings:font-sans prose-headings:font-bold prose-p:mb-6" style={{ fontFamily: 'Georgia, serif' }}>
-                            {readingFlow.map((item, index) => {
-                                const isBeyondGate = firstUnansweredIndex >= 0 && index > firstUnansweredIndex;
-
-                                if (item.type === 'section') {
-                                    if (session.isListeningDay) {
-                                        return (
-                                            <AudioSection 
-                                                key={item.data.id}
-                                                section={item.data}
-                                                isBeyondGate={isBeyondGate}
-                                                isPassed={firstUnansweredIndex >= 0 ? index < firstUnansweredIndex : true}
-                                                isActive={firstUnansweredIndex >= 0 ? index === firstUnansweredIndex || index === firstUnansweredIndex - 1 : true}
-                                            />
-                                        )
-                                    }
-
-                                    return (
-                                        <div key={item.data.id} className="relative">
-                                            <div
-                                                className={`transition-all duration-500 ${
-                                                    isBeyondGate ? 'blur-sm select-none pointer-events-none opacity-50' : ''
-                                                }`}
-                                                style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
-                                                dangerouslySetInnerHTML={{
-                                                    __html: highlightPhrases(
-                                                        // Convert newlines to paragraphs
-                                                        item.data.content
-                                                            .split('\n\n')
-                                                            .filter(p => p.trim())
-                                                            .map(p => `<p>${p.trim()}</p>`)
-                                                            .join(''),
-                                                        item.data.vocabPhrases
-                                                    ),
-                                                }}
-                                            />
-                                            {/* Blur overlay message */}
-                                            {isBeyondGate && index === firstUnansweredIndex + 1 && (
-                                                <div className="absolute inset-0 flex items-center justify-center">
-                                                    <div className="bg-white/80 backdrop-blur-sm border border-neutral-200 rounded-xl px-6 py-4 shadow-lg text-center" style={{ fontFamily: 'ui-sans-serif, system-ui, sans-serif' }}>
-                                                        <Lock className="w-5 h-5 text-neutral-400 mx-auto mb-2" />
-                                                        <p className="text-sm font-semibold text-neutral-700">
-                                                            {session.isListeningDay ? 'Answer the question above to continue listening' : 'Answer the question above to continue reading'}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    );
-                                }
-
-                                if (item.type === 'question') {
-                                    return (
-                                        <div className="font-sans" key={item.data.id}>
-                                            <QuestionGate
-                                                question={item.data}
-                                                isCompleted={completedQuestionIds.has(item.data.id)}
-                                                onCorrect={() => handleQuestionCorrect(item.data.id)}
-                                            />
-                                        </div>
-                                    );
-                                }
-
-                                return null;
-                            })}
-                        </div>
-
-                    {/* Open-production writing prompt — shown when all questions are answered */}
-                    {firstUnansweredIndex === -1 && !isCompleted && session && (
-                        <WritingPromptCard
-                            phrases={session.sections.flatMap(s => s.vocabPhrases).filter((v, i, a) => a.indexOf(v) === i).slice(0, 4)}
-                            userId={user?.$id || ''}
-                        />
-                    )}
-                    </article>
-                </div>
-        </div>
-    );
-}
-
-// ─── Open-Production Writing Prompt ───────────────────
-
-function WritingPromptCard({
-    phrases,
-    userId,
-}: {
-    phrases: string[];
-    userId: string;
-}) {
-    const [response, setResponse] = useState('');
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [feedback, setFeedback] = useState<{
-        detections: Array<{
-            phrase: string;
-            detected: boolean;
-            tier: string;
-            reasoning: string;
-        }>;
-    } | null>(null);
-    const [skipped, setSkipped] = useState(false);
-
-    const targetPhrases = phrases.slice(0, 3);
-
-    if (skipped) return null;
-
-    const handleSubmit = async () => {
-        if (!response.trim() || isSubmitting) return;
-        setIsSubmitting(true);
-
-        try {
-            const { account } = await import('@/lib/appwrite/client');
-            let token = null;
-            try {
-                const jwtRes = await account.createJWT();
-                token = jwtRes.jwt;
-            } catch(e) {}
-
-            const res = await fetch('/api/exercise/evaluate-production', {
+    // Fire-and-forget save of partial results to server
+    const saveProgress = useCallback((newResults: SessionQuestionResult[], nextIdx: number) => {
+        if (!id || !userId) return;
+        user?.getJwt().then(token => {
+            fetch('/api/practice/save-progress', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -705,140 +121,645 @@ function WritingPromptCard({
                     'x-user-id': userId,
                 },
                 body: JSON.stringify({
-                    targetPhrases,
-                    userResponse: response,
+                    sessionId: id,
+                    results: newResults,
+                    currentIndex: nextIdx,
+                }),
+            }).catch(() => {}); // Non-blocking — don't disrupt UX
+        }).catch(() => {});
+    }, [id, userId, user]);
+
+    const advanceToNext = useCallback((newResults: SessionQuestionResult[]) => {
+        const nextIndex = currentIndex + 1;
+        if (nextIndex < questions.length) {
+            setCurrentIndex(nextIndex);
+            setShowFullPassage(false);
+            saveProgress(newResults, nextIndex);
+        } else {
+            handleComplete(newResults);
+        }
+    }, [currentIndex, questions.length, saveProgress]);
+
+    const recordAnswer = useCallback((questionId: string, correct: boolean, userAnswer?: string) => {
+        const q = questions.find(q => q.id === questionId);
+        if (!q) return;
+
+        const result: SessionQuestionResult = {
+            questionId,
+            type: q.type,
+            skillAxis: QUESTION_SKILL_MAP[q.type] || q.skillAxis || 'task_achievement',
+            correct,
+            userAnswer: userAnswer || '',
+            timeTaken: 0,
+        };
+
+        const newResults = [...results, result];
+        setResults(newResults);
+
+        // Auto-advance after feedback delay
+        const interaction = QUESTION_INTERACTION_MAP[q.type];
+        if (interaction !== 'freewrite') {
+            setTimeout(() => {
+                advanceToNext(newResults);
+            }, correct ? 1500 : 2500);
+        }
+    }, [questions, results, advanceToNext]);
+
+    const handlePassiveAnswer = useCallback((selectedIndex: number, correct: boolean) => {
+        if (!currentQuestion) return;
+        recordAnswer(currentQuestion.id, correct, String(selectedIndex));
+    }, [currentQuestion, recordAnswer]);
+
+    const handleReorderAnswer = useCallback((orderedItems: string[], correct: boolean) => {
+        if (!currentQuestion) return;
+        recordAnswer(currentQuestion.id, correct, orderedItems.join(' → '));
+    }, [currentQuestion, recordAnswer]);
+
+    const handleFreeWriteAnswer = useCallback(async (text: string) => {
+        if (!currentQuestion) return;
+
+        setEvaluating(true);
+        try {
+            const token = await user?.getJwt();
+            const res = await fetch('/api/practice/evaluate-response', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+                    'x-user-id': userId,
+                },
+                body: JSON.stringify({
+                    sessionId: id,
+                    questionId: currentQuestion.id,
+                    userResponse: text,
+                    questionType: currentQuestion.type,
+                    prompt: currentQuestion.prompt,
+                    passageText: anchorPassage?.text || '',
+                    evaluationCriteria: currentQuestion.evaluationCriteria || [],
+                    // Production tracking: send expected phrases for usage detection
+                    expectedPhrases: currentQuestion.expectedPhrases || [],
+                    expectedPhraseIds: currentQuestion.expectedPhraseIds || [],
                 }),
             });
 
             if (res.ok) {
                 const data = await res.json();
-                setFeedback(data);
+                const evaluation = data.evaluation;
+
+                setActiveFeedback(prev => ({
+                    ...prev,
+                    [currentQuestion.id]: {
+                        correct: evaluation.pass,
+                        feedback: evaluation.feedback || '',
+                        suggestion: evaluation.suggestion,
+                    },
+                }));
+
+                const result: SessionQuestionResult = {
+                    questionId: currentQuestion.id,
+                    type: currentQuestion.type,
+                    skillAxis: QUESTION_SKILL_MAP[currentQuestion.type] || currentQuestion.skillAxis || 'task_achievement',
+                    correct: evaluation.pass,
+                    userAnswer: text,
+                    timeTaken: 0,
+                    aiFeedback: evaluation.feedback,
+                    // Include production phrase usage results for SRS adjustment
+                    phraseUsageResults: evaluation.phraseUsageResults || undefined,
+                };
+
+                const newResults = [...results, result];
+                setResults(newResults);
+
+                // Auto-advance after showing feedback
+                setTimeout(() => {
+                    advanceToNext(newResults);
+                }, 3000);
             } else {
-                toast.error('Couldn\'t evaluate your response');
+                recordAnswer(currentQuestion.id, true, text);
+                toast.error('Could not evaluate — marked as complete');
             }
         } catch (err) {
-            console.error('Production eval failed:', err);
-            toast.error('Something went wrong');
+            recordAnswer(currentQuestion.id, true, text);
+            console.error('Evaluation error:', err);
         } finally {
-            setIsSubmitting(false);
+            setEvaluating(false);
+        }
+    }, [currentQuestion, anchorPassage, userId, user, id, results, recordAnswer, advanceToNext]);
+
+    // ─── Complete Session ─────────────────────────────
+
+    const handleComplete = async (finalResults: SessionQuestionResult[]) => {
+        setCompleted(true);
+        setSubmitting(true);
+
+        try {
+            const token = await user?.getJwt();
+            const correctCount = finalResults.filter(r => r.correct).length;
+
+            await fetch('/api/practice/complete-session', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+                    'x-user-id': userId,
+                },
+                body: JSON.stringify({
+                    sessionId: id,
+                    phraseIds: vocabWordIds,
+                    results: finalResults,
+                    correctCount,
+                    totalQuestions: questions.length,
+                }),
+            });
+        } catch (err) {
+            console.error('Failed to submit results:', err);
+        } finally {
+            setSubmitting(false);
         }
     };
 
-    const tierEmoji = (tier: string) => {
-        switch (tier) {
-            case 'NATURAL': return '🟢';
-            case 'ACCEPTABLE': return '🟡';
-            case 'FORCED': return '🟠';
-            case 'NOT_USED': return '⚪';
-            default: return '🔴';
-        }
-    };
+    // ─── Loading ──────────────────────────────────────
 
-    return (
-        <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="my-12 relative"
-        >
-            <div className="bg-white border border-neutral-200 p-8 md:p-10">
-                {/* Header */}
-                <div className="flex items-center justify-between mb-8 pb-4 border-b border-neutral-100">
-                    <div className="flex items-center gap-2">
-                        <Sparkles className="w-4 h-4 text-neutral-400" />
-                        <span className="text-[10px] font-bold text-neutral-900 uppercase tracking-widest">
-                            Your Turn
-                        </span>
-                    </div>
-                    <button
-                        onClick={() => setSkipped(true)}
-                        className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest hover:text-neutral-900 transition-colors"
-                    >
-                        Skip
-                    </button>
-                </div>
+    if (loading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-[var(--background)]">
+                <EditorialLoader label="Preparing your session..." />
+            </div>
+        );
+    }
 
-                <div className="">
-                    {!feedback ? (
-                        <>
-                            <h3
-                                className="text-xl md:text-2xl text-neutral-900 mb-4"
-                                style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
-                            >
-                                Use these phrases in a short paragraph
-                            </h3>
-                            <div className="flex flex-wrap gap-2 mb-8">
-                                {targetPhrases.map((phrase, i) => (
-                                    <span
-                                        key={i}
-                                        className="px-3 py-1.5 border border-neutral-200 text-[11px] font-bold uppercase tracking-wider text-neutral-600 bg-neutral-50"
-                                    >
-                                        {phrase}
-                                    </span>
-                                ))}
-                            </div>
-                            <textarea
-                                value={response}
-                                onChange={(e) => setResponse(e.target.value)}
-                                placeholder="Write naturally (3-5 sentences)..."
-                                rows={5}
-                                className="w-full bg-white border border-neutral-200 p-5 text-sm md:text-[15px] text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900 resize-none font-serif leading-relaxed"
-                                style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
-                            />
-                            <button
-                                onClick={handleSubmit}
-                                disabled={response.trim().length < 20 || isSubmitting}
-                                className={`mt-6 w-full py-4 text-[10px] font-bold uppercase tracking-widest transition-all ${
-                                    response.trim().length >= 20
-                                        ? 'bg-neutral-900 text-white hover:bg-neutral-800'
-                                        : 'bg-neutral-50 border border-neutral-200 text-neutral-400 cursor-not-allowed'
-                                }`}
-                            >
-                                {isSubmitting ? (
-                                    <span className="flex items-center justify-center gap-2">
-                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                        Evaluating
-                                    </span>
-                                ) : (
-                                    'Check My Writing'
-                                )}
-                            </button>
-                        </>
-                    ) : (
-                        <div>
-                            <h3
-                                className="text-xl md:text-2xl text-neutral-900 mb-6"
-                                style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
-                            >
-                                Naturalness Report
-                            </h3>
-                            <div className="space-y-4">
-                                {feedback.detections.map((d, i) => (
-                                    <div key={i} className="bg-white border border-neutral-200 p-5">
-                                        <div className="flex items-center gap-3 mb-3">
-                                            <span>{tierEmoji(d.tier)}</span>
-                                            <span className="text-sm font-semibold text-neutral-900 tracking-wide font-medium">
-                                                "{d.phrase}"
-                                            </span>
-                                            <span className={`text-[10px] border px-2 py-0.5 uppercase tracking-widest font-bold ${
-                                                d.tier === 'NATURAL' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                                                d.tier === 'ACCEPTABLE' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                                                d.tier === 'FORCED' ? 'bg-orange-50 text-orange-700 border-orange-200' :
-                                                'bg-neutral-50 text-neutral-500 border-neutral-200'
-                                            }`}>
-                                                {d.tier}
-                                            </span>
-                                        </div>
-                                        <p className="text-[15px] text-neutral-700 leading-relaxed italic" style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}>
-                                            {d.reasoning}
-                                        </p>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
+    if (!anchorPassage) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-[var(--background)]">
+                <div className="text-center">
+                    <p className="text-[var(--muted-foreground)] mb-4">Session not found</p>
+                    <Link href="/practice" className="text-[var(--foreground)] underline text-sm">
+                        Back to Practice
+                    </Link>
                 </div>
             </div>
-        </motion.div>
+        );
+    }
+
+    // ─── Completed State ──────────────────────────────
+
+    if (completed) {
+        return <CompletionScreen
+            accuracy={accuracy}
+            totalCorrect={totalCorrect}
+            results={results}
+            questions={questions}
+            onDone={() => router.push('/practice')}
+        />;
+    }
+
+    // ─── Active Session — Split Screen ────────────────
+
+    const isAnswered = results.some(r => r.questionId === currentQuestion?.id);
+    const currentResult = results.find(r => r.questionId === currentQuestion?.id);
+    const questionLabel = currentQuestion ? QUESTION_TYPE_LABELS[currentQuestion.type] || '' : '';
+    const interactionType = currentQuestion ? QUESTION_INTERACTION_MAP[currentQuestion.type] : null;
+    const isFreewrite = interactionType === 'freewrite';
+    const isTapPassage = interactionType === 'tap_passage';
+    const isListening = currentQuestion?.isListening === true;
+    const hasListened = currentQuestion ? listenedQuestions.has(currentQuestion.id) : false;
+
+    // ─── Excerpt grouping ───
+    const currentExcerptId = currentQuestion?.excerptId;
+    const prevExcerptId = currentIndex > 0 ? questions[currentIndex - 1]?.excerptId : null;
+    const isNewExcerpt = currentExcerptId !== prevExcerptId;
+    const excerptText = currentQuestion?.excerptText || currentQuestion?.passageReference;
+    // Compute which excerpt number we're on (1-indexed)
+    const excerptIds = [...new Set(questions.map(q => q.excerptId).filter(Boolean))];
+    const currentExcerptNumber = currentExcerptId ? excerptIds.indexOf(currentExcerptId) + 1 : 0;
+    const totalExcerpts = excerptIds.length;
+    // Count questions within this excerpt
+    const questionsInExcerpt = currentExcerptId ? questions.filter(q => q.excerptId === currentExcerptId) : [];
+    const questionIndexInExcerpt = currentExcerptId ? questionsInExcerpt.findIndex(q => q.id === currentQuestion?.id) + 1 : 0;
+
+    const handleListenPlay = useCallback(async () => {
+        if (!currentQuestion) return;
+        const text = currentQuestion.listeningText || currentQuestion.passageReference || currentQuestion.prompt;
+        if (!text) return;
+        const completed = await tts.play(text);
+        if (completed && currentQuestion) {
+            setListenedQuestions(prev => new Set(prev).add(currentQuestion.id));
+        }
+    }, [currentQuestion, tts]);
+
+    return (
+        <div className="bg-[var(--background)]">
+            {/* ── Top Bar ── */}
+            <div className="max-w-2xl w-full mx-auto px-6 pt-4 pb-2 flex items-center justify-between">
+                <button
+                    onClick={() => router.push('/practice')}
+                    className="flex items-center gap-1.5 text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors min-h-[44px] min-w-[44px]"
+                >
+                    <ArrowLeft className="w-4 h-4" />
+                    <span className="text-[11px] font-bold uppercase tracking-widest">Exit</span>
+                </button>
+                <span className="text-[11px] text-[var(--muted-foreground)] tabular-nums font-medium">
+                    {totalExcerpts > 0 ? (
+                        <>Passage {currentExcerptNumber} of {totalExcerpts} · Q{questionIndexInExcerpt} of {questionsInExcerpt.length}</>
+                    ) : (
+                        <>{currentIndex + 1} / {questions.length}</>
+                    )}
+                </span>
+            </div>
+
+            {/* ── Progress Bar ── */}
+            <div className="max-w-2xl w-full mx-auto px-6 pb-3">
+                {totalExcerpts > 0 ? (
+                    <div className="flex gap-2.5">
+                        {excerptIds.map((exId, exIdx) => {
+                            const groupQs = questions.filter(q => q.excerptId === exId);
+                            return (
+                                <div key={exId} className="flex gap-0.5 flex-1">
+                                    {groupQs.map((q) => {
+                                        const result = results.find(r => r.questionId === q.id);
+                                        const qIdx = questions.findIndex(qq => qq.id === q.id);
+                                        const isCurrent = qIdx === currentIndex;
+                                        const axis = QUESTION_SKILL_MAP[q.type] || q.skillAxis || 'task_achievement';
+                                        const axisColor = SKILL_AXIS_META[axis]?.color || '#a3a3a3';
+                                        return (
+                                            <motion.div
+                                                key={q.id}
+                                                className="flex-1 h-1.5 rounded-full"
+                                                animate={{
+                                                    backgroundColor: result
+                                                        ? result.correct ? '#34d399' : '#f87171'
+                                                        : isCurrent ? axisColor : `${axisColor}25`,
+                                                    scale: isCurrent ? 1.15 : 1,
+                                                }}
+                                                transition={{ duration: 0.3, ease: [0.25, 1, 0.5, 1] }}
+                                            />
+                                        );
+                                    })}
+                                </div>
+                            );
+                        })}
+                    </div>
+                ) : (
+                    <div className="flex gap-1">
+                        {questions.map((q, i) => {
+                            const result = results.find(r => r.questionId === q.id);
+                            const isCurrent = i === currentIndex;
+                            const axis = QUESTION_SKILL_MAP[q.type] || q.skillAxis || 'task_achievement';
+                            const axisColor = SKILL_AXIS_META[axis]?.color || '#a3a3a3';
+                            return (
+                                <motion.div
+                                    key={q.id}
+                                    className="flex-1 h-1.5 rounded-full"
+                                    animate={{
+                                        backgroundColor: result
+                                            ? result.correct ? '#34d399' : '#f87171'
+                                            : isCurrent ? axisColor : `${axisColor}25`,
+                                        scale: isCurrent ? 1.15 : 1,
+                                    }}
+                                    transition={{ duration: 0.3, ease: [0.25, 1, 0.5, 1] }}
+                                />
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+
+            {/* ── Content Flow — passage + question + interaction ── */}
+            <div>
+                <div className="max-w-2xl w-full mx-auto px-6 pb-8">
+                    <AnimatePresence mode="wait">
+                        <motion.div
+                            key={currentExcerptId || currentQuestion?.id || 'none'}
+                            initial={{ opacity: 0, y: 16 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -16 }}
+                            transition={{ duration: 0.35, ease: [0.25, 1, 0.5, 1] }}
+                        >
+                            {/* Sticky excerpt block — stays visible across grouped questions */}
+                            {!isListening && !isTapPassage && excerptText && (
+                                <div className="mb-5 bg-[color-mix(in_oklch,var(--background),var(--foreground)_3%)] border border-[var(--border)] px-5 py-4">
+                                    {totalExcerpts > 0 && (
+                                        <div className="flex items-center justify-between mb-2">
+                                            <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--muted-foreground)]">
+                                                Passage {currentExcerptNumber}
+                                            </span>
+                                            <span className="text-[10px] text-[var(--muted-foreground)] tabular-nums">
+                                                {questionIndexInExcerpt} of {questionsInExcerpt.length} questions
+                                            </span>
+                                        </div>
+                                    )}
+                                    <p
+                                        className="text-[15px] leading-[1.9] text-[var(--foreground)] opacity-75"
+                                        style={{ fontFamily: 'var(--font-serif, Georgia, serif)' }}
+                                    >
+                                        {excerptText}
+                                    </p>
+                                </div>
+                            )}
+
+                            {/* Listening mode — audio player replaces passage */}
+                            {isListening && (
+                                <div className="mb-5">
+                                    <div className="bg-[color-mix(in_oklch,var(--background),var(--foreground)_3%)] border border-[var(--border)] px-5 py-5">
+                                        <div className="flex items-center gap-4">
+                                            <motion.button
+                                                onClick={handleListenPlay}
+                                                disabled={tts.isLoading}
+                                                whileTap={{ scale: 0.95 }}
+                                                className={`
+                                                    flex items-center justify-center w-14 h-14 rounded-full
+                                                    transition-all duration-300 min-h-[44px] min-w-[44px]
+                                                    ${tts.isPlaying
+                                                        ? 'bg-neutral-900 text-white shadow-lg'
+                                                        : tts.isLoading
+                                                            ? 'bg-neutral-200 text-neutral-400'
+                                                            : 'bg-neutral-900 text-white hover:bg-neutral-700'
+                                                    }
+                                                `}
+                                            >
+                                                {tts.isLoading ? (
+                                                    <motion.div
+                                                        animate={{ rotate: 360 }}
+                                                        transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                                                        className="w-5 h-5 border-2 border-neutral-400 border-t-transparent rounded-full"
+                                                    />
+                                                ) : tts.isPlaying ? (
+                                                    <Volume2 className="w-5 h-5" />
+                                                ) : (
+                                                    <Headphones className="w-5 h-5" />
+                                                )}
+                                            </motion.button>
+                                            <div className="flex-1">
+                                                <p className="text-[11px] font-bold uppercase tracking-widest text-[var(--muted-foreground)]">
+                                                    {tts.isPlaying ? 'Playing...' : tts.isLoading ? 'Loading...' : hasListened ? 'Play again' : 'Listen first'}
+                                                </p>
+                                                <p className="text-xs text-[var(--muted-foreground)] mt-0.5 opacity-60">
+                                                    {hasListened ? 'You can replay anytime' : 'Tap to hear the passage'}
+                                                </p>
+                                            </div>
+                                            {hasListened && (
+                                                <motion.span
+                                                    initial={{ opacity: 0, scale: 0.8 }}
+                                                    animate={{ opacity: 1, scale: 1 }}
+                                                    className="text-emerald-500 text-xs font-bold"
+                                                >
+                                                    ✓ Heard
+                                                </motion.span>
+                                            )}
+                                        </div>
+                                    </div>
+                                    {/* Gate message */}
+                                    {!hasListened && !isAnswered && (
+                                        <motion.p
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            transition={{ delay: 1 }}
+                                            className="text-center text-[11px] text-[var(--muted-foreground)] mt-3 italic"
+                                        >
+                                            Listen to the audio to unlock the question
+                                        </motion.p>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Full passage (freewrite only) */}
+                            {isFreewrite && anchorPassage && (
+                                <div className="mb-6">
+                                    <button
+                                        onClick={() => setShowFullPassage(!showFullPassage)}
+                                        className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors mb-2 min-h-[44px]"
+                                    >
+                                        <BookOpen className="w-3.5 h-3.5" />
+                                        Read full passage
+                                        <ChevronDown className={`w-3 h-3 transition-transform ${showFullPassage ? 'rotate-180' : ''}`} />
+                                    </button>
+                                    <AnimatePresence>
+                                        {showFullPassage && (
+                                            <motion.div
+                                                initial={{ height: 0, opacity: 0 }}
+                                                animate={{ height: 'auto', opacity: 1 }}
+                                                exit={{ height: 0, opacity: 0 }}
+                                                transition={{ duration: 0.35, ease: [0.25, 1, 0.5, 1] }}
+                                                className="overflow-hidden"
+                                            >
+                                                <div className="bg-[color-mix(in_oklch,var(--background),var(--foreground)_3%)] border border-[var(--border)] px-6 py-5 mb-6">
+                                                    <p className="text-xs text-[var(--muted-foreground)] italic mb-3">
+                                                        {anchorPassage.topic} — {anchorPassage.centralClaim}
+                                                    </p>
+                                                    <div
+                                                        className="text-[15px] leading-[1.9] text-[var(--foreground)] opacity-75 whitespace-pre-wrap"
+                                                        style={{ fontFamily: 'var(--font-serif, Georgia, serif)' }}
+                                                    >
+                                                        {anchorPassage.text}
+                                                    </div>
+                                                </div>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
+                            )}
+
+                            {/* ── Question + Interaction (animates within sticky excerpt) ── */}
+                            <AnimatePresence mode="wait">
+                            <motion.div
+                                key={currentQuestion?.id || 'q-none'}
+                                initial={{ opacity: 0, y: 8 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -8 }}
+                                transition={{ duration: 0.25, ease: [0.25, 1, 0.5, 1] }}
+                            >
+                            <div className={`pt-2 ${isListening && !hasListened && !isAnswered ? 'opacity-30 pointer-events-none select-none' : ''}`}>
+                                {/* Type label */}
+                                <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--muted-foreground)] mb-2">
+                                    {isListening && '🎧 '}{questionLabel}
+                                </p>
+
+                                {/* Prompt */}
+                                <p className="text-[15px] text-[var(--foreground)] mb-4 leading-relaxed font-medium">
+                                    {currentQuestion?.prompt}
+                                </p>
+
+                                {/* Interaction surface */}
+                                {interactionType === 'mcq' && (
+                                    <McqInteraction question={currentQuestion!} onAnswer={handlePassiveAnswer} disabled={isAnswered} />
+                                )}
+                                {interactionType === 'highlight' && (
+                                    <HighlightInteraction question={currentQuestion!} onAnswer={handlePassiveAnswer} disabled={isAnswered} />
+                                )}
+                                {interactionType === 'ab_pick' && (
+                                    <ABPickInteraction question={currentQuestion!} onAnswer={handlePassiveAnswer} disabled={isAnswered} />
+                                )}
+                                {interactionType === 'rating' && (
+                                    <RatingInteraction question={currentQuestion!} onAnswer={handlePassiveAnswer} disabled={isAnswered} />
+                                )}
+                                {interactionType === 'reorder' && (
+                                    <ReorderInteraction question={currentQuestion!} onAnswer={handleReorderAnswer} disabled={isAnswered} />
+                                )}
+                                {interactionType === 'freewrite' && (
+                                    <FreeWriteInteraction
+                                        question={currentQuestion!}
+                                        onAnswer={handleFreeWriteAnswer}
+                                        disabled={isAnswered}
+                                        isEvaluating={evaluating}
+                                        feedback={activeFeedback[currentQuestion!.id] || null}
+                                    />
+                                )}
+                                {interactionType === 'fill_blank' && (
+                                    <FillBlankInteraction question={currentQuestion!} onAnswer={handlePassiveAnswer} disabled={isAnswered} />
+                                )}
+                                {interactionType === 'swipe_judge' && (
+                                    <SwipeJudgeInteraction question={currentQuestion!} onAnswer={handlePassiveAnswer} disabled={isAnswered} />
+                                )}
+                                {interactionType === 'match_pairs' && (
+                                    <MatchPairsInteraction question={currentQuestion!} onAnswer={handlePassiveAnswer} disabled={isAnswered} />
+                                )}
+                                {interactionType === 'tap_passage' && (
+                                    <TapPassageInteraction question={currentQuestion!} onAnswer={handlePassiveAnswer} disabled={isAnswered} />
+                                )}
+                                {interactionType === 'category_sort' && (
+                                    <CategorySortInteraction question={currentQuestion!} onAnswer={handlePassiveAnswer} disabled={isAnswered} />
+                                )}
+                                {interactionType === 'word_builder' && (
+                                    <WordBuilderInteraction question={currentQuestion!} onAnswer={handlePassiveAnswer} disabled={isAnswered} />
+                                )}
+                                {interactionType === 'error_tap_fix' && (
+                                    <ErrorTapFixInteraction question={currentQuestion!} onAnswer={handlePassiveAnswer} disabled={isAnswered} />
+                                )}
+                                {interactionType === 'dialogue_pick' && (
+                                    <DialoguePickInteraction question={currentQuestion!} onAnswer={handlePassiveAnswer} disabled={isAnswered} />
+                                )}
+                                {interactionType === 'multi_blank' && (
+                                    <MultiBlankInteraction question={currentQuestion!} onAnswer={handlePassiveAnswer} disabled={isAnswered} />
+                                )}
+                            </div>
+
+                            {/* Answer feedback */}
+                            {isAnswered && currentResult && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 8 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.3, delay: 0.2 }}
+                                    className={`mt-5 px-5 py-3 text-sm ${
+                                        currentResult.correct
+                                            ? 'bg-emerald-50 text-emerald-700'
+                                            : 'bg-red-50 text-red-700'
+                                    }`}
+                                >
+                                    <span className="font-medium">
+                                        {currentResult.correct ? '✓ Correct' : '✗ Not quite'}
+                                    </span>
+                                    {!currentResult.correct && currentQuestion?.explanation && (
+                                        <p className="mt-1 text-[13px] opacity-80">
+                                            {currentQuestion.explanation}
+                                        </p>
+                                    )}
+                                </motion.div>
+                            )}
+                            </motion.div>
+                            </AnimatePresence>
+
+                        </motion.div>
+                    </AnimatePresence>
+                </div>
+            </div>
+        </div>
     );
 }
 
+// ─── Completion Screen ────────────────────────────────
+
+function CompletionScreen({
+    accuracy,
+    totalCorrect,
+    results,
+    questions,
+    onDone,
+}: {
+    accuracy: number;
+    totalCorrect: number;
+    results: SessionQuestionResult[];
+    questions: SessionQuestion[];
+    onDone: () => void;
+}) {
+    const skillBreakdown = useMemo(() => {
+        const axes = ['cohesion', 'naturalness', 'task_achievement'] as const;
+        return axes.map(axis => {
+            const axisResults = results.filter(r => r.skillAxis === axis);
+            if (axisResults.length === 0) return null;
+            const correct = axisResults.filter(r => r.correct).length;
+            return {
+                axis,
+                label: axis === 'cohesion' ? 'Structure' : axis === 'naturalness' ? 'Expression' : 'Logic',
+                correct,
+                total: axisResults.length,
+                pct: Math.round((correct / axisResults.length) * 100),
+            };
+        }).filter(Boolean);
+    }, [results]);
+
+    return (
+        <div className="min-h-screen bg-[var(--background)] flex flex-col items-center justify-center px-6">
+            <motion.div
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, ease: [0.25, 1, 0.5, 1] }}
+                className="text-center max-w-sm w-full"
+            >
+                {/* Big accuracy number */}
+                <p
+                    className="text-7xl font-light text-[var(--foreground)] mb-2 tabular-nums"
+                    style={{ fontFamily: 'var(--font-serif, Georgia, serif)' }}
+                >
+                    {accuracy}%
+                </p>
+                <p className="text-sm text-[var(--muted-foreground)] mb-10">
+                    {totalCorrect} of {results.length} correct
+                </p>
+
+                {/* Skill breakdown */}
+                <div className="space-y-3 mb-10">
+                    {skillBreakdown.map((skill) => {
+                        if (!skill) return null;
+                        return (
+                            <motion.div
+                                key={skill.axis}
+                                initial={{ opacity: 0, x: -12 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: 0.3, duration: 0.4, ease: [0.25, 1, 0.5, 1] }}
+                                className="flex items-center justify-between py-2"
+                            >
+                                <span className="text-sm text-[var(--foreground)]">{skill.label}</span>
+                                <div className="flex items-center gap-3">
+                                    <div className="w-24 h-1 bg-[var(--border)] rounded-full overflow-hidden">
+                                        <motion.div
+                                            initial={{ width: 0 }}
+                                            animate={{ width: `${skill.pct}%` }}
+                                            transition={{ delay: 0.6, duration: 0.6, ease: [0.25, 1, 0.5, 1] }}
+                                            className={`h-full rounded-full ${
+                                                skill.pct >= 70 ? 'bg-emerald-400' : skill.pct >= 40 ? 'bg-amber-400' : 'bg-red-400'
+                                            }`}
+                                        />
+                                    </div>
+                                    <span className="text-xs text-[var(--muted-foreground)] tabular-nums w-8 text-right">
+                                        {skill.correct}/{skill.total}
+                                    </span>
+                                </div>
+                            </motion.div>
+                        );
+                    })}
+                </div>
+
+                {/* Done button */}
+                <motion.button
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.8 }}
+                    onClick={onDone}
+                    className="w-full py-4 bg-[var(--foreground)] text-[var(--background)] text-[11px] font-bold uppercase tracking-[0.2em] hover:opacity-90 transition-opacity"
+                >
+                    Done
+                </motion.button>
+            </motion.div>
+        </div>
+    );
+}

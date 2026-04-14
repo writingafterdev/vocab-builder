@@ -34,6 +34,23 @@ function createSnapshot(docData: any, reqId: string) {
         } as any;
     }
     const { $id, $databaseId, $collectionId, $createdAt, $updatedAt, $permissions, ...rest } = docData;
+
+    // Auto-parse JSON strings (like database.ts does)
+    for (const key of Object.keys(rest)) {
+        const val = rest[key];
+        if (typeof val === 'string' && val.length > 1) {
+            const trimmed = val.trim();
+            if ((trimmed[0] === '{' && trimmed[trimmed.length - 1] === '}') ||
+                (trimmed[0] === '[' && trimmed[trimmed.length - 1] === ']')) {
+                try {
+                    rest[key] = JSON.parse(trimmed);
+                } catch (e) {
+                    // Not valid JSON, keep as string
+                }
+            }
+        }
+    }
+
     return {
         id: $id || reqId,
         exists: () => true,
@@ -71,21 +88,48 @@ export async function getDocs(queryRef: any) {
     }
 }
 
+function serializeData(data: any): any {
+    const result: any = {};
+    for (const key of Object.keys(data)) {
+        const val = data[key];
+        if (typeof val === 'object' && val !== null && !Array.isArray(val) && Object.keys(val).length > 0 && !('__increment__' in val)) {
+           // It's a plain object
+           result[key] = JSON.stringify(val);
+        } else if (Array.isArray(val)) {
+            // Arrays of objects should be stringified
+            if (val.length > 0 && typeof val[0] === 'object' && val[0] !== null) {
+                result[key] = JSON.stringify(val);
+            } else {
+                result[key] = val; // primitive arrays like string[] pass through
+            }
+        } else {
+            result[key] = val;
+        }
+    }
+    return result;
+}
+
 export async function addDoc(colRef: any, data: any) {
     const docId = ID.unique();
     const colId = colRef.type === 'collection' ? colRef.path : colRef.col;
-    await databases.createDocument(DB_ID, colId, docId, data);
-    return { type: 'doc', col: colId, id: docId };
+    try {
+        await databases.createDocument(DB_ID, colId, docId, serializeData(data));
+        return { type: 'doc', col: colId, id: docId };
+    } catch (e: any) {
+        console.error('[Polyfill] addDoc Failed:', e, colId, docId);
+        throw e;
+    }
 }
 
 export async function setDoc(docRef: any, data: any, options?: { merge: boolean }) {
+    const serialized = serializeData(data);
     try {
         // Does it exist? Try to get it. If not found, create it.
         await databases.getDocument(DB_ID, docRef.col, docRef.id);
-        return await databases.updateDocument(DB_ID, docRef.col, docRef.id, data);
+        return await databases.updateDocument(DB_ID, docRef.col, docRef.id, serialized);
     } catch (e: any) {
         if (e.code === 404) {
-            return await databases.createDocument(DB_ID, docRef.col, docRef.id, data);
+            return await databases.createDocument(DB_ID, docRef.col, docRef.id, serialized);
         }
         throw e;
     }
@@ -101,20 +145,21 @@ export async function updateDoc(docRef: any, data: any) {
         }
     }
 
+    const newData = serializeData(data);
+
     if (hasIncrement) {
         // Fetch current doc to calculate increment
         const currentDoc = await databases.getDocument(DB_ID, docRef.col, docRef.id);
-        const newData = { ...data };
-        for (const key of Object.keys(newData)) {
-            if (newData[key] && typeof newData[key] === 'object' && '__increment__' in newData[key]) {
+        for (const key of Object.keys(data)) { // Use original data for increment check
+            if (data[key] && typeof data[key] === 'object' && '__increment__' in data[key]) {
                 const currentVal = (currentDoc[key] || 0) as number;
-                newData[key] = currentVal + newData[key].__increment__;
+                newData[key] = currentVal + data[key].__increment__;
             }
         }
         return await databases.updateDocument(DB_ID, docRef.col, docRef.id, newData);
     }
 
-    return await databases.updateDocument(DB_ID, docRef.col, docRef.id, data);
+    return await databases.updateDocument(DB_ID, docRef.col, docRef.id, newData);
 }
 
 export async function deleteDoc(docRef: any) {
@@ -131,6 +176,10 @@ export function query(colRef: any, ...constraints: any[]) {
 }
 
 export function where(field: string, op: string, value: any) {
+    if (value === null) {
+        if (op === '==') return AppwriteQuery.isNull(field);
+        if (op === '!=') return AppwriteQuery.isNotNull(field);
+    }
     if (op === '==') return AppwriteQuery.equal(field, value);
     if (op === '>') return AppwriteQuery.greaterThan(field, value);
     if (op === '<') return AppwriteQuery.lessThan(field, value);
@@ -139,6 +188,7 @@ export function where(field: string, op: string, value: any) {
     if (op === 'array-contains') return AppwriteQuery.contains(field, value);
     if (op === 'in') return AppwriteQuery.equal(field, value);
     if (op === 'array-contains-any') return AppwriteQuery.contains(field, value); // Approximate
+    if (op === '!=') return AppwriteQuery.notEqual(field, value);
     return AppwriteQuery.equal(field, value);
 }
 

@@ -6,7 +6,7 @@ import { ArticleSection } from '@/lib/db/types';
 import { sanitizeRichHtml } from '@/lib/sanitize';
 import { useVocabHighlighter } from './useVocabHighlighter';
 import { EmbeddedQuestionCard } from '@/components/embedded-question-card';
-import { InlineQuiz } from '@/components/exercise/InlineQuiz';
+// InlineQuiz removed — replaced by passage-centric session system
 import { cn } from '@/lib/utils';
 import { ArrowLeft, ArrowRight, MessageSquare, ChevronDown, ChevronUp } from 'lucide-react';
 import type { EmbeddedQuestion, Comment as FirestoreComment, RedditComment } from '@/lib/db/types';
@@ -374,16 +374,12 @@ export const SwipeReader = memo(function SwipeReader({
             }
 
             case 'inline_quiz': {
-                if (!userId) return <div className="px-6 py-6" />;
+                // Legacy inline quizzes deprecated — session exercises now use passage-centric flow
                 return (
                     <div className="px-6 py-6 flex flex-col justify-center h-full">
-                        <InlineQuiz
-                            userId={userId}
-                            contentTopics={item.vocabPhrases}
-                            contentText={item.sectionContent}
-                            surface="swipe_reader"
-                            onComplete={() => setQuizCompletedIds(prev => new Set(prev).add(item.quizId))}
-                        />
+                        <div className="text-center text-neutral-400 text-sm">
+                            <p>Quiz completed</p>
+                        </div>
                     </div>
                 );
             }

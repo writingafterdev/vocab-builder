@@ -14,6 +14,8 @@ import { EditorialLoader } from '@/components/ui/editorial-loader';
 import Link from 'next/link';
 import { getUserPhrases } from '@/lib/db/srs';
 import { getArticlesReadToday } from '@/lib/article-tracking';
+import { SKILL_AXIS_META } from '@/lib/exercise/config';
+import type { SkillAxis } from '@/lib/db/types';
 
 // ─── Types ────────────────────────────────────────────
 interface DashPhrase {
@@ -53,23 +55,23 @@ function ActivityMap({ data }: { data: number[] }) {
                 <span>More</span>
             </div>
 
-            {/* 3 rows × 20 columns, filling width */}
-            <div
-                className="grid gap-[5px]"
-                style={{
-                    gridTemplateRows: 'repeat(7, 14px)',
-                    gridTemplateColumns: 'repeat(22, 14px)',
-                    gridAutoFlow: 'column',
-                    justifyContent: 'space-between',
-                }}
-            >
+            {/* 7 rows × 22 columns */}
+            <div className="w-full overflow-x-auto no-scrollbar pb-2">
+                <div
+                    className="grid gap-[5px] min-w-max"
+                    style={{
+                        gridTemplateRows: 'repeat(7, 14px)',
+                        gridTemplateColumns: 'repeat(22, 14px)',
+                        gridAutoFlow: 'column',
+                        justifyContent: 'flex-start',
+                    }}
+                >
                 {data.map((value, i) => (
                     <div
                         key={i}
                         className={`w-[14px] h-[14px] ${getColor(value)}`}
-                        title={`${value} phrases`}
-                    />
                 ))}
+                </div>
             </div>
         </div>
     );
@@ -87,6 +89,7 @@ export default function DashboardPage() {
 
     const [immersiveEligible, setImmersiveEligible] = useState(false);
     const [hasDrills, setHasDrills] = useState(false);
+    const [skillAxes, setSkillAxes] = useState<{ axis: string; accuracy: number; total: number }[]>([]);
 
     useEffect(() => {
         async function loadData() {
@@ -163,6 +166,13 @@ export default function DashboardPage() {
                     })
                         .then(res => res.ok ? res.json() : null)
                         .then(data => data && setHasDrills(data.hasDrills))
+                        .catch(() => { });
+
+                    fetch('/api/user/get-skill-axes', {
+                        headers: { Authorization: `Bearer ${token}`, 'x-user-id': user.$id }
+                    })
+                        .then(res => res.ok ? res.json() : null)
+                        .then(data => data && setSkillAxes(data.axes || []))
                         .catch(() => { });
                 } catch (e) {
                     console.error('Error fetching exercise stats', e);
@@ -245,7 +255,7 @@ export default function DashboardPage() {
                         {/* Total Lexicon */}
                         <div className="p-6 flex flex-col justify-between min-h-[180px] md:border-r border-b md:border-b-0 border-neutral-200">
                             <div className="flex items-center justify-between">
-                                <span className="px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] font-bold text-white bg-blue-600 rounded-sm">Total Lexicon</span>
+                                <span className="px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] font-bold text-white bg-blue-600 ">Total Lexicon</span>
                                 <BookOpen className="w-4 h-4 text-neutral-300" />
                             </div>
                             <div className="mt-auto">
@@ -274,7 +284,7 @@ export default function DashboardPage() {
                         {/* Current Streak */}
                         <div className="p-6 flex flex-col justify-between min-h-[180px] md:border-r border-b md:border-b-0 border-neutral-200">
                             <div className="flex items-center justify-between">
-                                <span className="px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] font-bold text-white bg-amber-500 rounded-sm">Current Streak</span>
+                                <span className="px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] font-bold text-white bg-amber-500 ">Current Streak</span>
                                 <span className="text-neutral-300 text-lg">🔥</span>
                             </div>
                             <div className="mt-auto">
@@ -301,7 +311,7 @@ export default function DashboardPage() {
                         {/* Mastery Level */}
                         <div className="p-6 flex flex-col justify-between min-h-[180px]">
                             <div className="flex items-center justify-between">
-                                <span className="px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] font-bold text-white bg-emerald-600 rounded-sm">Mastery Level</span>
+                                <span className="px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] font-bold text-white bg-emerald-600 ">Mastery Level</span>
                                 <Lightbulb className="w-4 h-4 text-neutral-300" />
                             </div>
                             <div className="mt-auto">
@@ -326,12 +336,12 @@ export default function DashboardPage() {
                     </div>
 
                     {/* ─── Activity Map + Up Next (2-col) ─── */}
-                    <div className="grid grid-cols-1 lg:grid-cols-5 border-t border-neutral-200">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 border-t border-neutral-200">
                         {/* Activity Map — wider */}
                         <div className="lg:col-span-3 p-6 lg:border-r border-b lg:border-b-0 border-neutral-200">
                             <div className="flex items-center justify-between mb-4">
                                 <div>
-                                    <span className="px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] font-bold text-white bg-violet-600 rounded-sm inline-block mb-1">Review Consistency</span>
+                                    <span className="px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] font-bold text-white bg-violet-600  inline-block mb-1">Review Consistency</span>
                                     <h3
                                         className="text-2xl font-normal text-neutral-900 tracking-tight mt-1"
                                         style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
@@ -346,7 +356,7 @@ export default function DashboardPage() {
                         {/* Up Next — narrower */}
                         <div className="lg:col-span-2 p-6 flex flex-col">
                             <div className="flex items-center justify-between mb-4">
-                                <span className="px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] font-bold text-white bg-rose-600 rounded-sm">Up Next</span>
+                                <span className="px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] font-bold text-white bg-rose-600 ">Up Next</span>
                                 <Clock className="w-4 h-4 text-neutral-300" />
                             </div>
 
@@ -368,7 +378,7 @@ export default function DashboardPage() {
                                                 </div>
                                             </div>
                                             {!ex.available && (
-                                                <div className="text-[9px] uppercase tracking-wider text-neutral-400 font-bold bg-neutral-100 px-1.5 py-0.5 rounded-sm">
+                                                <div className="text-[9px] uppercase tracking-wider text-neutral-400 font-bold bg-neutral-100 px-1.5 py-0.5 ">
                                                     Locked
                                                 </div>
                                             )}
@@ -404,7 +414,7 @@ export default function DashboardPage() {
                             >
                                 <Link
                                     href="/practice"
-                                    className="group relative w-full py-3.5 bg-neutral-900 text-white text-sm font-bold uppercase tracking-[0.1em] text-center hover:bg-neutral-800 transition-colors flex items-center justify-center gap-2 rounded-lg overflow-hidden"
+                                    className="group relative w-full py-3.5 bg-neutral-900 text-white text-sm font-bold uppercase tracking-[0.1em] text-center hover:bg-neutral-800 transition-colors flex items-center justify-center gap-2 overflow-hidden"
                                 >
                                     {/* Shimmer effect inside button on hover */}
                                     <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent group-hover:translate-x-full transition-transform duration-1000 ease-in-out" />
@@ -418,10 +428,82 @@ export default function DashboardPage() {
                         </div>
                     </div>
 
+                    {/* ─── Exercise Skills ─── */}
+                    <div className="border-t border-neutral-200 p-6">
+                        <div className="flex items-center justify-between mb-4">
+                            <div>
+                                <span className="px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] font-bold text-white bg-indigo-600  inline-block mb-1">Exercise Skills</span>
+                                <h3
+                                    className="text-2xl font-normal text-neutral-900 tracking-tight mt-1"
+                                    style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
+                                >
+                                    Skill Breakdown
+                                </h3>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            {(Object.entries(SKILL_AXIS_META) as [SkillAxis, typeof SKILL_AXIS_META[SkillAxis]][]).map(([axis, { label, sublabel, color }]) => {
+                                const data = skillAxes.find(a => a.axis === axis);
+                                const accuracy = data?.accuracy || 0;
+                                const total = data?.total || 0;
+
+                                const size = 72;
+                                const strokeWidth = 4;
+                                const radius = (size - strokeWidth) / 2;
+                                const circumference = 2 * Math.PI * radius;
+                                const offset = circumference - (accuracy / 100) * circumference;
+
+                                return (
+                                    <div key={axis} className="flex flex-col items-center py-3">
+                                        <div className="relative" style={{ width: size, height: size }}>
+                                            <svg width={size} height={size} className="-rotate-90">
+                                                <circle
+                                                    cx={size / 2}
+                                                    cy={size / 2}
+                                                    r={radius}
+                                                    fill="none"
+                                                    stroke="#f5f5f5"
+                                                    strokeWidth={strokeWidth}
+                                                />
+                                                <motion.circle
+                                                    cx={size / 2}
+                                                    cy={size / 2}
+                                                    r={radius}
+                                                    fill="none"
+                                                    stroke={color}
+                                                    strokeWidth={strokeWidth}
+                                                    strokeLinecap="round"
+                                                    strokeDasharray={circumference}
+                                                    initial={{ strokeDashoffset: circumference }}
+                                                    animate={{ strokeDashoffset: offset }}
+                                                    transition={{ duration: 1, delay: 0.5, ease: [0.25, 1, 0.5, 1] }}
+                                                />
+                                            </svg>
+                                            <div className="absolute inset-0 flex items-center justify-center">
+                                                <span
+                                                    className="text-base font-normal text-neutral-900"
+                                                    style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
+                                                >
+                                                    {accuracy}%
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <p className="text-xs font-semibold text-neutral-900 mt-2">{label}</p>
+                                        <p className="text-[10px] text-neutral-400">{sublabel}</p>
+                                        {total > 0 && (
+                                            <p className="text-[10px] text-neutral-400 mt-0.5">{total} answers</p>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+
                     {/* ─── Quote of the Day ─── */}
                     {dailyQuote && (
                         <div className="p-8 border-t border-neutral-200">
-                            <span className="px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] font-bold text-white bg-slate-600 rounded-sm inline-block mb-4">Quote of the Day</span>
+                            <span className="px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] font-bold text-white bg-slate-600  inline-block mb-4">Quote of the Day</span>
                             <blockquote
                                 className="text-[22px] text-neutral-700 leading-relaxed italic"
                                 style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}

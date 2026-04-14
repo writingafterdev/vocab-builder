@@ -8,6 +8,7 @@
  */
 
 import type { BatchRequest } from './grok-batch';
+import { computeSessionSize } from './exercise/config';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -225,7 +226,7 @@ Return ONLY this JSON structure:
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
- * Build a batch request to generate a Substack-style practice article
+ * Build a batch request to generate a Practice Article (Elevate-style 3-module session)
  * that weaves in all of a user's due vocabulary phrases.
  * Used by cron 1 (daily-import) for listening-day sessions.
  * Results are collected by cron 2 and saved to generatedSessions.
@@ -234,82 +235,154 @@ export function buildPracticeArticleBatchRequest(
   userId: string,
   phrases: PhraseForBatch[],
   clusters: SimpleCluster[],
+  weakTypes: string[] = [],
+  sourcePlatform: string = 'linkedin',
 ): BatchRequest {
-  const phraseInventory = phrases.map(p =>
-    `- "${p.phrase}" (${p.meaning || 'contextual'}${p.register ? `, register: ${p.register}` : ''})`
-  ).join('\n');
+  // Group phrases by SRS phase (matches config.ts phaseFromStep)
+  const phased = { recognition: [] as PhraseForBatch[], active_recall: [] as PhraseForBatch[], production: [] as PhraseForBatch[] };
+  for (const p of phrases) {
+    const step = p.learningStep || 0;
+    if (step <= 1) phased.recognition.push(p);
+    else if (step <= 3) phased.active_recall.push(p);
+    else phased.production.push(p);
+  }
 
-  const clusterDescriptions = clusters.map((c, i) =>
-    `Group ${i + 1} [${c.topic}/${c.register}]: ${c.phrases.map(p => `"${p.phrase}"`).join(', ')}`
-  ).join('\n');
+  const phraseInventory = phrases.map(p => {
+    const phase = (p.learningStep || 0) <= 1 ? '[RECOGNITION]' : (p.learningStep || 0) <= 3 ? '[ACTIVE_RECALL]' : '[PRODUCTION]';
+    return `- "${p.phrase}" ${phase} step=${p.learningStep || 0} (${p.meaning || 'contextual'}${p.register ? `, register: ${p.register}` : ''})`;
+  }).join('\n');
 
-  const phraseCount = phrases.length;
-  const wordTarget = phraseCount <= 5 ? '400-600' :
-                     phraseCount <= 10 ? '600-900' :
-                     phraseCount <= 15 ? '900-1200' : '1200-1500';
+  // Build phase sections
+  const phaseSections: string[] = [];
+  const sessionSize = computeSessionSize(phrases.length);
+  const [minWords, maxWords] = sessionSize.passageWordRange;
+  const activePhases: ('recognition' | 'active_recall' | 'production')[] = [];
+  if (phased.recognition.length > 0) activePhases.push('recognition');
+  if (phased.active_recall.length > 0) activePhases.push('active_recall');
+  if (phased.production.length > 0) activePhases.push('production');
 
-  const questionsTarget = Math.min(Math.ceil(phraseCount * 0.6), 8);
+  const totalPhrases = phrases.length;
+  const budget: Record<string, number> = { recognition: 0, active_recall: 0, production: 0 };
+  for (const phase of activePhases) {
+    budget[phase] = Math.max(1, Math.round((phased[phase].length / totalPhrases) * sessionSize.totalQuestions));
+  }
+  let budgetSum = Object.values(budget).reduce((a, b) => a + b, 0);
+  while (budgetSum > sessionSize.totalQuestions) {
+    const maxPhase = activePhases.reduce((a, b) => budget[a] >= budget[b] ? a : b);
+    budget[maxPhase]--;
+    budgetSum--;
+  }
+  while (budgetSum < sessionSize.totalQuestions) {
+    const maxPhase = activePhases.reduce((a, b) => phased[a].length >= phased[b].length ? a : b);
+    budget[maxPhase]++;
+    budgetSum++;
+  }
 
-  const prompt = `You are a Substack-style writer creating a compelling, immersive article. Your articles get readers hooked from the first line, tell stories that linger, and teach vocabulary through CONTEXT — never through definitions.
+  if (phased.recognition.length > 0) {
+    const phraseList = phased.recognition.map(p => `- "${p.phrase}" (${p.meaning || 'contextual'})`).join('\n');
+    phaseSections.push(`### RECOGNITION QUESTIONS (${budget.recognition})
+Interaction types: spot_intruder, fallacy_id, inference_bridge, tone_interpretation, rate_argument, swipe_judge, category_sort, best_response
+Primary phrases (SRS steps 0-1):
+${phraseList}
 
-PHRASES TO WEAVE IN:
+Generate ${budget.recognition} questions. Each question's passageReference should be a generous excerpt containing phrases from ALL phases.`);
+  }
+
+  if (phased.active_recall.length > 0) {
+    const phraseList = phased.active_recall.map(p => `- "${p.phrase}" (${p.meaning || 'contextual'})`).join('\n');
+    phaseSections.push(`### ACTIVE RECALL QUESTIONS (${budget.active_recall})
+Interaction types: restructure, register_sort, match_pairs, tap_passage, fill_blank, ab_natural, build_sentence, spot_and_fix, cloze_passage
+Primary phrases (SRS steps 2-3):
+${phraseList}
+
+Generate ${budget.active_recall} questions. Passage excerpts should be rich with vocabulary from ALL phases.`);
+  }
+
+  if (phased.production.length > 0) {
+    const phraseList = phased.production.map(p => `- "${p.phrase}" [ID: ${p.id}] (${p.meaning || 'contextual'})`).join('\n');
+    phaseSections.push(`### PRODUCTION QUESTIONS (${budget.production})
+Interaction types: fix_argument, register_shift, synthesis_response
+Primary phrases (SRS steps 4-5):
+${phraseList}
+
+PRODUCTION PHRASE TRACKING: For each freewrite question, include:
+- "expectedPhrases": 1-3 phrase strings the user should use
+- "expectedPhraseIds": corresponding ID strings
+Place production questions LAST.`);
+  }
+
+  const weaknessHint = weakTypes.length > 0
+    ? `\nWEAKNESS TARGETING: The user struggles with: ${weakTypes.join(', ')}. Lean toward these within each phase.`
+    : '';
+
+  const prompt = `You are generating a vocabulary exercise session with CROSS-PHRASE EXPOSURE organized into EXCERPT BLOCKS.
+
+## STEP 1: ANCHOR PASSAGE
+
+Write a ${minWords}-${maxWords} word argumentative passage that:
+1. Takes a clear, debatable position on a real-world topic
+2. Naturally embeds ALL vocabulary phrases
+3. Contains THREE DELIBERATE FLAWS (logical gap, weak transition, register break)
+4. Feels like authentic ${sourcePlatform} content
+5. TONE: Casual, conversational, opinionated (not corporate/formal)
+
+VOCABULARY TO EMBED:
 ${phraseInventory}
 
-THEMATIC GROUPS:
-${clusterDescriptions}
+## STEP 2: EXCERPT BLOCKS (${sessionSize.excerptCount} excerpts, ${sessionSize.totalQuestions} questions total)
 
-YOUR TASK: Write ONE cohesive article that naturally incorporates ALL the phrases above. The article should feel like a real Substack post — engaging, opinionated, with a strong narrative voice.
+Carve the passage into ${sessionSize.excerptCount} overlapping excerpts (150-250 words each). Each excerpt should contain 2-4 phrases from MULTIPLE phases.
 
-CRITICAL RULES:
+For each excerpt, generate ~${sessionSize.questionsPerExcerpt} questions. Production/freewrite questions go in the LAST excerpt block.
 
-1. **STRUCTURE**: The article must flow through the thematic groups NATURALLY. Don't abruptly jump topics.
-2. **CONTEXT LAYERING** (for each phrase): BEFORE, PHRASE, AFTER.
-3. **TONE**: Write like a real person, not a textbook.
-4. **LENGTH**: ${wordTarget} words, divided into 3-6 sections. Use the 'sections' array in the JSON response to break up the article into logical parts. Each section will be synthesized into a separate snippet of audio. Keep them reasonably short.
-5. **COMPREHENSION QUESTIONS** (${questionsTarget} total): Test understanding of a specific phrase through story comprehension.
-6. **EXTRACTABLE QUOTES**: Include 2-3 sentences that work as standalone quotes.
+${phaseSections.join('\n\n')}
+${weaknessHint}
 
-RESPOND IN JSON:
+## QUESTION TYPE FORMATS:
+
+**Recognition:** tone_interpretation (4 MCQ), inference_bridge (4 MCQ), spot_intruder (4-5 options + correctIndex), fallacy_id (4 MCQ), rate_argument (3 MCQ), swipe_judge (swipeCards [{text, isNatural}]), category_sort (categories + categoryItems [{text, correctCategory}]), best_response (dialogueTurns [{speaker, text}] + responseOptions + correctResponseIndex)
+**Active Recall:** ab_natural (2 options A/B), register_sort (items + correctOrder), restructure (items + correctOrder), match_pairs (pairs [{left, right}]), fill_blank (blankSentence + wordBank + correctWord), tap_passage (tappableSegments + correctSegmentIndex), build_sentence (sentenceChips [shuffled] + correctSentence), spot_and_fix (errorSegments + errorIndex + correctFix), cloze_passage (clozeText with __(N)__ + blanks [{index, correctWord}] + wordBank)
+**Production:** fix_argument, register_shift, synthesis_response (evaluationCriteria + expectedPhrases + expectedPhraseIds)
+
+## JSON OUTPUT:
 {
-  "title": "A catchy, Substack-worthy title",
-  "subtitle": "A compelling one-line hook",
-  "sections": [
+  "anchorPassage": {
+    "text": "passage text",
+    "topic": "topic label",
+    "centralClaim": "main position",
+    "deliberateFlaws": { "logicalGap": "", "weakTransition": "", "registerBreak": "" },
+    "embeddedVocab": ["phrase1"]
+  },
+  "excerptBlocks": [
     {
-      "id": "section_1",
-      "content": "The full text of this section (multiple paragraphs OK)",
-      "vocabPhrases": ["phrase1", "phrase2"]
-    }
-  ],
-  "questions": [
-    {
-      "id": "q_1",
-      "afterSectionId": "section_2",
-      "question": "Story-based comprehension question",
-      "options": ["A", "B", "C", "D"],
-      "correctIndex": 1,
-      "targetPhrase": "the phrase being tested",
-      "explanation": "Brief explanation"
-    }
-  ],
-  "quotes": [
-    {
-      "text": "A vivid sentence",
-      "highlightedPhrases": ["phrase that appears"]
+      "excerptId": "ex_1",
+      "excerptText": "A 150-250 word excerpt...",
+      "questions": [
+        {
+          "id": "q_1", "type": "tone_interpretation", "skillAxis": "naturalness",
+          "learningPhase": "recognition",
+          "prompt": "...",
+          "options": ["A","B","C","D"], "correctIndex": 2,
+          "explanation": "..."
+        }
+      ]
     }
   ]
-}`;
+}
+
+Production/freewrite questions go in the LAST excerpt block.`;
 
   return {
     batch_request_id: `practice_article_${userId}`,
     messages: [
       {
         role: 'system',
-        content: 'You are an award-winning Substack writer who teaches vocabulary through immersive storytelling. You respond ONLY in valid JSON. Your writing is vivid, opinionated, and emotionally engaging.',
+        content: 'You are an expert in critical thinking pedagogy and argumentative writing. You create exercises that test reasoning skills through authentic content. Respond ONLY with valid JSON.',
       },
       { role: 'user', content: prompt },
     ],
     response_format: { type: 'json_object' },
-    max_tokens: 4000,
+    max_tokens: 8000,
   };
 }
 
@@ -331,85 +404,66 @@ export interface FeedQuizSpec {
 }
 
 /**
- * Builds a batch request to generate feed quizzes using 15 question types.
+ * Builds a batch request to generate feed quizzes using V2 interaction types.
  * Each item specifies its questionType so the AI generates the right kind of content.
  * This runs daily to pre-generate swipeable quizzes based on due phrases & weaknesses.
  */
 export function buildFeedQuizBatchRequest(
   userId: string,
-  specs: FeedQuizSpec[]
+  specs: FeedQuizSpec[],
+  sourcePlatform: string = 'linkedin',
+  sourceLabel: string = '💼 LinkedIn post'
 ): BatchRequest {
-  // Separate phrases and drills to format them correctly in the prompt
+  const cardTypes = specs.map(s => s.questionType);
+
   const phraseSpecs = specs.filter(s => s.source === 'phrase');
   const drillSpecs = specs.filter(s => s.source === 'drill');
 
   const phraseLines = phraseSpecs.map((s, i) => 
-      `${i + 1}. PHRASE: "${s.phrase}" | meaning: ${s.meaning} | register: ${s.register} | questionType: ${s.questionType}`
+      `${i + 1}. PHRASE: "${s.phrase}" | meaning: ${s.meaning} | register: ${s.register} | cardType: ${s.questionType}`
   );
   
   const drillLines = drillSpecs.map((s, i) => 
-      `${phraseSpecs.length + i + 1}. DRILL: weakness in ${s.weaknessCategory} — wrong: "${s.example}", correct: "${s.correction}" | questionType: ${s.questionType} | explanation: ${s.meaning}`
+      `${phraseSpecs.length + i + 1}. DRILL: weakness in ${s.weaknessCategory} — wrong: "${s.example}", correct: "${s.correction}" | cardType: ${s.questionType} | explanation: ${s.meaning}`
   );
 
-  const prompt = `You are a master educator, expert linguist, and witty screenwriter. Generate ${specs.length} vocabulary exercises for a social media-style feed.
+  const prompt = `Generate ${specs.length} feed cards for an English vocabulary learning app.
+Each card is a micro-exercise embedded in a real-world text snippet.
 
-CORE RULES:
-- Do NOT write dry, academic, "textbook" sentences.
-- Every scenario must feel like a snippet from a movie script, a heated text message, a dramatic workplace email, or a relatable everyday frustration.
-- Inject a SPECIFIC emotion: passive-aggression, panic, awe, outrage, sarcasm, desperation, tenderness, exasperation, smugness, etc.
-- Use authentic, modern phrasing matched to the register (casual roommate argument vs. corporate meeting vs. late-night DM).
-- Show, don't tell: instead of "she was angry," describe her slamming a laptop shut.
-- Wrong options should be TEMPTINGLY plausible — the kind of mistake a smart learner would make.
-- Keep scenarios SHORT (max 50 words) — these are mobile cards, not essays.
+CARD TYPES REQUESTED: ${JSON.stringify(cardTypes)}
+
+CARD TYPE DEFINITIONS:
+- "ab_natural": Show two versions of a sentence. One sounds native, one sounds textbook. User picks the natural one. Options array has exactly 2 items.
+- "spot_flaw": Show a short argument (3-4 sentences). One has a logical flaw. User picks which flaw it has from 3-4 options.
+- "spot_intruder": Show a paragraph. One sentence breaks the register/tone. User picks the intruder from 3-4 options.
+- "retry": Reframed version of a previously failed question type. Same format as spot_flaw.
+- "fix_it": Just a source content snippet that needs fixing. No options — this redirects to a full session.
+
+SOURCE PLATFORM: ${sourcePlatform} (${sourceLabel})
 
 Items:
 ${[...phraseLines, ...drillLines].join('\n')}
 
-Each item specifies a "questionType". Generate the question matching that type:
+RULES:
+1. sourceContent must feel like a REAL ${sourceLabel} — use appropriate length and style, BUT:
+2. TONE RULE: Unless the card type is specifically testing register (like 'ab_natural' or 'spot_intruder'), make the tone casual, internet-slangy, dramatic, or highly opinionated. ABSOLUTELY DO NOT make the tone formal, corporate, or professional!
+3. Embed any vocab words naturally (never define them)
+4. options should be 2-4 items depending on card type
+5. For fix_it cards, only provide sourceContent and prompt (no options)
+6. explanation should be insightful and educational (1-2 sentences)
 
-== MCQ TYPES (3 options, one correct) ==
-- "social_consequence_prediction": Scene using the phrase → "What happens next?" (3 outcomes)
-- "situation_phrase_matching": Describe a situation → "Which phrase fits best?" (3 phrases)
-- "fill_gap_mcq": Sentence with ___ → 3 word choices to fill the gap
-- "why_did_they_say": Quote using the phrase → "Why did they say this?" (3 motivations)
-- "appropriateness_judgment": Sentence using the phrase → "Is this usage appropriate here?" (3 judgments)
-- "reading_comprehension": Short passage with the phrase → inference question (3 answers)
-- "sentence_correction": Sentence with subtle error → "Pick the correct version" (3 rewrites)
-
-== SPECIAL INTERACTION TYPES ==
-- "tone_interpretation": Scene using the phrase naturally → "What tone is the speaker using?" — provide 3 emotion labels as options (e.g. "Sarcastic", "Sincere", "Passive-aggressive")
-- "error_detection": Sentence with the phrase MISUSED → "What's wrong?" — option[0] = the wrong word/phrase, option[1] = the correction, option[2] = brief explanation. Set correctIndex to 1.
-- "contrast_exposure": Two similar phrases that differ in nuance → option[0] = phrase A, option[1] = phrase B, option[2] = the key difference. Scenario asks "What's the difference?"
-- "register_sorting": Give 3 versions of the same idea at different registers → options = [casual, neutral, formal] in SCRAMBLED order. correctIndex = index of the correct casual→formal ordering (0 if already sorted, or whichever represents correct order).
-
-== TYPE-IN TYPES (user types a short answer) ==
-For these, the user will TYPE their answer (not select). Still provide options[] with the ideal answer at correctIndex so the system can check:
-- "constrained_production": Sentence with ___ → user types the missing word. options = [correct_word, wrong_word_1, wrong_word_2], correctIndex = 0.
-- "transformation_exercise": Show a formal sentence → "Rewrite casually" (or vice versa). options = [ideal_rewrite, alt_1, alt_2], correctIndex = 0.
-- "dialogue_completion_open": Dialogue with last line missing → user types reply. options = [ideal_reply, alt_1, alt_2], correctIndex = 0.
-- "text_completion": Paragraph with one ___ → user types the word. options = [correct, wrong_1, wrong_2], correctIndex = 0.
-
-== LISTENING EXERCISES (Grok TTS) ==
-For these types, the 'scenario' MUST include Grok TTS speech tags combining ONLY these exactly:
-Inline: [pause], [long-pause], [hum-tune], [laugh], [chuckle], [giggle], [cry], [tsk], [tongue-click], [lip-smack], [breath], [inhale], [exhale], [sigh]
-Wrapping: <soft>, <whisper>, <loud>, <build-intensity>, <decrease-intensity>, <higher-pitch>, <lower-pitch>, <slow>, <fast>, <sing-song>, <singing>, <laugh-speak>, <emphasis>
-Example scenario: "[sigh] <slow><lower-pitch>I really can't believe he said that.</lower-pitch></slow>"
-
-- "listen_and_identify": Scenario uses the phrase with heavy emotion tags. options = ["The phrase used", "Distractor 1", "Distractor 2"], correctIndex = 0. Identify the target phrase heard.
-- "tone_by_voice": Scenario uses the phrase with heavy emotion tags. options = ["Sarcasm", "Joy", "Panic"], correctIndex = 0. Identify the tone of voice.
-- "dictation": Scenario uses the phrase. The user types what they hear. options = ["The exact phrase", "Wrong", "Wrong"], correctIndex = 0.
-
-Return a JSON object { "questions": [...] } with one entry per item in the exact order requested:
+Return JSON array formatted exactly like this:
 {
-  "questions": [
+  "cards": [
     {
-      "phraseIndex": 0,
-      "questionType": "fill_gap_mcq",
-      "emotion": "one-word emotion tag, e.g. sarcasm, panic, tenderness",
-      "scenario": "Vivid micro-story (2-3 sentences, max 50 words).",
-      "options": ["Option A", "Option B", "Option C"],
+      "cardType": "spot_flaw",
+      "sourceContent": "...",
+      "prompt": "...",
+      "options": ["...", "..."],
       "correctIndex": 0,
-      "explanation": "Quick, warm debrief — like a friend explaining it over coffee (1 sentence)"
+      "explanation": "...",
+      "skillAxis": "cohesion|task_achievement|naturalness",
+      "phraseId": "mapped phrase from input"
     }
   ]
 }`;
@@ -419,7 +473,7 @@ Return a JSON object { "questions": [...] } with one entry per item in the exact
     messages: [
       { 
         role: 'system', 
-        content: 'You are a master educator, expert linguist, and witty screenwriter. You create emotionally vivid vocabulary exercises for a social media-style card feed. Each exercise must match the specified questionType exactly. Return valid JSON only.' 
+        content: 'You generate micro-exercises for English learners. Content should feel like real social media posts, emails, and messages. Respond ONLY with valid JSON.'
       },
       { role: 'user', content: prompt }
     ],

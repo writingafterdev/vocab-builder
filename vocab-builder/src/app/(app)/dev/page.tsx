@@ -24,7 +24,11 @@ export default function DevToolsPage() {
     };
 
     const uid = user?.$id;
-    const h = { 'Content-Type': 'application/json', 'x-user-id': uid! };
+    const h = { 
+        'Content-Type': 'application/json', 
+        'x-user-id': uid || '',
+        'x-user-email': user?.email || '',
+    };
 
     const actions = [
         {
@@ -39,13 +43,18 @@ export default function DevToolsPage() {
             ],
         },
         {
-            group: 'Feed Quizzes',
-            color: 'blue',
+            group: 'Nightly Batch Pipeline',
+            color: 'violet',
             items: [
                 {
-                    label: 'Pre-generate Feed Quizzes',
-                    desc: 'Triggers the batch quiz generation (requires saved phrases)',
-                    fn: () => fetch('/api/exercise/pre-generate-feed-quizzes', { method: 'POST', headers: h }).then(r => r.json()),
+                    label: '1. Trigger Daily Import (Grok)',
+                    desc: 'Submit weaknesses, due phrases, and feed specs to Grok',
+                    fn: () => fetch('/api/cron/daily-import', { method: 'GET', headers: h }).then(r => r.json()),
+                },
+                {
+                    label: '2. Collect Batch Results',
+                    desc: 'Polls Grok for completed batches and saves them to Appwrite',
+                    fn: () => fetch('/api/cron/collect-batch', { method: 'GET', headers: h }).then(r => r.json()),
                 },
             ],
         },
