@@ -36,6 +36,7 @@ import { useGlobalDictionary, getWordAtPosition } from '@/hooks/use-global-dicti
 import { GlobalPhraseData, RedditComment } from '@/lib/db/types';
 import { RedditCommentTree } from '@/components/reddit-comment-tree';
 import { ArticleReader } from '@/components/article-reader';
+import { useDictionaryStore } from '@/stores/dictionary-store';
 
 const ADMIN_EMAIL = 'ducanhcontactonfb@gmail.com';
 
@@ -563,6 +564,7 @@ function ExpandedSidebar({
 }
 
 export default function PostPage() {
+    const { openPopup: globalOpenPopup } = useDictionaryStore();
     const params = useParams();
     const postId = params.postId as string;
     const { user, profile } = useAuth();
@@ -1263,7 +1265,16 @@ export default function PostPage() {
 
     // Regular Post View
     return (
-        <TextHighlighter userId={user?.$id} userEmail={user?.email || undefined} userName={profile?.displayName} userUsername={profile?.username}>
+        <TextHighlighter 
+            userId={user?.$id} 
+            userEmail={user?.email || undefined} 
+            userName={profile?.displayName} 
+            userUsername={profile?.username}
+            onVocabLookup={(phrase, context) => {
+                if (!user?.$id || !user?.email) return;
+                globalOpenPopup(phrase, context, user.$id, user.email);
+            }}
+        >
             {DialogComponent}
             <div className="max-w-2xl mx-auto py-6 px-4">
                 <Link href="/feed" className="inline-block mb-6">
