@@ -14,7 +14,7 @@ import {
     ChevronLeft, ChevronRight, Bookmark, Filter, BookmarkPlus, ArrowRight
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { sanitizeRichHtml } from '@/lib/sanitize';
+import { sanitizeRichHtml, stripHtml } from '@/lib/sanitize';
 import { cn, toDateSafe } from '@/lib/utils';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -37,6 +37,7 @@ import { GlobalPhraseData, RedditComment } from '@/lib/db/types';
 import { RedditCommentTree } from '@/components/reddit-comment-tree';
 import { ArticleReader } from '@/components/article-reader';
 import { useDictionaryStore } from '@/stores/dictionary-store';
+import { TapToSelect } from '@/components/vocab/TapToSelect';
 
 const ADMIN_EMAIL = 'ducanhcontactonfb@gmail.com';
 
@@ -1265,16 +1266,7 @@ export default function PostPage() {
 
     // Regular Post View
     return (
-        <TextHighlighter 
-            userId={user?.$id} 
-            userEmail={user?.email || undefined} 
-            userName={profile?.displayName} 
-            userUsername={profile?.username}
-            onVocabLookup={(phrase, context) => {
-                if (!user?.$id || !user?.email) return;
-                globalOpenPopup(phrase, context, user.$id, user.email);
-            }}
-        >
+        <div className="font-sans relative">
             {DialogComponent}
             <div className="max-w-2xl mx-auto py-6 px-4">
                 <Link href="/feed" className="inline-block mb-6">
@@ -1295,7 +1287,23 @@ export default function PostPage() {
                             <span className="text-xs text-slate-400">{toDateSafe(post.createdAt) ? formatTimeAgo(toDateSafe(post.createdAt)!) : 'Just now'}</span>
                         </div>
                     </div>
-                    <div className="text-lg leading-relaxed whitespace-pre-wrap text-slate-800 mb-6" dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(formattedContent()) }} />
+                    <div className="text-lg leading-relaxed whitespace-pre-wrap text-slate-800 mb-6">
+                        <TapToSelect 
+                            text={stripHtml(post.content)}
+                            onLookup={(phrase, context) => {
+                                if (!user?.$id || !user?.email) return;
+                                globalOpenPopup(phrase, context, user.$id, user.email);
+                            }}
+                            highlightedPhrases={[
+                                ...(post.highlightedPhrases || []),
+                                ...(post.topicVocab?.map(v => v.word) || [])
+                            ]}
+                            onHighlightClick={(phrase, context) => {
+                                if (!user?.$id || !user?.email) return;
+                                globalOpenPopup(phrase, context, user.$id, user.email);
+                            }}
+                        />
+                    </div>
                     <div className="flex items-center gap-6 py-4 border-t border-b border-slate-100 mb-6">
                         <button onClick={handleRepost} className={`flex items-center gap-2 text-sm font-medium ${reposted ? 'text-green-500' : 'text-slate-500 hover:text-green-500'}`}>
                             <Repeat2 className="h-4 w-4" />{reposted ? 'Reposted' : 'Repost'}{repostCount > 0 && ` (${repostCount})`}
@@ -1306,6 +1314,6 @@ export default function PostPage() {
                     </div>
                 </div>
             </div>
-        </TextHighlighter>
+        </div>
     );
 }
