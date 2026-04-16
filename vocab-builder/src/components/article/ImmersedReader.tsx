@@ -4,6 +4,7 @@ import { useRef, useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { sanitizeRichHtml } from '@/lib/sanitize';
 import { useVocabHighlighter } from './useVocabHighlighter';
 import { EmbeddedQuestionCard } from '@/components/embedded-question-card';
+import { getWordAtPosition } from '@/hooks/use-global-dictionary';
 import { RedditCommentTree } from '@/components/reddit-comment-tree';
 import { cn } from '@/lib/utils';
 import type { EmbeddedQuestion, Comment as FirestoreComment, RedditComment } from '@/lib/db/types';
@@ -156,6 +157,23 @@ export const ImmersedReader = memo(function ImmersedReader({
                 const context = parent?.textContent?.slice(0, 300) || '';
                 const rect = target.getBoundingClientRect();
                 onPhraseClick(phrase, context, rect);
+                return;
+            }
+
+            // Fallback: tap-to-select any word in the article
+            const lookup = getWordAtPosition(e.nativeEvent);
+            if (lookup) {
+                e.stopPropagation();
+                
+                let rect = target.getBoundingClientRect();
+                try {
+                    const range = document.caretRangeFromPoint(e.clientX, e.clientY);
+                    if (range) {
+                        rect = range.getBoundingClientRect();
+                    }
+                } catch(err) {}
+
+                onPhraseClick(lookup.word, lookup.context, rect);
             }
         },
         [onPhraseClick]

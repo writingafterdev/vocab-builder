@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback, useMemo, useEffect, memo } from 'react';
 import { motion, useMotionValue, useTransform, animate, PanInfo } from 'framer-motion';
 import { ArticleSection } from '@/lib/db/types';
+import { getWordAtPosition } from '@/hooks/use-global-dictionary';
 import { sanitizeRichHtml } from '@/lib/sanitize';
 import { useVocabHighlighter } from './useVocabHighlighter';
 import { EmbeddedQuestionCard } from '@/components/embedded-question-card';
@@ -288,6 +289,23 @@ export const SwipeReader = memo(function SwipeReader({
                 const context = parent?.textContent?.slice(0, 300) || '';
                 const rect = target.getBoundingClientRect();
                 onPhraseClick(phrase, context, rect);
+                return;
+            }
+
+            // Fallback: tap-to-select any word in the article
+            const lookup = getWordAtPosition(e.nativeEvent);
+            if (lookup) {
+                e.stopPropagation();
+                
+                let rect = target.getBoundingClientRect();
+                try {
+                    const range = document.caretRangeFromPoint(e.clientX, e.clientY);
+                    if (range) {
+                        rect = range.getBoundingClientRect();
+                    }
+                } catch(err) {}
+
+                onPhraseClick(lookup.word, lookup.context, rect);
             }
         },
         [onPhraseClick]
