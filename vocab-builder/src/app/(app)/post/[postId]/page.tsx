@@ -295,31 +295,7 @@ function ExpandedSidebar({
 
                 {/* Vocab Cards - Absolute positioned to align with phrases in document */}
                 <div className="w-full flex-1 overflow-y-auto relative" style={{ minHeight: '100%' }}>
-                    {/* Topic Vocabulary Pills - Quick reference only */}
-                    {/* Words are highlighted in article - click to add to session vocab */}
-                    {topicVocab.length > 0 && (
-                        <div className="p-3 bg-gradient-to-r from-purple-50 to-indigo-50 border-b border-purple-100">
-                            <div className="flex items-center gap-2 mb-2">
-                                <Sparkles className="w-4 h-4 text-purple-600" />
-                                <span className="text-xs font-semibold text-purple-700">Topic Vocabulary</span>
-                                <span className="text-xs text-purple-500">({topicVocab.length})</span>
-                            </div>
-                            <p className="text-[10px] text-purple-400 mb-2">Click highlighted words in article to learn</p>
-                            <div className="flex flex-wrap gap-1.5">
-                                {topicVocab.map((item, idx) => (
-                                    <span
-                                        key={idx}
-                                        className="inline-block px-2 py-1 bg-white rounded text-xs font-medium text-purple-700 border border-purple-200 hover:border-purple-400 hover:bg-purple-50 cursor-pointer transition-all"
-                                        onMouseEnter={() => onHighlightWord?.(item.word)}
-                                        onMouseLeave={() => onHighlightWord?.(null)}
-                                        title={item.meaning}
-                                    >
-                                        {item.word}
-                                    </span>
-                                ))}
-                            </div>
-                        </div>
-                    )}
+
 
                     {vocabItems.length === 0 ? (
                         <div className="text-center py-8 px-4">
