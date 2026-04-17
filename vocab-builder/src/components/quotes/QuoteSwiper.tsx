@@ -704,8 +704,8 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
                             onClick={() => {
                                 setSelectedTopics(prev => 
                                     prev.includes(topic.id) 
-                                        ? prev.filter(t => t !== topic.id) 
-                                        : [...prev, topic.id]
+                                        ? [] 
+                                        : [topic.id]
                                 );
                             }}
                             className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 border text-[11px] font-bold uppercase tracking-[0.08em] transition-all duration-200 ${
