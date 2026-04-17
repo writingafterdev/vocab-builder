@@ -112,6 +112,8 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
     const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
     const isAnimating = useRef(false);
     const cardStackRef = useRef<HTMLDivElement>(null);
+    // Master cache of ALL fetched quotes (never wiped on topic change)
+    const masterQuotesRef = useRef<DeckItem[]>([]);
 
     // View tracking: buffer IDs and flush every 5 swipes or on unmount
     const viewedBufferRef = useRef<string[]>([]);
@@ -218,16 +220,19 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
                 if (data.needsOnboarding) return;
                 
                 const fetchedQuotes = data.quotes || [];
-                setDeck(prevDeck => {
-                    const newQuotes = fetchedQuotes
-                        .filter((q: any) => !prevDeck.some(d => d.id === q.id))
-                        .map((q: any) => ({
-                            id: q.id,
-                            type: 'quote' as const,
-                            data: q
-                        }));
-                    return [...prevDeck, ...newQuotes];
-                });
+                const newItems: DeckItem[] = fetchedQuotes
+                    .filter((q: any) => !masterQuotesRef.current.some(d => d.id === q.id))
+                    .map((q: any) => ({
+                        id: q.id,
+                        type: 'quote' as const,
+                        data: q
+                    }));
+
+                // Add to master cache
+                masterQuotesRef.current = [...masterQuotesRef.current, ...newItems];
+
+                // Append to current deck
+                setDeck(prevDeck => [...prevDeck, ...newItems]);
             }
         } catch (error) {
             console.error('Failed to fetch more quotes:', error);
@@ -275,17 +280,28 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
                         }
 
                         const fetchedQuotes = data.quotes || [];
-                        setDeck(prevDeck => {
-                            const newQuotes = fetchedQuotes
-                                .filter((q: any) => !prevDeck.some(d => d.id === q.id))
-                                .map((q: any) => ({
-                                    id: q.id,
-                                    type: 'quote' as const,
-                                    data: q
-                                }));
-                            // If we triggered this fetch via explicit selection, replace the deck instead of appending!
-                            return prevDeck.length === 0 ? newQuotes : [...prevDeck, ...newQuotes];
-                        });
+                        const newItems: DeckItem[] = fetchedQuotes
+                            .filter((q: any) => !masterQuotesRef.current.some(d => d.id === q.id))
+                            .map((q: any) => ({
+                                id: q.id,
+                                type: 'quote' as const,
+                                data: q
+                            }));
+
+                        // Add to master cache
+                        masterQuotesRef.current = [...masterQuotesRef.current, ...newItems];
+
+                        // Build filtered deck from master cache
+                        if (selectedTopics.length > 0) {
+                            const filtered = masterQuotesRef.current.filter(d => {
+                                const topic = (d.data as any)?.topic;
+                                return topic && selectedTopics.includes(topic);
+                            });
+                            setDeck(filtered.length > 0 ? filtered : newItems);
+                        } else {
+                            setDeck(masterQuotesRef.current);
+                        }
+                        setActiveIndex(0);
                     }
                     if (savedRes.ok) {
                         const data = await savedRes.json();
@@ -304,11 +320,33 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
         return () => { cancelled = true; };
     }, [userId, selectedTopics]);
 
-    // Wipe deck and re-fetch if topics change
+    // Instant client-side filter when topics change (no loading spinner)
+    const isInitialMount = useRef(true);
     useEffect(() => {
-        setDeck([]);
-        setLoading(true);
-        setActiveIndex(0);
+        // Skip on initial mount (let the fetch handle it)
+        if (isInitialMount.current) {
+            isInitialMount.current = false;
+            return;
+        }
+
+        // Instantly filter from master cache
+        if (selectedTopics.length > 0) {
+            const filtered = masterQuotesRef.current.filter(d => {
+                const topic = (d.data as any)?.topic;
+                return topic && selectedTopics.includes(topic);
+            });
+            if (filtered.length > 0) {
+                setDeck(filtered);
+                setActiveIndex(0);
+            }
+            // If no cached results for this topic, the fetch effect above will handle it
+        } else {
+            // Show all cached quotes
+            if (masterQuotesRef.current.length > 0) {
+                setDeck(masterQuotesRef.current);
+                setActiveIndex(0);
+            }
+        }
     }, [selectedTopics]);
 
     // Store pre-generated questions and calculate smart insertion points
