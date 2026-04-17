@@ -225,7 +225,7 @@ export const SwipeReader = memo(function SwipeReader({
 
     // Apply rough-notation highlights when active card changes
     useVocabHighlighter(cardStackRef, [activeIndex, items]);
-    const [phase, setPhase] = useState<'idle' | 'sending-to-back'>('idle');
+    const [phase, setPhase] = useState<'idle' | 'sending-to-back' | 'bringing-to-front'>('idle');
     const isAnimating = useRef(false);
 
     const dragX = useMotionValue(0);
@@ -268,11 +268,19 @@ export const SwipeReader = memo(function SwipeReader({
 
     const goBack = useCallback(() => {
         if (isAnimating.current || items.length <= 1) return;
+        isAnimating.current = true;
+
         const prevIndex = (activeIndex - 1 + items.length) % items.length;
         if (controlledSection === undefined) {
             setInternalIndex(prevIndex);
         }
         onSectionChange?.(prevIndex);
+        setPhase('bringing-to-front');
+
+        setTimeout(() => {
+            setPhase('idle');
+            isAnimating.current = false;
+        }, 500);
     }, [items.length, activeIndex, controlledSection, onSectionChange]);
 
     const handleDragEnd = useCallback((_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
@@ -308,6 +316,12 @@ export const SwipeReader = memo(function SwipeReader({
             if (stackPos === 1) return POSITIONS.front;
             if (stackPos === 2) return POSITIONS.middle;
             if (stackPos === 3) return POSITIONS.back;
+            return POSITIONS.hidden;
+        }
+        if (phase === 'bringing-to-front') {
+            if (stackPos === 0) return POSITIONS.front;
+            if (stackPos === 1) return POSITIONS.middle;
+            if (stackPos === 2) return POSITIONS.back;
             return POSITIONS.hidden;
         }
         if (stackPos === 0) return POSITIONS.front;

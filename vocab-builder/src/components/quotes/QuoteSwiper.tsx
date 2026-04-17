@@ -107,7 +107,7 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
     const [loading, setLoading] = useState(true);
     const [activeIndex, setActiveIndex] = useState(0);
     const [savedQuotes, setSavedQuotes] = useState<Set<string>>(new Set());
-    const [phase, setPhase] = useState<'idle' | 'sending-to-back'>('idle');
+    const [phase, setPhase] = useState<'idle' | 'sending-to-back' | 'bringing-to-front'>('idle');
     const [needsOnboarding, setNeedsOnboarding] = useState(false);
     const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
     const isAnimating = useRef(false);
@@ -543,8 +543,18 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
 
     const goPrevious = () => {
         if (isAnimating.current || deck.length <= 1) return;
+        isAnimating.current = true;
         stopAudio();
-        setActiveIndex(prev => (prev === 0 ? deck.length - 1 : prev - 1));
+
+        // Move index back first, then animate the new front card in
+        const prevIndex = activeIndex === 0 ? deck.length - 1 : activeIndex - 1;
+        setActiveIndex(prevIndex);
+        setPhase('bringing-to-front');
+
+        setTimeout(() => {
+            setPhase('idle');
+            isAnimating.current = false;
+        }, 500);
     };
 
     const goToArticle = () => {
@@ -660,6 +670,13 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
             if (stackPos === 1) return POSITIONS.front;
             if (stackPos === 2) return POSITIONS.middle;
             if (stackPos === 3) return POSITIONS.back;
+            return POSITIONS.hidden;
+        }
+        if (phase === 'bringing-to-front') {
+            // Reverse: the new front card comes from exit/back to front
+            if (stackPos === 0) return POSITIONS.front;
+            if (stackPos === 1) return POSITIONS.middle;
+            if (stackPos === 2) return POSITIONS.back;
             return POSITIONS.hidden;
         }
         if (stackPos === 0) return POSITIONS.front;
