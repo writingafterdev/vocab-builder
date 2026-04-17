@@ -1,11 +1,13 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { BookOpen, X } from 'lucide-react';
 import { VocabPopupCard } from '@/components/article/VocabPopupCard';
-import { useDictionaryStore } from '@/stores/dictionary-store';
+import { useDictionaryStore, DictionaryPopupState } from '@/stores/dictionary-store';
 import { toast } from 'sonner';
+
+type ReviewMode = 'session' | 'all';
 
 /**
  * DictionaryWidget — Mounted once in the global app layout.
@@ -13,7 +15,7 @@ import { toast } from 'sonner';
  * Contains:
  * 1. The VocabPopupCard (driven by Zustand store)
  * 2. The review toggle button (small pill in bottom-right)
- * 3. The stacked review cards overlay
+ * 3. The stacked review cards overlay (with session/all toggle)
  */
 export function DictionaryWidget() {
     const {
@@ -31,6 +33,53 @@ export function DictionaryWidget() {
         openPopup,
     } = useDictionaryStore();
 
+    const [reviewMode, setReviewMode] = useState<ReviewMode>('session');
+    const [allSavedPhrases, setAllSavedPhrases] = useState<DictionaryPopupState[]>([]);
+    const [loadingAll, setLoadingAll] = useState(false);
+    const [hasFetchedAll, setHasFetchedAll] = useState(false);
+
+    // Fetch all saved phrases when switching to "all" mode
+    const fetchAllPhrases = useCallback(async () => {
+        if (!userId || hasFetchedAll) return;
+        setLoadingAll(true);
+        try {
+            const res = await fetch(`/api/user/saved-phrases?userId=${userId}&full=true&limit=200`);
+            if (res.ok) {
+                const data = await res.json();
+                const mapped: DictionaryPopupState[] = data.map((p: any) => ({
+                    phrase: p.phrase,
+                    meaning: p.meaning || '',
+                    register: p.register,
+                    nuance: p.nuance,
+                    topic: p.topic,
+                    subtopic: p.subtopic,
+                }));
+                setAllSavedPhrases(mapped);
+                setHasFetchedAll(true);
+            }
+        } catch (err) {
+            console.error('Failed to fetch all saved phrases:', err);
+        } finally {
+            setLoadingAll(false);
+        }
+    }, [userId, hasFetchedAll]);
+
+    // Trigger fetch when switching to "all" mode
+    useEffect(() => {
+        if (reviewMode === 'all' && !hasFetchedAll) {
+            fetchAllPhrases();
+        }
+    }, [reviewMode, hasFetchedAll, fetchAllPhrases]);
+
+    // Invalidate cache when a new phrase is saved
+    useEffect(() => {
+        if (isSaved && hasFetchedAll) {
+            setHasFetchedAll(false);
+        }
+    }, [isSaved, hasFetchedAll]);
+
+    const displayCards = reviewMode === 'session' ? reviewCards : allSavedPhrases;
+
     // Handle save with toast feedback
     const handleSave = async () => {
         await savePhrase();
@@ -46,7 +95,7 @@ export function DictionaryWidget() {
     };
 
     // Handle clicking a review card → open it in the main popup
-    const handleReviewCardClick = (card: typeof reviewCards[number]) => {
+    const handleReviewCardClick = (card: DictionaryPopupState) => {
         if (!userId || !userEmail) return;
         openPopup(card.phrase, card.context || '', userId, userEmail);
         useDictionaryStore.setState({ reviewOpen: false });
@@ -76,37 +125,78 @@ export function DictionaryWidget() {
 
             {/* ── Stacked Review Cards ── */}
             <AnimatePresence>
-                {reviewOpen && reviewCards.length > 0 && (
+                {reviewOpen && (
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 20 }}
                         transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-                        className="fixed bottom-[140px] md:bottom-36 right-4 left-4 md:left-auto md:right-6 z-30 w-auto md:w-[300px] flex flex-col gap-2 max-h-[60vh] overflow-y-auto"
+                        className="fixed bottom-[140px] md:bottom-36 right-4 left-4 md:left-auto md:right-6 z-30 w-auto md:w-[300px] flex flex-col max-h-[60vh]"
                     >
-                        {reviewCards.map((card, idx) => (
-                            <motion.div
-                                key={card.phrase}
-                                initial={{ opacity: 0, x: 20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: idx * 0.05 }}
-                                onClick={() => handleReviewCardClick(card)}
-                                className="
-                                    bg-[var(--card)] border border-[var(--border)] shadow-sm
-                                    px-4 py-3 cursor-pointer font-sans
-                                    hover:border-[var(--foreground)] hover:shadow-md
-                                    transition-all duration-200
-                                    active:scale-[0.98]
-                                "
+                        {/* Mode Toggle */}
+                        <div className="flex bg-[var(--card)] border border-[var(--border)] mb-2 p-0.5">
+                            <button
+                                onClick={() => setReviewMode('session')}
+                                className={`flex-1 text-[10px] font-bold uppercase tracking-wider py-1.5 px-2 transition-all duration-200 ${
+                                    reviewMode === 'session'
+                                        ? 'bg-neutral-900 text-white'
+                                        : 'text-neutral-500 hover:text-neutral-900'
+                                }`}
                             >
-                                <p className="text-sm font-medium text-neutral-900 italic" style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}>
-                                    {card.phrase}
-                                </p>
-                                <p className="text-xs text-neutral-500 mt-1 line-clamp-2">
-                                    {card.meaning}
-                                </p>
-                            </motion.div>
-                        ))}
+                                This Session ({reviewCards.length})
+                            </button>
+                            <button
+                                onClick={() => setReviewMode('all')}
+                                className={`flex-1 text-[10px] font-bold uppercase tracking-wider py-1.5 px-2 transition-all duration-200 ${
+                                    reviewMode === 'all'
+                                        ? 'bg-neutral-900 text-white'
+                                        : 'text-neutral-500 hover:text-neutral-900'
+                                }`}
+                            >
+                                All Saved {hasFetchedAll ? `(${allSavedPhrases.length})` : ''}
+                            </button>
+                        </div>
+
+                        {/* Cards List */}
+                        <div className="flex flex-col gap-2 overflow-y-auto">
+                            {loadingAll && reviewMode === 'all' ? (
+                                <div className="flex items-center justify-center py-6">
+                                    <div className="w-4 h-4 border-2 border-neutral-300 border-t-neutral-900 rounded-full animate-spin" />
+                                </div>
+                            ) : displayCards.length === 0 ? (
+                                <div className="bg-[var(--card)] border border-[var(--border)] px-4 py-6 text-center">
+                                    <p className="text-xs text-neutral-400">
+                                        {reviewMode === 'session'
+                                            ? 'Tap any word to look it up'
+                                            : 'No saved phrases yet'}
+                                    </p>
+                                </div>
+                            ) : (
+                                displayCards.map((card, idx) => (
+                                    <motion.div
+                                        key={`${reviewMode}-${card.phrase}`}
+                                        initial={{ opacity: 0, x: 20 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{ delay: idx * 0.03 }}
+                                        onClick={() => handleReviewCardClick(card)}
+                                        className="
+                                            bg-[var(--card)] border border-[var(--border)] shadow-sm
+                                            px-4 py-3 cursor-pointer font-sans
+                                            hover:border-[var(--foreground)] hover:shadow-md
+                                            transition-all duration-200
+                                            active:scale-[0.98]
+                                        "
+                                    >
+                                        <p className="text-sm font-medium text-neutral-900 italic" style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}>
+                                            {card.phrase}
+                                        </p>
+                                        <p className="text-xs text-neutral-500 mt-1 line-clamp-2">
+                                            {card.meaning}
+                                        </p>
+                                    </motion.div>
+                                ))
+                            )}
+                        </div>
                     </motion.div>
                 )}
             </AnimatePresence>
