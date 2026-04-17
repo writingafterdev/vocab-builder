@@ -54,12 +54,15 @@ import {
     UserPost,
     UserTokenUsage,
     bulkDeleteAllPosts,
-} from '@/lib/db/admin';
+    setAdminEmail,
+    getTokenUsageStats,
+    getDetailedTokenUsage,
+    DetailedTokenEntry,
+} from '@/lib/db/admin-client';
 import { Post, LearningCycleSettings, DEFAULT_LEARNING_CYCLE } from '@/lib/db/types';
 
 import type { UserProfile } from '@/types';
 import { RichTextEditor } from '@/components/rich-text-editor';
-import { getTokenUsageStats, getDetailedTokenUsage, DetailedTokenEntry } from '@/lib/db/token-tracking';
 
 const ADMIN_EMAIL = 'ducanhcontactonfb@gmail.com';
 
@@ -276,7 +279,8 @@ export default function AdminPage() {
     }, [user, loading, isAdmin, router]);
 
     useEffect(() => {
-        if (isAdmin) {
+        if (isAdmin && user?.email) {
+            setAdminEmail(user.email);
             loadStats();
             loadTokenUsageStats(tokenDaysBack);
         }

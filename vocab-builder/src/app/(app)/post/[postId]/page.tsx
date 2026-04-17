@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { getPost } from '@/lib/db/posts';
-import { updatePost } from '@/lib/db/admin';
+import { updatePost } from '@/lib/db/admin-client';
 import { getComments, getReplies, addComment } from '@/lib/db/comments';
 import { repostPost, hasUserReposted, likeComment, getBatchUserLikes } from '@/lib/db/social';
 import { saveArticle, unsaveArticle, isArticleSaved } from '@/lib/db/bookmarks';

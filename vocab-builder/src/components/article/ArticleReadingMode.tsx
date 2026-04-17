@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Post, ArticleSection, LexileLevel, Comment as FirestoreComment, RedditComment } from '@/lib/db/types';
-import { updatePost } from '@/lib/db/admin';
+import { updatePost } from '@/lib/db/admin-client';
 import { getComments, getReplies } from '@/lib/db/comments';
 import { ImmersedReader } from './ImmersedReader';
 import { SwipeReader } from './SwipeReader';
