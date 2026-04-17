@@ -56,7 +56,7 @@ import {
     bulkDeleteAllPosts,
 } from '@/lib/db/admin';
 import { Post, LearningCycleSettings, DEFAULT_LEARNING_CYCLE } from '@/lib/db/types';
-import { Timestamp } from '@/lib/appwrite/firestore';
+
 import type { UserProfile } from '@/types';
 import { RichTextEditor } from '@/components/rich-text-editor';
 import { getTokenUsageStats, getDetailedTokenUsage, DetailedTokenEntry } from '@/lib/db/token-tracking';
@@ -830,9 +830,7 @@ export default function AdminPage() {
         if (!timestamp) return '';
 
         let date: Date;
-        if (timestamp instanceof Timestamp) {
-            date = timestamp.toDate();
-        } else if (timestamp instanceof Date) {
+        if (timestamp instanceof Date) {
             date = timestamp;
         } else {
             // Handle strings or numbers

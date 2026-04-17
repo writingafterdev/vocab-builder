@@ -1,22 +1,15 @@
 /**
  * Admin functions domain module
+ * Migrated to native Appwrite SDK (no Firestore polyfill)
  */
 import {
-    collection,
-    doc,
-    addDoc,
-    getDoc,
-    getDocs,
-    setDoc,
-    updateDoc,
-    deleteDoc,
-    query,
-    where,
-    orderBy,
-    limit,
-    serverTimestamp,
-} from '@/lib/appwrite/firestore';
-import { getDbAsync } from './core';
+    getDocument,
+    setDocument,
+    queryCollection,
+    deleteDocument,
+    addDocument,
+} from '@/lib/appwrite/database';
+import { Query } from 'node-appwrite';
 import type { Post, LearningCycleSettings } from './types';
 import { DEFAULT_LEARNING_CYCLE } from './types';
 import type { UserProfile } from '@/types';
@@ -25,16 +18,9 @@ import type { UserProfile } from '@/types';
 
 export async function getLearningCycleSettings(): Promise<LearningCycleSettings> {
     try {
-        const firestore = await getDbAsync();
-        const settingsRef = doc(firestore, 'settings', 'learningCycle');
-        const snapshot = await getDoc(settingsRef);
-
-        if (!snapshot.exists()) {
-            // We don't automatically create it to avoid failing on client side permissions
-            return DEFAULT_LEARNING_CYCLE;
-        }
-
-        return snapshot.data() as LearningCycleSettings;
+        const doc = await getDocument('settings', 'learningCycle');
+        if (!doc) return DEFAULT_LEARNING_CYCLE;
+        return doc as unknown as LearningCycleSettings;
     } catch (error) {
         console.warn('Failed to load learning cycle settings:', error);
         return DEFAULT_LEARNING_CYCLE;
@@ -42,43 +28,39 @@ export async function getLearningCycleSettings(): Promise<LearningCycleSettings>
 }
 
 export async function updateLearningCycleSettings(settings: LearningCycleSettings): Promise<void> {
-    const firestore = await getDbAsync();
-    const settingsRef = doc(firestore, 'settings', 'learningCycle');
-    await setDoc(settingsRef, settings);
+    await setDocument('settings', 'learningCycle', settings as unknown as Record<string, unknown>);
 }
 
 // ============ ADMIN CRUD ============
 
 export async function getAllUsers(): Promise<UserProfile[]> {
-    const firestore = await getDbAsync();
-    const usersRef = collection(firestore, 'users');
-    const q = query(usersRef, orderBy('createdAt', 'desc'));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => {
-        const data = doc.data();
-        return { ...data, uid: data.uid || doc.id } as UserProfile;
-    });
+    const docs = await queryCollection('users', [
+        Query.orderDesc('createdAt'),
+        Query.limit(500),
+    ]);
+    return docs.map(d => ({
+        ...d,
+        uid: (d.uid as string) || d.id,
+    } as unknown as UserProfile));
 }
 
 export async function deletePost(postId: string): Promise<void> {
-    const firestore = await getDbAsync();
-    const postRef = doc(firestore, 'posts', postId);
-    await deleteDoc(postRef);
+    await deleteDocument('posts', postId);
 
     // Delete associated comments
-    const commentsRef = collection(firestore, 'comments');
-    const commentsQuery = query(commentsRef, where('postId', '==', postId));
-    const commentsSnapshot = await getDocs(commentsQuery);
-    for (const commentDoc of commentsSnapshot.docs) {
-        await deleteDoc(commentDoc.ref);
+    const comments = await queryCollection('comments', [
+        Query.equal('postId', postId),
+    ]);
+    for (const comment of comments) {
+        await deleteDocument('comments', comment.id);
     }
 
     // Delete associated reposts
-    const repostsRef = collection(firestore, 'reposts');
-    const repostsQuery = query(repostsRef, where('postId', '==', postId));
-    const repostsSnapshot = await getDocs(repostsQuery);
-    for (const repostDoc of repostsSnapshot.docs) {
-        await deleteDoc(repostDoc.ref);
+    const reposts = await queryCollection('reposts', [
+        Query.equal('postId', postId),
+    ]);
+    for (const repost of reposts) {
+        await deleteDocument('reposts', repost.id);
     }
 }
 
@@ -87,20 +69,18 @@ export async function deletePost(postId: string): Promise<void> {
  * Returns the count of deleted posts
  */
 export async function bulkDeleteAllPosts(): Promise<{ deleted: number; errors: string[] }> {
-    const firestore = await getDbAsync();
-    const postsRef = collection(firestore, 'posts');
-    const snapshot = await getDocs(postsRef);
+    const docs = await queryCollection('posts', [Query.limit(500)]);
 
     let deleted = 0;
     const errors: string[] = [];
 
-    for (const postDoc of snapshot.docs) {
+    for (const doc of docs) {
         try {
-            await deleteDoc(postDoc.ref);
+            await deleteDocument('posts', doc.id);
             deleted++;
         } catch (error) {
-            console.error(`Failed to delete post ${postDoc.id}:`, error);
-            errors.push(postDoc.id);
+            console.error(`Failed to delete post ${doc.id}:`, error);
+            errors.push(doc.id);
         }
     }
 
@@ -108,9 +88,9 @@ export async function bulkDeleteAllPosts(): Promise<{ deleted: number; errors: s
 }
 
 export async function updatePost(postId: string, data: Partial<Omit<Post, 'id' | 'createdAt'>>): Promise<void> {
-    const firestore = await getDbAsync();
-    const postRef = doc(firestore, 'posts', postId);
-    await updateDoc(postRef, data);
+    const { setDocument: _, ...updateData } = data as any;
+    const { updateDocument } = await import('@/lib/appwrite/database');
+    await updateDocument('posts', postId, updateData as Record<string, any>);
 }
 
 export async function getAdminStats(): Promise<{
@@ -121,36 +101,29 @@ export async function getAdminStats(): Promise<{
     totalPhrases: number;
     totalTokens: number;
 }> {
-    const firestore = await getDbAsync();
-
-    const usersSnapshot = await getDocs(collection(firestore, 'users'));
-    const postsSnapshot = await getDocs(collection(firestore, 'posts'));
-    const scenariosSnapshot = await getDocs(collection(firestore, 'scenarios'));
-    const tokenUsageSnapshot = await getDocs(collection(firestore, 'tokenUsage'));
-
-    // Count phrases across all users
-    let totalPhrases = 0;
-    for (const userDoc of usersSnapshot.docs) {
-        const phrasesSnapshot = await getDocs(collection(firestore, 'users', userDoc.id, 'savedPhrases'));
-        totalPhrases += phrasesSnapshot.size;
-    }
+    const [users, posts, scenarios, tokenUsageDocs, savedPhrases] = await Promise.all([
+        queryCollection('users', [Query.limit(500)]),
+        queryCollection('posts', [Query.limit(500)]),
+        queryCollection('scenarios', [Query.limit(500)]),
+        queryCollection('tokenUsage', [Query.limit(500)]),
+        queryCollection('savedPhrases', [Query.limit(500)]),
+    ]);
 
     // Sum total tokens
     let totalTokens = 0;
-    tokenUsageSnapshot.docs.forEach(doc => {
-        totalTokens += doc.data().totalTokens || 0;
+    tokenUsageDocs.forEach(doc => {
+        totalTokens += (doc.totalTokens as number) || 0;
     });
 
-    const posts = postsSnapshot.docs.map(doc => doc.data());
     const articles = posts.filter(p => p.isArticle === true);
     const regularPosts = posts.filter(p => !p.isArticle);
 
     return {
-        totalUsers: usersSnapshot.size,
+        totalUsers: users.length,
         totalPosts: regularPosts.length,
         totalArticles: articles.length,
-        totalScenarios: scenariosSnapshot.size,
-        totalPhrases,
+        totalScenarios: scenarios.length,
+        totalPhrases: savedPhrases.length,
         totalTokens,
     };
 }
@@ -171,49 +144,45 @@ interface PostWithCommentsInput {
     authorName?: string;
     authorUsername?: string;
     source?: string;
-    originalUrl?: string; // For imported content
+    originalUrl?: string;
     comments?: ImportComment[];
 }
 
 export async function createPostWithComments(input: PostWithCommentsInput): Promise<string> {
-    const firestore = await getDbAsync();
-    const postsRef = collection(firestore, 'posts');
-
-    const postDoc = await addDoc(postsRef, {
+    const postId = await addDocument('posts', {
         authorId: 'system',
         authorName: input.authorName || 'English Academy',
         authorUsername: input.authorUsername || 'englishacademy',
         source: input.source || input.authorUsername || 'admin',
         content: input.content,
-        highlightedPhrases: input.highlightedPhrases || [],
+        highlightedPhrases: JSON.stringify(input.highlightedPhrases || []),
         type: 'admin',
         isArticle: input.isArticle || false,
-        title: input.title,
-        coverImage: input.coverImage,
-        originalUrl: input.originalUrl,
+        title: input.title || '',
+        coverImage: input.coverImage || '',
+        originalUrl: input.originalUrl || '',
         commentCount: input.comments?.length || 0,
         repostCount: 0,
-        createdAt: serverTimestamp(),
+        createdAt: new Date().toISOString(),
     });
 
     if (input.comments && input.comments.length > 0) {
-        const commentsRef = collection(firestore, 'comments');
         for (const comment of input.comments) {
-            await addDoc(commentsRef, {
-                postId: postDoc.id,
+            await addDocument('comments', {
+                postId,
                 authorId: 'system',
                 authorName: comment.author || 'Anonymous',
                 authorUsername: comment.author?.toLowerCase().replace(/\s/g, '_') || 'anonymous',
                 content: comment.content,
                 likeCount: 0,
                 replyCount: 0,
-                parentId: null,
-                createdAt: serverTimestamp(),
+                parentId: '',
+                createdAt: new Date().toISOString(),
             });
         }
     }
 
-    return postDoc.id;
+    return postId;
 }
 
 // ============ ADMIN USER DETAIL ============
@@ -231,28 +200,23 @@ export interface UserScenario {
 }
 
 export async function getUserScenarios(userId: string): Promise<UserScenario[]> {
-    const firestore = await getDbAsync();
-    const scenariosRef = collection(firestore, 'scenarios');
-    const q = query(
-        scenariosRef,
-        where('userId', '==', userId),
-        orderBy('createdAt', 'desc'),
-        limit(50)
-    );
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => {
-        const data = doc.data();
-        const phrases = data.phrases || [];
+    const docs = await queryCollection('scenarios', [
+        Query.equal('userId', userId),
+        Query.orderDesc('createdAt'),
+        Query.limit(50),
+    ]);
+    return docs.map(doc => {
+        const phrases = doc.phrases ? (typeof doc.phrases === 'string' ? JSON.parse(doc.phrases as string) : doc.phrases) : [];
         return {
             id: doc.id,
-            scenario: data.scenario || 'Untitled',
-            userRole: data.userRole || '',
-            createdAt: data.createdAt?.toDate() || new Date(),
-            status: data.status || 'unknown',
-            phrasesTotal: phrases.length,
-            phrasesUsed: phrases.filter((p: { used?: boolean }) => p.used).length,
-            phrasesNatural: phrases.filter((p: { status?: string }) => p.status === 'natural').length,
-            turnsCount: (data.turns || []).length,
+            scenario: (doc.scenario as string) || 'Untitled',
+            userRole: (doc.userRole as string) || '',
+            createdAt: doc.createdAt ? new Date(doc.createdAt as string) : new Date(),
+            status: (doc.status as string) || 'unknown',
+            phrasesTotal: Array.isArray(phrases) ? phrases.length : 0,
+            phrasesUsed: Array.isArray(phrases) ? phrases.filter((p: any) => p.used).length : 0,
+            phrasesNatural: Array.isArray(phrases) ? phrases.filter((p: any) => p.status === 'natural').length : 0,
+            turnsCount: doc.turns ? (typeof doc.turns === 'string' ? JSON.parse(doc.turns as string) : doc.turns).length : 0,
         };
     });
 }
@@ -268,27 +232,20 @@ export interface UserPost {
 }
 
 export async function getUserPosts(userId: string): Promise<UserPost[]> {
-    const firestore = await getDbAsync();
-    const postsRef = collection(firestore, 'posts');
-    const q = query(
-        postsRef,
-        where('authorId', '==', userId),
-        orderBy('createdAt', 'desc'),
-        limit(50)
-    );
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-            id: doc.id,
-            title: data.title,
-            content: data.content || '',
-            isArticle: data.isArticle || false,
-            createdAt: data.createdAt?.toDate() || new Date(),
-            commentCount: data.commentCount || 0,
-            repostCount: data.repostCount || 0,
-        };
-    });
+    const docs = await queryCollection('posts', [
+        Query.equal('authorId', userId),
+        Query.orderDesc('createdAt'),
+        Query.limit(50),
+    ]);
+    return docs.map(doc => ({
+        id: doc.id,
+        title: doc.title as string | undefined,
+        content: (doc.content as string) || '',
+        isArticle: (doc.isArticle as boolean) || false,
+        createdAt: doc.createdAt ? new Date(doc.createdAt as string) : new Date(),
+        commentCount: (doc.commentCount as number) || 0,
+        repostCount: (doc.repostCount as number) || 0,
+    }));
 }
 
 export interface UserTokenUsage {
@@ -303,23 +260,18 @@ export async function getUserTokenUsage(userEmail: string): Promise<{
     calls: number;
     byEndpoint: UserTokenUsage[];
 }> {
-    // This uses REST API under the hood if possible, but here we might be mixing patterns
-    // Actually token tracking uses firestore-rest.ts directly in token-tracking.ts.
-    // But this function is in admin.ts, let's see if it uses checkDb.
-    // Yes it likely does if it queries 'tokenUsage' collection.
-    const firestore = await getDbAsync();
-    const usageRef = collection(firestore, 'tokenUsage');
-    const q = query(usageRef, where('userEmail', '==', userEmail));
-    const snapshot = await getDocs(q);
+    const docs = await queryCollection('tokenUsage', [
+        Query.equal('userEmail', userEmail),
+        Query.limit(500),
+    ]);
 
     const byEndpoint: Record<string, { tokens: number; calls: number }> = {};
     let total = 0;
     let calls = 0;
 
-    snapshot.docs.forEach(doc => {
-        const data = doc.data();
-        const endpoint = data.endpoint || 'unknown';
-        const tokens = data.totalTokens || 0;
+    docs.forEach(doc => {
+        const endpoint = (doc.endpoint as string) || 'unknown';
+        const tokens = (doc.totalTokens as number) || 0;
         total += tokens;
         calls += 1;
         if (!byEndpoint[endpoint]) {
@@ -348,23 +300,16 @@ export async function getUserSavedPhrases(userId: string): Promise<Array<{
     createdAt: Date;
     usageCount: number;
 }>> {
-    const firestore = await getDbAsync();
-    const phrasesRef = collection(firestore, 'savedPhrases');
-    const q = query(
-        phrasesRef,
-        where('userId', '==', userId),
-        orderBy('createdAt', 'desc'),
-        limit(100)
-    );
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-            id: doc.id,
-            phrase: data.phrase || '',
-            meaning: data.meaning || '',
-            createdAt: data.createdAt?.toDate() || new Date(),
-            usageCount: data.usageCount || 0,
-        };
-    });
+    const docs = await queryCollection('savedPhrases', [
+        Query.equal('userId', userId),
+        Query.orderDesc('createdAt'),
+        Query.limit(100),
+    ]);
+    return docs.map(doc => ({
+        id: doc.id,
+        phrase: (doc.phrase as string) || '',
+        meaning: (doc.meaning as string) || '',
+        createdAt: doc.createdAt ? new Date(doc.createdAt as string) : new Date(),
+        usageCount: (doc.usageCount as number) || 0,
+    }));
 }
