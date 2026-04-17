@@ -1,0 +1,4 @@
+[dotenv@17.3.1] injecting env (24) from .env.local -- tip: 🛡️ auth for agents: https://vestauth.com
+Checking last 100 documents for our fake children...
+🎉 SUCCESS! Found our standalone children:
+ - ID: 69d31d0d002761242f2c, phrase: "fake test phrase 1775443213139", parentPhraseId: "3g88hD4L979PsyKbjLVx"

@@ -1,0 +1,36 @@
+[dotenv@17.3.1] injecting env (24) from .env.local -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+╔══════════════════════════════════════════════════╗
+║   Appwrite Migration — Feature Test Suite        ║
+╚══════════════════════════════════════════════════╝
+
+═══ 1. Database Layer (CRUD) ═══
+  ✅ CREATE document
+  ✅ READ document — data matches
+  ✅ UPDATE document — xp updated to 100
+  ✅ QUERY documents — found 1 results
+  ✅ DELETE document
+
+═══ 2. Data Integrity ═══
+  ✅ Posts collection — 260 documents
+  ✅ Posts have titles — sample: "Jürgen Habermas Dies at 96; One of Postwar Germany"
+  ✅ Posts have content — avg length: 2460 chars
+  ✅ Quotes collection — 245 documents
+  ✅ Quotes have authors — e.g. "Article"
+  ✅ Quotes have postTitle
+  ⚠️  Quotes missing topic — 3/10 missing
+  ✅ SavedPhrases collection — 19 documents
+  ✅ SavedPhrases have phrase data — e.g. "shed light on"
+  ✅ Users collection — 7 documents
+
+═══ 3. Collection Access (all 48) ═══
+  ✅ batchJobs — 68 docs
+  ✅ feedQuizzes — 28 docs
+  ✅ importSources — 59 docs
+  ✅ posts — 260 docs
+  ✅ quote_feed_state — 3 docs
+  ✅ quotes — 245 docs
+  ✅ savedPhrases — 19 docs
+  ✅ tokenUsage — 3 docs
+  ✅ userWeaknesses — 2 docs
+  ✅ users — 7 docs
+  ✅ All 49 collections accessible

@@ -14,7 +14,7 @@ import {
     ChevronLeft, ChevronRight, Bookmark, Filter, BookmarkPlus, ArrowRight
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { sanitizeRichHtml, stripHtml } from '@/lib/sanitize';
+import { sanitizeRichHtml } from '@/lib/sanitize';
 import { cn, toDateSafe } from '@/lib/utils';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -36,8 +36,6 @@ import { useGlobalDictionary, getWordAtPosition } from '@/hooks/use-global-dicti
 import { GlobalPhraseData, RedditComment } from '@/lib/db/types';
 import { RedditCommentTree } from '@/components/reddit-comment-tree';
 import { ArticleReader } from '@/components/article-reader';
-import { useDictionaryStore } from '@/stores/dictionary-store';
-import { TapToSelect } from '@/components/vocab/TapToSelect';
 
 const ADMIN_EMAIL = 'ducanhcontactonfb@gmail.com';
 
@@ -297,7 +295,31 @@ function ExpandedSidebar({
 
                 {/* Vocab Cards - Absolute positioned to align with phrases in document */}
                 <div className="w-full flex-1 overflow-y-auto relative" style={{ minHeight: '100%' }}>
-
+                    {/* Topic Vocabulary Pills - Quick reference only */}
+                    {/* Words are highlighted in article - click to add to session vocab */}
+                    {topicVocab.length > 0 && (
+                        <div className="p-3 bg-gradient-to-r from-purple-50 to-indigo-50 border-b border-purple-100">
+                            <div className="flex items-center gap-2 mb-2">
+                                <Sparkles className="w-4 h-4 text-purple-600" />
+                                <span className="text-xs font-semibold text-purple-700">Topic Vocabulary</span>
+                                <span className="text-xs text-purple-500">({topicVocab.length})</span>
+                            </div>
+                            <p className="text-[10px] text-purple-400 mb-2">Click highlighted words in article to learn</p>
+                            <div className="flex flex-wrap gap-1.5">
+                                {topicVocab.map((item, idx) => (
+                                    <span
+                                        key={idx}
+                                        className="inline-block px-2 py-1 bg-white rounded text-xs font-medium text-purple-700 border border-purple-200 hover:border-purple-400 hover:bg-purple-50 cursor-pointer transition-all"
+                                        onMouseEnter={() => onHighlightWord?.(item.word)}
+                                        onMouseLeave={() => onHighlightWord?.(null)}
+                                        title={item.meaning}
+                                    >
+                                        {item.word}
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
                     {vocabItems.length === 0 ? (
                         <div className="text-center py-8 px-4">
@@ -565,7 +587,6 @@ function ExpandedSidebar({
 }
 
 export default function PostPage() {
-    const { openPopup: globalOpenPopup } = useDictionaryStore();
     const params = useParams();
     const postId = params.postId as string;
     const { user, profile } = useAuth();
@@ -1266,7 +1287,7 @@ export default function PostPage() {
 
     // Regular Post View
     return (
-        <div className="font-sans relative">
+        <TextHighlighter userId={user?.$id} userEmail={user?.email || undefined} userName={profile?.displayName} userUsername={profile?.username}>
             {DialogComponent}
             <div className="max-w-2xl mx-auto py-6 px-4">
                 <Link href="/feed" className="inline-block mb-6">
@@ -1287,23 +1308,7 @@ export default function PostPage() {
                             <span className="text-xs text-slate-400">{toDateSafe(post.createdAt) ? formatTimeAgo(toDateSafe(post.createdAt)!) : 'Just now'}</span>
                         </div>
                     </div>
-                    <div className="text-lg leading-relaxed whitespace-pre-wrap text-slate-800 mb-6">
-                        <TapToSelect 
-                            text={stripHtml(post.content)}
-                            onLookup={(phrase, context) => {
-                                if (!user?.$id || !user?.email) return;
-                                globalOpenPopup(phrase, context, user.$id, user.email);
-                            }}
-                            highlightedPhrases={[
-                                ...(post.highlightedPhrases || []),
-                                ...(post.topicVocab?.map(v => v.word) || [])
-                            ]}
-                            onHighlightClick={(phrase, context) => {
-                                if (!user?.$id || !user?.email) return;
-                                globalOpenPopup(phrase, context, user.$id, user.email);
-                            }}
-                        />
-                    </div>
+                    <div className="text-lg leading-relaxed whitespace-pre-wrap text-slate-800 mb-6" dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(formattedContent()) }} />
                     <div className="flex items-center gap-6 py-4 border-t border-b border-slate-100 mb-6">
                         <button onClick={handleRepost} className={`flex items-center gap-2 text-sm font-medium ${reposted ? 'text-green-500' : 'text-slate-500 hover:text-green-500'}`}>
                             <Repeat2 className="h-4 w-4" />{reposted ? 'Reposted' : 'Repost'}{repostCount > 0 && ` (${repostCount})`}
@@ -1314,6 +1319,6 @@ export default function PostPage() {
                     </div>
                 </div>
             </div>
-        </div>
+        </TextHighlighter>
     );
 }

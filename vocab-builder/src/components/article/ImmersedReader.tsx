@@ -4,9 +4,9 @@ import { useRef, useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { sanitizeRichHtml } from '@/lib/sanitize';
 import { useVocabHighlighter } from './useVocabHighlighter';
 import { EmbeddedQuestionCard } from '@/components/embedded-question-card';
-import { getWordAtPosition } from '@/hooks/use-global-dictionary';
 import { RedditCommentTree } from '@/components/reddit-comment-tree';
 import { cn } from '@/lib/utils';
+import { TappableArticle } from './TappableArticle';
 import type { EmbeddedQuestion, Comment as FirestoreComment, RedditComment } from '@/lib/db/types';
 import { MessageSquare, ChevronDown, ChevronUp } from 'lucide-react';
 
@@ -135,6 +135,14 @@ export const ImmersedReader = memo(function ImmersedReader({
     const contentRef = useRef<HTMLDivElement>(null);
     const articleRef = useRef<HTMLDivElement>(null);
 
+    // Tap-to-lookup handler (pipes into global dictionary)
+    const handleTapLookup = useCallback(
+        (phrase: string, context: string) => {
+            onPhraseClick(phrase, context, new DOMRect(0, 0, 0, 0));
+        },
+        [onPhraseClick]
+    );
+
     // Reading progress tracking
     const handleScroll = useCallback(() => {
         if (!contentRef.current || !onProgressChange) return;
@@ -157,23 +165,6 @@ export const ImmersedReader = memo(function ImmersedReader({
                 const context = parent?.textContent?.slice(0, 300) || '';
                 const rect = target.getBoundingClientRect();
                 onPhraseClick(phrase, context, rect);
-                return;
-            }
-
-            // Fallback: tap-to-select any word in the article
-            const lookup = getWordAtPosition(e.nativeEvent);
-            if (lookup) {
-                e.stopPropagation();
-                
-                let rect = target.getBoundingClientRect();
-                try {
-                    const range = document.caretRangeFromPoint(e.clientX, e.clientY);
-                    if (range) {
-                        rect = range.getBoundingClientRect();
-                    }
-                } catch(err) {}
-
-                onPhraseClick(lookup.word, lookup.context, rect);
             }
         },
         [onPhraseClick]
@@ -205,28 +196,25 @@ export const ImmersedReader = memo(function ImmersedReader({
     // Render content: either with MCQs interleaved or as a single block
     const renderContent = () => {
         if (!hasQuestions) {
-            // No questions — render as single block
+            // No questions — render with TapToSelect per paragraph
             return (
-                <div
-                    ref={articleRef}
-                    className="prose prose-neutral max-w-none leading-[1.9] text-[17px] text-neutral-800 prose-headings:font-sans prose-headings:font-bold prose-p:mb-6"
-                    style={{ fontFamily: 'Georgia, serif' }}
-                    onClick={handleContentClick}
-                    dangerouslySetInnerHTML={{ __html: processedContent }}
-                />
+                <div ref={articleRef}>
+                    <TappableArticle
+                        html={sanitizeRichHtml(content)}
+                        onLookup={handleTapLookup}
+                        highlightedPhrases={highlightedPhrases}
+                        onHighlightClick={(phrase, context) => onPhraseClick(phrase, context, new DOMRect(0, 0, 0, 0))}
+                    />
+                </div>
             );
         }
 
         // Split into paragraphs for MCQ insertion
-        const paragraphs = processedContent.split(/(?=<p[ >])/i).filter(p => p.trim());
+        const sanitized = sanitizeRichHtml(content);
+        const paragraphs = sanitized.split(/(?=<p[ >])/i).filter(p => p.trim());
 
         return (
-            <div
-                ref={articleRef}
-                className="prose prose-neutral max-w-none leading-[1.9] text-[17px] text-neutral-800 prose-headings:font-sans prose-headings:font-bold prose-p:mb-6"
-                style={{ fontFamily: 'Georgia, serif' }}
-                onClick={handleContentClick}
-            >
+            <div ref={articleRef}>
                 {paragraphs.map((paragraph, index) => {
                     const paragraphNumber = index + 1;
                     const isBlurred = paragraphNumber > blurAfterParagraph;
@@ -242,8 +230,14 @@ export const ImmersedReader = memo(function ImmersedReader({
                                     'transition-all duration-300',
                                     isBlurred && 'blur-sm select-none pointer-events-none'
                                 )}
-                                dangerouslySetInnerHTML={{ __html: paragraph }}
-                            />
+                            >
+                                <TappableArticle
+                                    html={paragraph}
+                                    onLookup={handleTapLookup}
+                                    highlightedPhrases={highlightedPhrases}
+                                    onHighlightClick={(phrase, context) => onPhraseClick(phrase, context, new DOMRect(0, 0, 0, 0))}
+                                />
+                            </div>
 
                             {questionForParagraph && onQuestionAnswer && (
                                 <EmbeddedQuestionCard

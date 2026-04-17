@@ -3,12 +3,12 @@
 import { useState, useRef, useCallback, useMemo, useEffect, memo } from 'react';
 import { motion, useMotionValue, useTransform, animate, PanInfo } from 'framer-motion';
 import { ArticleSection } from '@/lib/db/types';
-import { getWordAtPosition } from '@/hooks/use-global-dictionary';
 import { sanitizeRichHtml } from '@/lib/sanitize';
 import { useVocabHighlighter } from './useVocabHighlighter';
 import { EmbeddedQuestionCard } from '@/components/embedded-question-card';
 // InlineQuiz removed — replaced by passage-centric session system
 import { cn } from '@/lib/utils';
+import { TappableArticle } from './TappableArticle';
 import { ArrowLeft, ArrowRight, MessageSquare, ChevronDown, ChevronUp } from 'lucide-react';
 import type { EmbeddedQuestion, Comment as FirestoreComment, RedditComment } from '@/lib/db/types';
 
@@ -171,6 +171,14 @@ export const SwipeReader = memo(function SwipeReader({
 
     const [quizCompletedIds, setQuizCompletedIds] = useState<Set<string>>(new Set());
 
+    // Tap-to-lookup handler (pipes into global dictionary)
+    const handleTapLookup = useCallback(
+        (phrase: string, context: string) => {
+            onPhraseClick(phrase, context, new DOMRect(0, 0, 0, 0));
+        },
+        [onPhraseClick]
+    );
+
     // Build unified items array: content + questions + smart inline quizzes + comments
     const items: SwipeItem[] = useMemo(() => {
         const result: SwipeItem[] = [];
@@ -289,23 +297,6 @@ export const SwipeReader = memo(function SwipeReader({
                 const context = parent?.textContent?.slice(0, 300) || '';
                 const rect = target.getBoundingClientRect();
                 onPhraseClick(phrase, context, rect);
-                return;
-            }
-
-            // Fallback: tap-to-select any word in the article
-            const lookup = getWordAtPosition(e.nativeEvent);
-            if (lookup) {
-                e.stopPropagation();
-                
-                let rect = target.getBoundingClientRect();
-                try {
-                    const range = document.caretRangeFromPoint(e.clientX, e.clientY);
-                    if (range) {
-                        rect = range.getBoundingClientRect();
-                    }
-                } catch(err) {}
-
-                onPhraseClick(lookup.word, lookup.context, rect);
             }
         },
         [onPhraseClick]
@@ -339,11 +330,6 @@ export const SwipeReader = memo(function SwipeReader({
     const renderCardContent = (item: SwipeItem) => {
         switch (item.type) {
             case 'content': {
-                const processedContent = highlightPhrases(
-                    sanitizeRichHtml(item.section.content),
-                    highlightedPhrases.length > 0 ? highlightedPhrases : item.section.vocabPhrases
-                );
-
                 return (
                     <div className="flex flex-col h-full w-full">
                         <div className="flex-1 flex flex-col justify-center px-10 md:px-14 py-8 overflow-hidden">
@@ -355,11 +341,12 @@ export const SwipeReader = memo(function SwipeReader({
                                     {item.section.title}
                                 </h2>
                             )}
-                            <div
-                                className="prose prose-neutral max-w-full overflow-hidden break-words prose-img:mx-auto prose-img:max-w-full prose-img:h-auto prose-img:rounded-md text-xl md:text-[24px] md:leading-[1.6] text-neutral-900 tracking-tight"
-                                style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
-                                onClick={handleContentClick}
-                                dangerouslySetInnerHTML={{ __html: processedContent }}
+                            <TappableArticle
+                                html={sanitizeRichHtml(item.section.content)}
+                                onLookup={handleTapLookup}
+                                highlightedPhrases={highlightedPhrases.length > 0 ? highlightedPhrases : item.section.vocabPhrases}
+                                onHighlightClick={(phrase, context) => onPhraseClick(phrase, context, new DOMRect(0, 0, 0, 0))}
+                                className="text-xl md:text-[24px] md:leading-[1.6] text-neutral-900 tracking-tight"
                             />
                         </div>
 

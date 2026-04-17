@@ -1,0 +1,20 @@
+[dotenv@17.3.1] injecting env (24) from .env.local -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+=== Adding missing savedPhrase attrs ===
+
+  ⚡ savedPhrases.baseForm — already exists
+  ⚡ savedPhrases.parentPhraseId — already exists
+  ⚡ savedPhrases.layer — already exists
+  ⚡ savedPhrases.hasAppearedInExercise — already exists
+  ❌ savedPhrases.potentialUsages — The maximum number or size of attributes for collection 'savedPhrases' has been reached.
+  ❌ savedPhrases.children — The maximum number or size of attributes for collection 'savedPhrases' has been reached.
+  ❌ savedPhrases.contexts — The maximum number or size of attributes for collection 'savedPhrases' has been reached.
+  ❌ savedPhrases.nuance — The maximum number or size of attributes for collection 'savedPhrases' has been reached.
+  ✅ savedPhrases.topic (string)
+  ❌ savedPhrases.subtopic — The maximum number or size of attributes for collection 'savedPhrases' has been reached.
+  ❌ savedPhrases.subtopics — The maximum number or size of attributes for collection 'savedPhrases' has been reached.
+  ❌ savedPhrases.socialDistance — The maximum number or size of attributes for collection 'savedPhrases' has been reached.
+  ✅ savedPhrases.usedForGeneration (boolean)
+  ✅ savedPhrases.usageCount (integer)
+  ✅ savedPhrases.practiceCount (integer)
+  ✅ savedPhrases.currentContextIndex (integer)
+  ✅ savedPhrases.lastReviewDate (datetime)
