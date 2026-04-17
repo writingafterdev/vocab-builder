@@ -9,6 +9,11 @@ import { toast } from 'sonner';
 
 type ReviewMode = 'session' | 'all';
 
+/** Safely parse a JSON string, returning the original value if it fails */
+function tryParse(val: string): any {
+    try { return JSON.parse(val); } catch { return val; }
+}
+
 /**
  * DictionaryWidget — Mounted once in the global app layout.
  *
@@ -38,27 +43,39 @@ export function DictionaryWidget() {
     const [loadingAll, setLoadingAll] = useState(false);
     const [hasFetchedAll, setHasFetchedAll] = useState(false);
 
-    // Fetch all saved phrases when switching to "all" mode
+    // Fetch all previously looked-up phrases when switching to "all" mode
     const fetchAllPhrases = useCallback(async () => {
         if (!userId || hasFetchedAll) return;
         setLoadingAll(true);
         try {
-            const res = await fetch(`/api/user/saved-phrases?userId=${userId}&full=true&limit=200`);
+            const res = await fetch(`/api/user/lookup-history?userId=${userId}&limit=200`, {
+                headers: { 'x-user-id': userId },
+            });
             if (res.ok) {
                 const data = await res.json();
-                const mapped: DictionaryPopupState[] = data.map((p: any) => ({
-                    phrase: p.phrase,
-                    meaning: p.meaning || '',
-                    register: p.register,
-                    nuance: p.nuance,
-                    topic: p.topic,
-                    subtopic: p.subtopic,
-                }));
-                setAllSavedPhrases(mapped);
+                const phrases = data.phrases || [];
+                // Dedupe by phrase (keep most recent)
+                const seen = new Set<string>();
+                const deduped: DictionaryPopupState[] = [];
+                for (const p of phrases) {
+                    const key = p.phrase.toLowerCase();
+                    if (!seen.has(key)) {
+                        seen.add(key);
+                        deduped.push({
+                            phrase: p.phrase,
+                            meaning: p.meaning || '',
+                            register: p.register ? tryParse(p.register) : undefined,
+                            nuance: p.nuance ? tryParse(p.nuance) : undefined,
+                            topic: p.topic ? tryParse(p.topic) : undefined,
+                            subtopic: p.subtopic ? tryParse(p.subtopic) : undefined,
+                        });
+                    }
+                }
+                setAllSavedPhrases(deduped);
                 setHasFetchedAll(true);
             }
         } catch (err) {
-            console.error('Failed to fetch all saved phrases:', err);
+            console.error('Failed to fetch lookup history:', err);
         } finally {
             setLoadingAll(false);
         }
@@ -153,7 +170,7 @@ export function DictionaryWidget() {
                                         : 'text-neutral-500 hover:text-neutral-900'
                                 }`}
                             >
-                                All Saved {hasFetchedAll ? `(${allSavedPhrases.length})` : ''}
+                                All Lookups {hasFetchedAll ? `(${allSavedPhrases.length})` : ''}
                             </button>
                         </div>
 
@@ -168,7 +185,7 @@ export function DictionaryWidget() {
                                     <p className="text-xs text-neutral-400">
                                         {reviewMode === 'session'
                                             ? 'Tap any word to look it up'
-                                            : 'No saved phrases yet'}
+                                            : 'No lookups yet'}
                                     </p>
                                 </div>
                             ) : (

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDocument, setDocument, updateDocument, serverTimestamp } from '@/lib/appwrite/database';
+import { getDocument, setDocument, updateDocument, addDocument, serverTimestamp } from '@/lib/appwrite/database';
 import { GlobalPhraseData, CommonUsage, PhraseVariant, Register, Nuance, SocialDistance } from '@/lib/db/types';
 import { safeParseAIJson } from '@/lib/ai-utils';
 import { getGrokKey } from '@/lib/grok-client';
@@ -35,6 +35,7 @@ export async function POST(request: NextRequest) {
         }
 
         const phraseKey = normalizePhraseKey(phrase.trim());
+        const userId = request.headers.get('x-user-id') || '';
 
         // 1. Check global dictionary first (cache hit - literal)
         let existing = null;
@@ -73,6 +74,21 @@ export async function POST(request: NextRequest) {
                         cached: true,
                         success: true,
                     });
+                }
+                // Fire-and-forget: log to lookup history
+                if (userId && existing.meaning) {
+                    addDocument('lookupHistory', {
+                        userId,
+                        phraseKey,
+                        phrase: phrase.trim(),
+                        meaning: (existing.meaning as string) || '',
+                        context: context || '',
+                        register: JSON.stringify(existing.register || ''),
+                        nuance: JSON.stringify(existing.nuance || ''),
+                        topic: JSON.stringify(existing.topic || ''),
+                        subtopic: JSON.stringify(existing.subtopic || ''),
+                        lookedUpAt: new Date().toISOString(),
+                    }).catch(() => {});
                 }
                 // Document exists but fields were stripped on write — treat as cache miss
                 console.log(`[Lookup] Cache hit for "${phraseKey}" but meaning is empty — re-generating`);
@@ -119,6 +135,22 @@ export async function POST(request: NextRequest) {
             console.log(`Cached phrase: ${phraseKey}`);
         } catch (setErr) {
             console.warn('Failed to cache phrase (continuing anyway):', setErr);
+        }
+
+        // Fire-and-forget: log to lookup history
+        if (userId) {
+            addDocument('lookupHistory', {
+                userId,
+                phraseKey,
+                phrase: phrase.trim(),
+                meaning: generatedData.meaning || '',
+                context: context || '',
+                register: JSON.stringify(generatedData.register || ''),
+                nuance: JSON.stringify(generatedData.nuance || ''),
+                topic: JSON.stringify(generatedData.topic || ''),
+                subtopic: JSON.stringify(generatedData.subtopic || ''),
+                lookedUpAt: new Date().toISOString(),
+            }).catch(() => {});
         }
 
         return NextResponse.json({

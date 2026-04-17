@@ -380,6 +380,19 @@ const SCHEMAS = {
         { key: 'currentQuestionIndex', type: 'integer' },
         { key: 'correctAnswers', type: 'integer' },
     ],
+
+    lookupHistory: [
+        { key: 'userId', type: 'string', size: 255, required: true },
+        { key: 'phraseKey', type: 'string', size: 500 },
+        { key: 'phrase', type: 'string', size: 500 },
+        { key: 'meaning', type: 'string', size: 2000 },
+        { key: 'context', type: 'string', size: 2000 },
+        { key: 'register', type: 'string', size: 500 },
+        { key: 'nuance', type: 'string', size: 500 },
+        { key: 'topic', type: 'string', size: 500 },
+        { key: 'subtopic', type: 'string', size: 500 },
+        { key: 'lookedUpAt', type: 'string', size: 100 },
+    ],
 };
 
 // ─── Execution ───────────────────────────────────────────────────────

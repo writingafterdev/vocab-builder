@@ -43,6 +43,7 @@ const COLLECTIONS = [
     'commentLikes',
     'reposts',
     'readingSessions',
+    'lookupHistory',
 ];
 
 async function createCollections() {
