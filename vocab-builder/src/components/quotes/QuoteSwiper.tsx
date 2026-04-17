@@ -764,7 +764,7 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
                                     {/* Generated session badge */}
                                     {(item.data as any).sourceType === 'generated_session' && (
                                         <div className="absolute top-3 left-3 z-10">
-                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-violet-700 bg-violet-100 rounded-sm">
+                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-neutral-700 bg-neutral-100 border border-neutral-200 rounded-sm">
                                                 ✦ Practice Article
                                             </span>
                                         </div>
@@ -799,7 +799,7 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
                                                 "text-[11px] font-semibold uppercase tracking-[0.15em] whitespace-nowrap flex-shrink-0 transition-all duration-300",
                                                 isTop
                                                     ? (item.data as any).sourceType === 'generated_session'
-                                                        ? "text-violet-500 hover:text-violet-700 translate-y-0 opacity-100"
+                                                        ? "text-neutral-400 hover:text-neutral-900 translate-y-0 opacity-100"
                                                         : "text-neutral-400 hover:text-neutral-900 translate-y-0 opacity-100"
                                                     : "text-transparent pointer-events-none translate-y-1 opacity-0"
                                             )}
