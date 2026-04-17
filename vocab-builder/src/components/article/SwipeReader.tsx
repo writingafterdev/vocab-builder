@@ -489,7 +489,11 @@ export const SwipeReader = memo(function SwipeReader({
                                     ? { x: dragX, rotate: dragRotate, zIndex }
                                     : { zIndex: phase === 'sending-to-back' && isTop ? 0 : zIndex }
                             }
-                            initial={false}
+                            initial={
+                                phase === 'bringing-to-front' && isTop
+                                    ? { ...POSITIONS.hidden, x: POSITIONS.hidden.x, rotate: POSITIONS.hidden.rotate }
+                                    : false
+                            }
                             animate={{
                                 y: target.y,
                                 x: isTop && phase === 'idle' ? 0 : target.x,
