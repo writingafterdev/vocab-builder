@@ -298,7 +298,7 @@ export function ArticleReadingMode({
             const { phrases } = await extractRes.json();
 
             if (phrases && phrases.length > 0) {
-                await updatePost(post.id as string, { highlightedPhrases: phrases });
+                await updatePost(post.id as string, { highlightedPhrases: phrases }, userEmail);
                 setExtractedPhrases(phrases);
             }
         } catch (e) {

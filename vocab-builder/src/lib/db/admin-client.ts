@@ -59,10 +59,10 @@ async function adminGet(action: string, params?: Record<string, string>) {
     return res.json();
 }
 
-async function adminPost(action: string, data?: Record<string, any>) {
+async function adminPost(action: string, data?: Record<string, any>, customEmail?: string) {
     const res = await fetch('/api/admin/data', {
         method: 'POST',
-        headers: adminHeaders(_adminEmail),
+        headers: adminHeaders(customEmail || _adminEmail),
         body: JSON.stringify({ action, ...data }),
     });
     if (!res.ok) throw new Error(`Admin API error: ${res.status}`);
@@ -143,8 +143,8 @@ export async function createPostWithComments(input: any): Promise<string> {
     return data.postId;
 }
 
-export async function updatePost(postId: string, data: Record<string, any>): Promise<void> {
-    await adminPost('update-post', { postId, data });
+export async function updatePost(postId: string, data: Record<string, any>, email?: string): Promise<void> {
+    await adminPost('update-post', { postId, data }, email);
 }
 
 // ── Token Usage ──

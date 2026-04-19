@@ -63,6 +63,7 @@ import { Post, LearningCycleSettings, DEFAULT_LEARNING_CYCLE } from '@/lib/db/ty
 
 import type { UserProfile } from '@/types';
 import { RichTextEditor } from '@/components/rich-text-editor';
+import { MagazineImportTab } from '@/components/admin/MagazineImportTab';
 
 const ADMIN_EMAIL = 'ducanhcontactonfb@gmail.com';
 
@@ -160,7 +161,7 @@ async function extractPhrasesBatchFromServer(contents: string[], userEmail: stri
 export default function AdminPage() {
     const { user, loading } = useAuth();
     const router = useRouter();
-    const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'posts' | 'articles' | 'learning' | 'import' | 'tokens'>('overview');
+    const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'posts' | 'articles' | 'learning' | 'import' | 'tokens' | 'magazines'>('overview');
     const [stats, setStats] = useState<{
         totalUsers: number;
         totalPosts: number;
@@ -983,6 +984,7 @@ export default function AdminPage() {
                     { id: 'articles', label: 'Articles', icon: BookOpen },
                     { id: 'learning', label: 'Learning Cycle', icon: Clock },
                     { id: 'import', label: 'Bulk Import', icon: Upload },
+                    { id: 'magazines', label: 'Magazines', icon: FileText },
                     { id: 'tokens', label: 'Token Usage', icon: Coins },
                 ].map((tab) => (
                     <Button
@@ -1762,6 +1764,12 @@ export default function AdminPage() {
             )}
 
             {/* Token Usage Tab */}
+            {activeTab === 'magazines' && (
+                <div className="space-y-6">
+                    <MagazineImportTab onSuccess={loadStats} />
+                </div>
+            )}
+
             {activeTab === 'tokens' && (
                 <div className="space-y-6">
                     {/* Time Filter */}

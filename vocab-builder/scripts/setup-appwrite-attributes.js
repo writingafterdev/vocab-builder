@@ -178,9 +178,12 @@ const SCHEMAS = {
 
     tokenUsage: [
         { key: 'userId', type: 'string', size: 255 },
+        { key: 'userEmail', type: 'string', size: 255 },
         { key: 'model', type: 'string', size: 100 },
         { key: 'inputTokens', type: 'integer' },
         { key: 'outputTokens', type: 'integer' },
+        { key: 'promptTokens', type: 'integer' },
+        { key: 'completionTokens', type: 'integer' },
         { key: 'totalTokens', type: 'integer' },
         { key: 'endpoint', type: 'string', size: 255 },
         { key: 'createdAt', type: 'string', size: 100 },

@@ -52,6 +52,9 @@ const nextConfig: NextConfig = {
     ],
   },
 
+  // Packages using Node.js-only APIs — must not be bundled by Turbopack
+  serverExternalPackages: ['unpdf'],
+
   // Security headers
   output: 'standalone',
 
