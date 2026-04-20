@@ -35,7 +35,7 @@ function CallbackInner() {
                     await account.get();
                     if (!cancelled) {
                         setStatus('success');
-                        router.replace('/feed');
+                        window.location.assign('/feed');
                     }
                 } catch {
                     if (!cancelled) {
@@ -52,7 +52,7 @@ function CallbackInner() {
                 await account.createSession(userId, secret);
                 if (!cancelled) {
                     setStatus('success');
-                    router.replace('/feed');
+                    window.location.assign('/feed');
                 }
             } catch (err: any) {
                 console.error('[AuthCallback] createSession failed:', err);
