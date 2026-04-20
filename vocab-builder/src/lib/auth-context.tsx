@@ -181,11 +181,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const signIn = useCallback(async () => {
         try {
-            // Success: redirect to /feed (the app layout guard will handle session check)
-            // Failure: redirect back to / (the landing/login page)
+            // Success → /auth/callback (retries account.get() for mobile ITP cookie delay)
+            // Failure → / (landing page)
             account.createOAuth2Session(
                 OAuthProvider.Google,
-                window.location.origin + '/feed',
+                window.location.origin + '/auth/callback',
                 window.location.origin + '/'
             );
         } catch (error) {
