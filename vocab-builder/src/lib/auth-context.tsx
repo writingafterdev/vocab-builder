@@ -4,6 +4,17 @@ import { createContext, useContext, useEffect, useState, ReactNode, useCallback 
 import { account, databases, DB_ID } from '@/lib/appwrite/client';
 import { OAuthProvider, Models, AppwriteException } from 'appwrite';
 
+// ─── JWT Cache (14-min TTL, keeps us from minting a new JWT on every request) ───
+let _cachedJwt: string | null = null;
+let _jwtExpiresAt = 0;
+async function getCachedJwt(): Promise<string> {
+    if (_cachedJwt && Date.now() < _jwtExpiresAt) return _cachedJwt;
+    const result = await account.createJWT();
+    _cachedJwt = result.jwt;
+    _jwtExpiresAt = Date.now() + 14 * 60 * 1000; // 14 minutes
+    return _cachedJwt;
+}
+
 interface UserProfile {
     uid: string;
     email: string;
@@ -74,9 +85,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 if (typeof decodedProfile.subscription === 'string') decodedProfile.subscription = JSON.parse(decodedProfile.subscription);
                 if (typeof decodedProfile.settings === 'string') decodedProfile.settings = JSON.parse(decodedProfile.settings);
                 
-                // Update lastActiveAt seamlessly
+                // Update lastActiveAt fire-and-forget — don't block profile display
                 const nowISO = new Date().toISOString();
-                await databases.updateDocument(DB_ID, 'users', currentUser.$id, { lastActiveAt: nowISO });
+                databases.updateDocument(DB_ID, 'users', currentUser.$id, { lastActiveAt: nowISO }).catch(() => {});
                 
                 decodedProfile.lastActiveAt = nowISO;
                 setProfile(decodedProfile as UserProfile);
@@ -147,18 +158,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     email: currentUser.email,
                     name: currentUser.name,
                     photoURL: currentUser.prefs?.photoURL || null,
-                    getJwt: async () => {
-                        try {
-                            const result = await account.createJWT();
-                            return result.jwt;
-                        } catch (e) {
-                            console.error('Failed to create Appwrite JWT', e);
-                            throw e;
-                        }
-                    }
+                    getJwt: getCachedJwt, // Use cached JWT — avoids minting a new one every call
                 };
                 setUser(adaptedUser);
-                await refreshProfile(adaptedUser);
+                // ✅ Unblock the UI immediately — profile loads in background
+                setLoading(false);
+                refreshProfile(adaptedUser).catch(e => console.warn('[Auth] Background profile fetch failed:', e));
             } catch (error: any) {
                 if (error instanceof AppwriteException && error.code === 401) {
                     // Not logged in, completely normal
@@ -167,7 +172,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 } else {
                     console.error('[Auth] Session check failed:', error);
                 }
-            } finally {
                 setLoading(false);
             }
         };

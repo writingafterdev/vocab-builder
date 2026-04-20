@@ -465,19 +465,21 @@ export default function LibraryPage() {
     const loadPosts = async () => {
         setLoading(true);
         try {
-            let scores = topicScores;
-            if (user?.$id && !scores) {
-                const res = await fetch('/api/user/topic-scores', {
-                    headers: { 'x-user-id': user.$id }
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    scores = data.topicScores || {};
-                    setTopicScores(scores);
-                }
-            }
+            // Run topic-scores fetch and posts fetch in parallel
+            const [scoresResult, postsResult] = await Promise.all([
+                user?.$id && !topicScores
+                    ? fetch('/api/user/topic-scores', { headers: { 'x-user-id': user.$id } })
+                        .then(res => res.ok ? res.json() : { topicScores: {} })
+                        .then(data => data.topicScores || {})
+                        .catch(() => ({}))
+                    : Promise.resolve(topicScores || {}),
+                getPostsPaginated(20, user?.$id, undefined, topicScores || undefined),
+            ]);
 
-            const { posts: fetchedPosts, lastDoc: newLastDoc } = await getPostsPaginated(20, user?.$id, undefined, scores || undefined);
+            const scores = scoresResult as Record<string, number>;
+            if (user?.$id && !topicScores) setTopicScores(scores);
+
+            const { posts: fetchedPosts, lastDoc: newLastDoc } = postsResult as { posts: any[], lastDoc: any };
             
             const postsWithMeta = fetchedPosts.map(p => ({
                 ...p,

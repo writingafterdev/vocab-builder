@@ -195,15 +195,7 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
     const fetchMoreQuotes = useCallback(async () => {
         if (!userId || loading) return;
         try {
-            const { account } = await import('@/lib/appwrite/client');
-            let token = null;
-            try {
-                const jwtRes = await account.createJWT();
-                token = jwtRes.jwt;
-            } catch(e) {}
-            const headers: HeadersInit = token
-                ? { 'Authorization': `Bearer ${token}`, 'x-user-id': userId }
-                : { 'x-user-id': userId };
+            const headers: HeadersInit = { 'x-user-id': userId };
 
             const url = new URL('/api/quotes/get-mixed-quotes', window.location.origin);
             if (selectedTopics.length > 0) {
@@ -250,15 +242,8 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
         let cancelled = false;
         async function fetchQuotesAndSaved() {
             try {
-                const { account } = await import('@/lib/appwrite/client');
-            let token = null;
-            try {
-                const jwtRes = await account.createJWT();
-                token = jwtRes.jwt;
-            } catch(e) {}
-                const headers: HeadersInit = token
-                    ? { 'Authorization': `Bearer ${token}`, 'x-user-id': userId }
-                    : { 'x-user-id': userId };
+                // Use userId header only — no JWT needed for read-only quote fetching
+                const headers: HeadersInit = { 'x-user-id': userId };
 
                 const [quotesRes, savedRes] = await Promise.all([
                     fetch(`/api/quotes/get-mixed-quotes?${selectedTopics.length > 0 ? `explicitTopics=${selectedTopics.join(',')}` : ''}`, { 

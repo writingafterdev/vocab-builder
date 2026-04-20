@@ -83,7 +83,7 @@ You MUST return ONLY valid JSON in this exact format (no markdown formatting aro
         console.log(`[Process] Uploading batch file to Gemini...`);
         const uploadedFile = await ai.files.upload({
            file: tmpFilePath,
-           mimeType: 'application/jsonl',
+           config: { mimeType: 'application/jsonl' },
         });
 
         console.log(`[Process] Starting Batch Job...`);
