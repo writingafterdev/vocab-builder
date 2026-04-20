@@ -181,9 +181,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const signIn = useCallback(async () => {
         try {
-            // Success → /auth/callback (retries account.get() for mobile ITP cookie delay)
-            // Failure → / (landing page)
-            account.createOAuth2Session(
+            // Use createOAuth2Token (v23+ flow): after OAuth, Appwrite appends
+            // userId + secret as query params to the success URL.
+            // The /auth/callback page exchanges them for a real session.
+            account.createOAuth2Token(
                 OAuthProvider.Google,
                 window.location.origin + '/auth/callback',
                 window.location.origin + '/'
