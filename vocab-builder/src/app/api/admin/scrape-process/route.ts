@@ -65,7 +65,7 @@ You MUST return ONLY valid JSON in this exact format (no markdown formatting aro
 }`;
             return JSON.stringify({
                 request_id: `article-${index}`,
-                model: 'gemini-1.5-flash',
+                model: 'gemini-2.5-flash',
                 request: {
                     contents: [{ parts: [{ text: prompt }] }],
                     generationConfig: {
@@ -87,8 +87,8 @@ You MUST return ONLY valid JSON in this exact format (no markdown formatting aro
         });
 
         console.log(`[Process] Starting Batch Job...`);
-        const batchJob = await ai.batches.createGenerateContent({
-           model: 'gemini-1.5-flash',
+        const batchJob = await ai.batches.create({
+           model: 'gemini-2.5-flash',
            src: { fileName: uploadedFile.name },
            config: { displayName: `Sync ${sourceDef.label} - ${Date.now()}` }
         });
