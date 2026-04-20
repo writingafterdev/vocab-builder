@@ -234,35 +234,40 @@ export async function deleteDocument(collection: string, documentId: string, idT
 // Emulate firestore simple queries.
 export async function queryCollection(
     collection: string,
-    options?: {
+    options?: string[] | {
         where?: { field: string; op: '==' | '<' | '<=' | '>' | '>=' | '!='; value: unknown }[];
         orderBy?: { field: string; direction?: 'asc' | 'desc' }[];
         limit?: number;
     },
     idToken?: string
 ): Promise<Array<Record<string, unknown> & { id: string }>> {
-    const queries: string[] = [];
-    
-    if (options?.where) {
-        for (const w of options.where) {
-            if (w.op === '==') queries.push(Query.equal(w.field, w.value as string|number|boolean|string[]));
-            if (w.op === '<') queries.push(Query.lessThan(w.field, w.value as string|number));
-            if (w.op === '<=') queries.push(Query.lessThanEqual(w.field, w.value as string|number));
-            if (w.op === '>') queries.push(Query.greaterThan(w.field, w.value as string|number));
-            if (w.op === '>=') queries.push(Query.greaterThanEqual(w.field, w.value as string|number));
-            if (w.op === '!=') queries.push(Query.notEqual(w.field, w.value as string|number));
+    let queries: string[] = [];
+
+    if (Array.isArray(options)) {
+        // Caller passed a raw Query.* string array directly
+        queries = options as string[];
+    } else {
+        if (options?.where) {
+            for (const w of options.where) {
+                if (w.op === '==') queries.push(Query.equal(w.field, w.value as string|number|boolean|string[]));
+                if (w.op === '<') queries.push(Query.lessThan(w.field, w.value as string|number));
+                if (w.op === '<=') queries.push(Query.lessThanEqual(w.field, w.value as string|number));
+                if (w.op === '>') queries.push(Query.greaterThan(w.field, w.value as string|number));
+                if (w.op === '>=') queries.push(Query.greaterThanEqual(w.field, w.value as string|number));
+                if (w.op === '!=') queries.push(Query.notEqual(w.field, w.value as string|number));
+            }
         }
-    }
-    
-    if (options?.orderBy) {
-        for (const ob of options.orderBy) {
-            if (ob.direction === 'desc') queries.push(Query.orderDesc(ob.field));
-            else queries.push(Query.orderAsc(ob.field));
+
+        if (options?.orderBy) {
+            for (const ob of options.orderBy) {
+                if (ob.direction === 'desc') queries.push(Query.orderDesc(ob.field));
+                else queries.push(Query.orderAsc(ob.field));
+            }
         }
-    }
-    
-    if (options?.limit) {
-        queries.push(Query.limit(options.limit));
+
+        if (options?.limit) {
+            queries.push(Query.limit(options.limit));
+        }
     }
 
     try {
