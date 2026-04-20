@@ -44,3 +44,5 @@ next-env.d.ts
 /.open-next/
 .dev.vars
 .wrangler/
+firecrawl
+build-ui.js

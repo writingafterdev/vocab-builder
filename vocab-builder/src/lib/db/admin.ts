@@ -146,6 +146,9 @@ interface PostWithCommentsInput {
     source?: string;
     originalUrl?: string;
     comments?: ImportComment[];
+    // Normalized Layer features
+    sourceId?: string;
+    section?: string;
 }
 
 export async function createPostWithComments(input: PostWithCommentsInput): Promise<string> {
@@ -161,6 +164,8 @@ export async function createPostWithComments(input: PostWithCommentsInput): Prom
         title: input.title || '',
         coverImage: input.coverImage || '',
         originalUrl: input.originalUrl || '',
+        sourceId: input.sourceId || '',
+        section: input.section || '',
         commentCount: input.comments?.length || 0,
         repostCount: 0,
         createdAt: new Date().toISOString(),

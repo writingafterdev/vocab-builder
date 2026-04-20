@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
+import { ScrapeImportTab } from '@/components/admin/ScrapeImportTab';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -63,7 +64,7 @@ import { Post, LearningCycleSettings, DEFAULT_LEARNING_CYCLE } from '@/lib/db/ty
 
 import type { UserProfile } from '@/types';
 import { RichTextEditor } from '@/components/rich-text-editor';
-import { MagazineImportTab } from '@/components/admin/MagazineImportTab';
+
 
 const ADMIN_EMAIL = 'ducanhcontactonfb@gmail.com';
 
@@ -161,7 +162,8 @@ async function extractPhrasesBatchFromServer(contents: string[], userEmail: stri
 export default function AdminPage() {
     const { user, loading } = useAuth();
     const router = useRouter();
-    const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'posts' | 'articles' | 'learning' | 'import' | 'tokens' | 'magazines'>('overview');
+    const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'posts' | 'articles' | 'learning' | 'import' | 'tokens' | 'sources'>('overview');
+    const [activeSource, setActiveSource] = useState<string>('the-new-yorker');
     const [stats, setStats] = useState<{
         totalUsers: number;
         totalPosts: number;
@@ -508,55 +510,7 @@ export default function AdminPage() {
 
 
 
-    // Reddit Import Handler
-    const handleRedditImport = async () => {
-        if (!redditSubreddit.trim()) {
-            alert('Please enter a subreddit name');
-            return;
-        }
 
-        setRedditImporting(true);
-        setRedditResult(null);
-
-        try {
-            const response = await fetch('/api/admin/import-reddit', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-user-email': user?.email || '',
-                },
-                body: JSON.stringify({
-                    subreddit: redditSubreddit,
-                    sort: redditSort,
-                    time: redditTime,
-                    limit: redditLimit,
-                }),
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.error || 'Failed to import from Reddit');
-            }
-
-            setRedditResult({
-                success: true,
-                imported: data.imported,
-                posts: data.posts,
-            });
-
-            // Refresh stats to show new articles
-            if (data.imported > 0) {
-                loadStats();
-            }
-
-        } catch (error) {
-            console.error('Reddit import error:', error);
-            alert(error instanceof Error ? error.message : 'Failed to import from Reddit');
-        } finally {
-            setRedditImporting(false);
-        }
-    };
 
     // RSS Import Handler
     const handleRssImport = async () => {
@@ -887,71 +841,6 @@ export default function AdminPage() {
 
             {/* Quick Links & Actions */}
             <div className="flex flex-wrap items-center gap-2">
-                <Link href="/admin/batch-status">
-                    <Button variant="outline" size="sm" className="gap-2 text-xs">
-                        <Sparkles className="h-3.5 w-3.5" />
-                        Batch Pipeline
-                    </Button>
-                </Link>
-                <div className="h-4 w-px bg-neutral-300 mx-2" />
-                <Button 
-                    variant="secondary" 
-                    size="sm" 
-                    className="gap-2 text-xs"
-                    disabled={isTriggeringFeed}
-                    onClick={async () => {
-                        const secret = prompt('Enter CRON_SECRET:');
-                        if (!secret) return;
-                        setIsTriggeringFeed(true);
-                        addLog('Triggering /api/cron/daily-import...');
-                        try {
-                            const res = await fetch('/api/cron/daily-import', { 
-                                method: 'POST',
-                                headers: { 'Authorization': 'Bearer ' + secret }
-                            });
-                            addLog(`Status: ${res.status} ${res.statusText}`);
-                            const data = await res.json();
-                            addLog('Response:\n' + JSON.stringify(data, null, 2));
-                        } catch (e: any) {
-                            addLog('Error: ' + e.message);
-                        } finally {
-                            setIsTriggeringFeed(false);
-                            addLog('Done.');
-                        }
-                    }}
-                >
-                    {isTriggeringFeed ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-                    Gen Feed Quizzes
-                </Button>
-                <Button 
-                    variant="secondary" 
-                    size="sm" 
-                    className="gap-2 text-xs"
-                    disabled={isCollectingFeed}
-                    onClick={async () => {
-                        const secret = prompt('Enter CRON_SECRET:');
-                        if (!secret) return;
-                        setIsCollectingFeed(true);
-                        addLog('Triggering /api/cron/collect-batch...');
-                        try {
-                            const res = await fetch('/api/cron/collect-batch', { 
-                                method: 'POST',
-                                headers: { 'Authorization': 'Bearer ' + secret }
-                            });
-                            addLog(`Status: ${res.status} ${res.statusText}`);
-                            const data = await res.json();
-                            addLog('Response:\n' + JSON.stringify(data, null, 2));
-                        } catch (e: any) {
-                            addLog('Error: ' + e.message);
-                        } finally {
-                            setIsCollectingFeed(false);
-                            addLog('Done.');
-                        }
-                    }}
-                >
-                    {isCollectingFeed ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-                    Collect Feed Quizzes
-                </Button>
             </div>
 
             {/* Terminal Output */}
@@ -975,21 +864,21 @@ export default function AdminPage() {
                 </div>
             )}
 
-            {/* Tabs */}
+            {/* PRIMARY TABS */}
             <div className="flex flex-wrap gap-2 border-b border-neutral-200 pb-2">
                 {[
-                    { id: 'overview', label: 'Overview', icon: BarChart3 },
-                    { id: 'users', label: 'Users', icon: Users },
-                    { id: 'posts', label: 'Posts', icon: MessageSquare },
-                    { id: 'articles', label: 'Articles', icon: BookOpen },
-                    { id: 'learning', label: 'Learning Cycle', icon: Clock },
-                    { id: 'import', label: 'Bulk Import', icon: Upload },
-                    { id: 'magazines', label: 'Magazines', icon: FileText },
-                    { id: 'tokens', label: 'Token Usage', icon: Coins },
+                    { id: 'overview',  label: 'Overview',       icon: BarChart3,    activeClass: 'bg-neutral-900 text-white shadow',   idleClass: 'text-neutral-600 hover:bg-neutral-100' },
+                    { id: 'users',     label: 'Users',           icon: Users,        activeClass: 'bg-blue-600 text-white shadow',      idleClass: 'text-blue-600 hover:bg-blue-50' },
+                    { id: 'posts',     label: 'Posts',           icon: MessageSquare,activeClass: 'bg-indigo-600 text-white shadow',    idleClass: 'text-indigo-600 hover:bg-indigo-50' },
+                    { id: 'articles',  label: 'Articles',        icon: BookOpen,     activeClass: 'bg-purple-600 text-white shadow',    idleClass: 'text-purple-600 hover:bg-purple-50' },
+                    { id: 'learning',  label: 'Learning Cycle',  icon: Clock,        activeClass: 'bg-amber-600 text-white shadow',     idleClass: 'text-amber-600 hover:bg-amber-50' },
+                    { id: 'import',    label: 'Bulk Import',     icon: Upload,       activeClass: 'bg-pink-600 text-white shadow',      idleClass: 'text-pink-600 hover:bg-pink-50' },
+                    { id: 'sources',   label: 'Content Sources', icon: Rss,          activeClass: 'bg-teal-600 text-white shadow',      idleClass: 'text-teal-600 hover:bg-teal-50' },
+                    { id: 'tokens',    label: 'Token Usage',     icon: Coins,        activeClass: 'bg-yellow-500 text-white shadow',    idleClass: 'text-yellow-600 hover:bg-yellow-50' },
                 ].map((tab) => (
                     <Button
                         key={tab.id}
-                        variant={activeTab === tab.id ? 'default' : 'ghost'}
+                        variant="ghost"
                         onClick={() => {
                             setActiveTab(tab.id as typeof activeTab);
                             if (tab.id === 'users') loadUsers();
@@ -997,13 +886,37 @@ export default function AdminPage() {
                             if (tab.id === 'learning') loadLearningSettings();
                             if (tab.id === 'tokens') loadTokenUsageStats(tokenDaysBack);
                         }}
-                        className="gap-2"
+                        className={`gap-2 transition-all font-medium ${activeTab === tab.id ? tab.activeClass : tab.idleClass}`}
                     >
                         <tab.icon className="h-4 w-4" />
                         {tab.label}
                     </Button>
                 ))}
             </div>
+
+            {/* SECONDARY SOURCE SUB-TABS — shown only when Sources is active */}
+            {activeTab === 'sources' && (
+                <div className="flex flex-wrap gap-1.5 border-b border-neutral-100 pb-2 -mt-1">
+                    {[
+                        { id: 'the-new-yorker',      label: 'New Yorker',         emoji: '🗽', color: 'bg-neutral-900 text-white',           idle: 'text-neutral-500 hover:bg-neutral-100' },
+                        { id: 'the-atlantic',        label: 'The Atlantic',       emoji: '🌊', color: 'bg-[#e02727] text-white',             idle: 'text-[#e02727] hover:bg-red-50' },
+                        { id: 'aeon',                label: 'Aeon',               emoji: '🏛️', color: 'bg-neutral-800 text-white',           idle: 'text-neutral-700 hover:bg-neutral-100' },
+                        { id: 'new-scientist',       label: 'New Scientist',      emoji: '🔬', color: 'bg-[#e4002b] text-white',             idle: 'text-[#e4002b] hover:bg-red-50' },
+                        { id: 'reddit',              label: 'Reddit',             emoji: '🤖', color: 'bg-[#FF4500] text-white',             idle: 'text-[#FF4500] hover:bg-orange-50' },
+                    ].map((s) => (
+                        <button
+                            key={s.id}
+                            onClick={() => setActiveSource(s.id)}
+                            className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold transition-all ${
+                                activeSource === s.id ? s.color : s.idle
+                            }`}
+                        >
+                            <span>{s.emoji}</span>
+                            <span>{s.label}</span>
+                        </button>
+                    ))}
+                </div>
+            )}
 
             {/* Overview Tab */}
             {activeTab === 'overview' && stats && (
@@ -1367,329 +1280,7 @@ export default function AdminPage() {
             {/* Import Tab */}
             {activeTab === 'import' && (
                 <div className="space-y-6">
-                    {/* Reddit Import Card */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <Share2 className="h-5 w-5 text-[#FF4500]" />
-                                Import from Reddit
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">Subreddit</label>
-                                    <div className="flex items-center">
-                                        <span className="bg-neutral-100 border border-r-0 border-input rounded-l-md px-3 py-2 text-sm text-neutral-500">r/</span>
-                                        <Input
-                                            value={redditSubreddit}
-                                            onChange={(e) => setRedditSubreddit(e.target.value)}
-                                            placeholder="technology"
-                                            className="rounded-l-none"
-                                        />
-                                    </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">Sort By</label>
-                                    <select
-                                        value={redditSort}
-                                        onChange={(e) => setRedditSort(e.target.value as any)}
-                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                                    >
-                                        <option value="hot">Hot</option>
-                                        <option value="top">Top</option>
-                                        <option value="new">New</option>
-                                    </select>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">Time Range</label>
-                                    <select
-                                        value={redditTime}
-                                        onChange={(e) => setRedditTime(e.target.value as any)}
-                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                                    >
-                                        <option value="hour">Now</option>
-                                        <option value="day">Today</option>
-                                        <option value="week">This Week</option>
-                                        <option value="month">This Month</option>
-                                        <option value="year">This Year</option>
-                                        <option value="all">All Time</option>
-                                    </select>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">Limit</label>
-                                    <Input
-                                        type="number"
-                                        value={redditLimit}
-                                        onChange={(e) => setRedditLimit(parseInt(e.target.value) || 10)}
-                                        min={1}
-                                        max={50}
-                                    />
-                                </div>
-                            </div>
-
-                            <Button
-                                onClick={handleRedditImport}
-                                disabled={redditImporting || !redditSubreddit}
-                                className="w-full bg-[#FF4500] hover:bg-[#E03D00] text-white"
-                            >
-                                {redditImporting ? (
-                                    <><RefreshCw className="mr-2 h-4 w-4 animate-spin" /> Fetching from Reddit...</>
-                                ) : (
-                                    <><Download className="mr-2 h-4 w-4" /> Import Posts</>
-                                )}
-                            </Button>
-
-                            {redditResult && (
-                                <div className={`p-4 rounded-lg ${redditResult.success ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
-                                    <p className="font-medium flex items-center gap-2">
-                                        {redditResult.success ? (
-                                            <><CheckCircle className="h-4 w-4 text-green-600" /> Imported {redditResult.imported} posts successfully</>
-                                        ) : (
-                                            <><AlertCircle className="h-4 w-4 text-red-600" /> Import failed</>
-                                        )}
-                                    </p>
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
-
-                    {/* RSS Import Card */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <Rss className="h-5 w-5 text-[#EE802F]" />
-                                Import from RSS (Substack, Medium, Blogs)
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="space-y-4">
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">RSS Feed URL</label>
-                                    <div className="flex gap-2">
-                                        <Input
-                                            value={rssUrl}
-                                            onChange={(e) => setRssUrl(e.target.value)}
-                                            placeholder="https://lennysnewsletter.substack.com/feed"
-                                            className="flex-1"
-                                        />
-                                    </div>
-                                    <div className="flex gap-2 text-xs">
-                                        <button
-                                            onClick={() => {
-                                                const sub = prompt('Enter Substack subdomain (e.g. lennysnewsletter):');
-                                                if (sub) setRssUrl(`https://${sub}.substack.com/feed`);
-                                            }}
-                                            className="text-neutral-500 hover:text-neutral-800 underline"
-                                        >
-                                            Add Substack
-                                        </button>
-                                        <span className="text-neutral-300">|</span>
-                                        <button
-                                            onClick={() => {
-                                                const user = prompt('Enter Medium username (e.g. ev):');
-                                                if (user) setRssUrl(`https://medium.com/feed/@${user.replace('@', '')}`);
-                                            }}
-                                            className="text-neutral-500 hover:text-neutral-800 underline"
-                                        >
-                                            Add Medium
-                                        </button>
-                                    </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">Limit</label>
-                                    <Input
-                                        type="number"
-                                        value={rssLimit}
-                                        onChange={(e) => setRssLimit(parseInt(e.target.value) || 10)}
-                                        min={1}
-                                        max={50}
-                                        className="max-w-[100px]"
-                                    />
-                                </div>
-                            </div>
-
-                            <Button
-                                onClick={handleRssImport}
-                                disabled={rssImporting || !rssUrl}
-                                className="w-full bg-[#EE802F] hover:bg-[#D0601F] text-white"
-                            >
-                                {rssImporting ? (
-                                    <><RefreshCw className="mr-2 h-4 w-4 animate-spin" /> Fetching RSS Feed...</>
-                                ) : (
-                                    <><Download className="mr-2 h-4 w-4" /> Import Articles</>
-                                )}
-                            </Button>
-
-                            {rssResult && (
-                                <div className={`p-4 rounded-lg ${rssResult.success ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
-                                    <p className="font-medium flex items-center gap-2">
-                                        {rssResult.success ? (
-                                            <><CheckCircle className="h-4 w-4 text-green-600" /> Imported {rssResult.imported} articles successfully</>
-                                        ) : (
-                                            <><AlertCircle className="h-4 w-4 text-red-600" /> Import failed</>
-                                        )}
-                                    </p>
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
-
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <Upload className="h-5 w-5" />
-                                Bulk Article Import (CSV)
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-6">
-                            {/* Source Selection */}
-                            <div>
-                                <label className="text-sm font-medium block mb-2">Content Source</label>
-                                <select
-                                    value={importSource}
-                                    onChange={(e) => setImportSource(e.target.value)}
-                                    className="flex h-10 w-full max-w-xs rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                                >
-                                    <option value="admin">@admin</option>
-                                    <option value="substack">@substack</option>
-                                    <option value="medium">@medium</option>
-                                    <option value="thenewyorker">@thenewyorker</option>
-                                    <option value="theatlantic">@theatlantic</option>
-                                    <option value="theconomist">@theconomist</option>
-                                    <option value="wired">@wired</option>
-                                    <option value="bbc">@bbc</option>
-                                </select>
-                            </div>
-
-                            {/* CSV Format Guide */}
-                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                                <p className="text-sm text-blue-800 font-medium mb-2">
-                                    CSV Column Format (Excel-compatible):
-                                </p>
-                                <div className="text-sm text-blue-700 font-mono bg-blue-100 p-2 rounded overflow-x-auto">
-                                    title,content,coverImage,originalUrl,phrases,sentences
-                                </div>
-                                <div className="text-xs text-blue-600 mt-3 space-y-1">
-                                    <p><strong>Required:</strong> title, content</p>
-                                    <p><strong>Optional:</strong> coverImage (URL), originalUrl (source), phrases (comma-separated), sentences (JSON)</p>
-                                    <p><strong>Phrases example:</strong> &quot;climate change,carbon footprint,ecosystem&quot;</p>
-                                </div>
-                            </div>
-
-                            {/* File Upload */}
-                            <div>
-                                <label className="text-sm font-medium block mb-2">Upload CSV File</label>
-                                <input
-                                    type="file"
-                                    accept=".csv"
-                                    onChange={(e) => {
-                                        const file = e.target.files?.[0];
-                                        if (file) {
-                                            const reader = new FileReader();
-                                            reader.onload = (event) => {
-                                                setImportData(event.target?.result as string || '');
-                                            };
-                                            reader.readAsText(file);
-                                        }
-                                    }}
-                                    className="block w-full text-sm text-neutral-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90 cursor-pointer"
-                                />
-                            </div>
-
-                            {/* Or Paste Directly */}
-                            <div>
-                                <label className="text-sm font-medium block mb-2">Or paste CSV data</label>
-                                <Textarea
-                                    value={importData}
-                                    onChange={(e) => setImportData(e.target.value)}
-                                    placeholder={'title,content,coverImage,originalUrl,phrases\n"My Article","<p>Content here...</p>","https://...","https://...","word1,word2"'}
-                                    className="min-h-[150px] font-mono text-sm"
-                                />
-                            </div>
-
-                            {/* Preview count */}
-                            {importData && (
-                                <div className="p-3 bg-neutral-100 rounded-lg">
-                                    <p className="text-sm">
-                                        <strong>Ready to import:</strong> {importData.trim().split('\n').length - 1} articles
-                                    </p>
-                                </div>
-                            )}
-
-                            {/* Import Result */}
-                            {importResult && (
-                                <div className={`p-4 rounded-lg ${importResult.errors.length === 0 ? 'bg-green-50 border border-green-200' : 'bg-yellow-50 border border-yellow-200'}`}>
-                                    <p className="font-medium flex items-center gap-2">
-                                        {importResult.errors.length === 0 ? (
-                                            <><CheckCircle className="h-4 w-4 text-green-600" /> Import Complete</>
-                                        ) : (
-                                            <><AlertCircle className="h-4 w-4 text-yellow-600" /> Import Completed with Errors</>
-                                        )}
-                                    </p>
-                                    <p className="text-sm mt-1">
-                                        Successfully imported: {importResult.success} articles
-                                    </p>
-                                    {importResult.errors.length > 0 && (
-                                        <div className="mt-2 text-sm text-red-600">
-                                            {importResult.errors.slice(0, 5).map((err, i) => (
-                                                <p key={i}>{err}</p>
-                                            ))}
-                                            {importResult.errors.length > 5 && (
-                                                <p>...and {importResult.errors.length - 5} more errors</p>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-
-                            {/* Import Button */}
-                            <Button
-                                onClick={async () => {
-                                    if (!importData.trim()) {
-                                        alert('Please upload or paste CSV data');
-                                        return;
-                                    }
-                                    setImporting(true);
-                                    setImportResult(null);
-                                    try {
-                                        const response = await fetch('/api/admin/bulk-import-csv', {
-                                            method: 'POST',
-                                            headers: {
-                                                'Content-Type': 'application/json',
-                                                'x-user-email': user?.email || '',
-                                            },
-                                            body: JSON.stringify({ csv: importData }),
-                                        });
-                                        const data = await response.json();
-                                        if (!response.ok) {
-                                            throw new Error(data.error || 'Import failed');
-                                        }
-                                        setImportResult({
-                                            success: data.success || 0,
-                                            errors: data.errors || [],
-                                        });
-                                        loadStats();
-                                        if (data.success > 0) {
-                                            setImportData('');
-                                        }
-                                    } catch (error) {
-                                        setImportResult({
-                                            success: 0,
-                                            errors: [error instanceof Error ? error.message : 'Import failed'],
-                                        });
-                                    } finally {
-                                        setImporting(false);
-                                    }
-                                }}
-                                disabled={importing || !importData.trim()}
-                                className="w-full"
-                            >
-                                <Upload className="h-4 w-4 mr-2" />
-                                {importing ? 'Importing...' : 'Import Articles'}
-                            </Button>
-                        </CardContent>
-                    </Card>
+                    <ScrapeImportTab onImportComplete={loadStats} />
 
                     {/* Danger Zone - Bulk Delete */}
                     <Card className="border-red-200 bg-red-50">
@@ -1723,50 +1314,23 @@ export default function AdminPage() {
                                         alert(error instanceof Error ? error.message : 'Failed to delete posts');
                                     }
                                 }}
-                                className="bg-red-600 hover:bg-red-700"
                             >
                                 <Trash2 className="h-4 w-4 mr-2" />
                                 Delete All Posts
                             </Button>
                         </CardContent>
                     </Card>
-
-                    {/* Download Template */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <Download className="h-5 w-5" />
-                                Download Template
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-sm text-neutral-500 mb-4">
-                                Download a template CSV file compatible with Excel
-                            </p>
-                            <Button
-                                variant="outline"
-                                onClick={() => {
-                                    const csv = 'title,content,coverImage,originalUrl,phrases\n"Example Article Title","<p>This is the article content. You can use HTML formatting.</p>","https://images.unsplash.com/photo-example","https://source.com/original-article","vocabulary,key phrases,idioms"';
-                                    const blob = new Blob([csv], { type: 'text/csv' });
-                                    const url = URL.createObjectURL(blob);
-                                    const a = document.createElement('a');
-                                    a.href = url;
-                                    a.download = 'articles_template.csv';
-                                    a.click();
-                                }}
-                            >
-                                <Download className="h-4 w-4 mr-2" />
-                                Download Articles Template
-                            </Button>
-                        </CardContent>
-                    </Card>
                 </div>
             )}
 
-            {/* Token Usage Tab */}
-            {activeTab === 'magazines' && (
+            {/* UNIFIED SOURCES TAB — renders the active source's dedicated importer */}
+            {activeTab === 'sources' && (
                 <div className="space-y-6">
-                    <MagazineImportTab onSuccess={loadStats} />
+                    <ScrapeImportTab
+                        key={activeSource}
+                        onImportComplete={loadStats}
+                        forceSourceId={activeSource}
+                    />
                 </div>
             )}
 

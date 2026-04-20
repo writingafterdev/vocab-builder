@@ -45,6 +45,7 @@ import { Timestamp } from '@/lib/appwrite/firestore';
 import { BentoGrid, BentoCard, getCardSize, getBentoPattern, StackingCards, StackingCardItem } from '@/components/library';
 import { LibraryCard as NewLibraryCard } from '@/components/library';
 import { QuoteSwiper } from '@/components/quotes';
+import { FeedFilter } from '@/components/article/FeedFilter';
 
 type FilterTab = 'all' | 'books' | 'articles' | 'news' | 'unread';
 
@@ -373,6 +374,12 @@ export default function LibraryPage() {
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [activeFilter, setActiveFilter] = useState<FilterTab>('all');
+    
+    // 3-Layer Filter States
+    const [activeSourceFilter, setActiveSourceFilter] = useState<string | null>(null);
+    const [activeSectionFilter, setActiveSectionFilter] = useState<string | null>(null);
+    const [activeTopicFilter, setActiveTopicFilter] = useState<string | null>(null);
+    
     const [lastDoc, setLastDoc] = useState<any>(null);
     const [loadingMore, setLoadingMore] = useState(false);
     const [hasMore, setHasMore] = useState(true);
@@ -639,11 +646,13 @@ export default function LibraryPage() {
             if (!matchesSearch) return false;
         }
 
-        // Tab filter
+        // Drop the old "Tab filter" for now, or keep it if it doesn't conflict
         if (activeFilter === 'unread' && post.isRead) return false;
-        if (activeFilter === 'articles' && post.source?.toLowerCase().includes('book')) return false;
-        if (activeFilter === 'books' && !post.source?.toLowerCase().includes('book')) return false;
-        // news filter would check for news sources
+        
+        // 3-Layer Filters
+        if (activeSourceFilter && post.source !== activeSourceFilter && (post as any).sourceId !== activeSourceFilter) return false;
+        if (activeSectionFilter && (post as any).section !== activeSectionFilter) return false;
+        if (activeTopicFilter && !post.topics?.includes(activeTopicFilter)) return false;
 
         return true;
     });
@@ -672,6 +681,17 @@ export default function LibraryPage() {
 
                     {/* Stacking Cards */}
                     <div className="relative mt-12">
+                        <div className="mb-6 max-w-[700px] mx-auto px-4">
+                            <FeedFilter 
+                                activeSource={activeSourceFilter}
+                                activeSection={activeSectionFilter}
+                                activeTopic={activeTopicFilter}
+                                onSourceChange={setActiveSourceFilter}
+                                onSectionChange={setActiveSectionFilter}
+                                onTopicChange={setActiveTopicFilter}
+                            />
+                        </div>
+                        
                         {loading ? (
                             <div className="space-y-6 max-w-[700px] mx-auto">
                                 <LibraryCardSkeleton />

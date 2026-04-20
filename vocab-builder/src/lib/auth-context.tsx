@@ -177,8 +177,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const signIn = useCallback(async () => {
         try {
-            // Appwrite will redirect to Google, then redirect back to the current URL
-            account.createOAuth2Session(OAuthProvider.Google, window.location.origin, window.location.origin + '/login');
+            // Success: redirect to /feed (the app layout guard will handle session check)
+            // Failure: redirect back to / (the landing/login page)
+            account.createOAuth2Session(
+                OAuthProvider.Google,
+                window.location.origin + '/feed',
+                window.location.origin + '/'
+            );
         } catch (error) {
             console.error('[Auth] signIn failed:', error);
         }
