@@ -304,47 +304,91 @@ export default function ProfilePage() {
 
                 {/* Stats Dashboard */}
                 <div className="px-8 mb-8">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="flex flex-col gap-1 p-5 border border-neutral-200 bg-white relative overflow-hidden group">
-                            <div className="absolute top-0 right-0 p-4 opacity-8 group-hover:opacity-15 transition-opacity">
-                                <Bookmark className="h-8 w-8 text-[#1e3a5f]" />
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 border border-neutral-200">
+                        {/* Phrases Saved */}
+                        <div className="p-6 flex flex-col justify-between min-h-[160px] md:border-r border-b lg:border-b-0 border-neutral-200">
+                            <div className="flex items-center justify-between">
+                                <span className="px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] font-bold text-white bg-blue-600">Phrases Saved</span>
+                                <Bookmark className="w-4 h-4 text-neutral-300" />
                             </div>
-                            <p className="text-[11px] uppercase tracking-[0.15em] text-neutral-400 font-medium">Phrases Saved</p>
-                            <div className="flex items-end gap-2">
-                                <p className="text-2xl font-serif text-neutral-900">{learningStats.totalPhrases}</p>
-                                <span className="text-neutral-400 text-xs mb-0.5">total</span>
-                            </div>
-                        </div>
-                        <div className="flex flex-col gap-1 p-5 border border-neutral-200 bg-white relative overflow-hidden group">
-                            <div className="absolute top-0 right-0 p-4 opacity-8 group-hover:opacity-15 transition-opacity">
-                                <Flame className="h-8 w-8 text-amber-500" />
-                            </div>
-                            <p className="text-[11px] uppercase tracking-[0.15em] text-neutral-400 font-medium">Day Streak</p>
-                            <div className="flex items-end gap-2">
-                                <p className="text-2xl font-serif text-neutral-900">{learningStats.currentStreak}</p>
-                                {learningStats.currentStreak > 0 && (
-                                    <span className="text-amber-700 text-[10px] font-semibold uppercase tracking-[0.1em] bg-amber-50 border border-amber-200 px-1.5 py-0.5 mb-0.5">Active</span>
-                                )}
+                            <div className="mt-auto">
+                                <div className="flex items-baseline gap-2">
+                                    <span
+                                        className="text-[48px] font-normal text-neutral-900 leading-none tracking-tight"
+                                        style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
+                                    >
+                                        {learningStats.totalPhrases}
+                                    </span>
+                                </div>
+                                <p className="text-xs text-neutral-400 italic mt-2" style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}>
+                                    Total phrases saved
+                                </p>
                             </div>
                         </div>
-                        <div className="flex flex-col gap-1 p-5 border border-neutral-200 bg-white relative overflow-hidden group">
-                            <div className="absolute top-0 right-0 p-4 opacity-8 group-hover:opacity-15 transition-opacity">
-                                <Trophy className="h-8 w-8 text-[#1e3a5f]" />
+
+                        {/* Day Streak */}
+                        <div className="p-6 flex flex-col justify-between min-h-[160px] lg:border-r border-b lg:border-b-0 border-neutral-200">
+                            <div className="flex items-center justify-between">
+                                <span className="px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] font-bold text-white bg-amber-500">Day Streak</span>
+                                <Flame className="w-4 h-4 text-neutral-300" />
                             </div>
-                            <p className="text-[11px] uppercase tracking-[0.15em] text-neutral-400 font-medium">Scenarios Completed</p>
-                            <div className="flex items-end gap-2">
-                                <p className="text-2xl font-serif text-neutral-900">{learningStats.scenariosCompleted}</p>
-                                <span className="text-neutral-400 text-xs mb-0.5">sessions</span>
+                            <div className="mt-auto">
+                                <div className="flex items-baseline gap-2">
+                                    <span
+                                        className="text-[48px] font-normal text-neutral-900 leading-none tracking-tight"
+                                        style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
+                                    >
+                                        {learningStats.currentStreak}
+                                    </span>
+                                    {learningStats.currentStreak > 0 && (
+                                        <span className="text-amber-700 text-[10px] font-semibold uppercase tracking-[0.1em] bg-amber-50 border border-amber-200 px-1.5 py-0.5 mb-0.5">Active</span>
+                                    )}
+                                </div>
+                                <p className="text-xs text-neutral-400 italic mt-2" style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}>
+                                    Consecutive learning days
+                                </p>
                             </div>
                         </div>
-                        <div className="flex flex-col gap-1 p-5 border border-neutral-200 bg-white relative overflow-hidden group">
-                            <div className="absolute top-0 right-0 p-4 opacity-8 group-hover:opacity-15 transition-opacity">
-                                <Brain className="h-8 w-8 text-amber-500" />
+
+                        {/* Scenarios */}
+                        <div className="p-6 flex flex-col justify-between min-h-[160px] md:border-r border-b md:border-b-0 border-neutral-200">
+                            <div className="flex items-center justify-between">
+                                <span className="px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] font-bold text-white bg-emerald-600">Scenarios</span>
+                                <Trophy className="w-4 h-4 text-neutral-300" />
                             </div>
-                            <p className="text-[11px] uppercase tracking-[0.15em] text-neutral-400 font-medium">Mastered Phrases</p>
-                            <div className="flex items-end gap-2">
-                                <p className="text-2xl font-serif text-neutral-900">{learningStats.masteredPhrases}</p>
-                                <span className="text-neutral-400 text-xs mb-0.5">phrases</span>
+                            <div className="mt-auto">
+                                <div className="flex items-baseline gap-2">
+                                    <span
+                                        className="text-[48px] font-normal text-neutral-900 leading-none tracking-tight"
+                                        style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
+                                    >
+                                        {learningStats.scenariosCompleted}
+                                    </span>
+                                </div>
+                                <p className="text-xs text-neutral-400 italic mt-2" style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}>
+                                    Completed sessions
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Mastered */}
+                        <div className="p-6 flex flex-col justify-between min-h-[160px]">
+                            <div className="flex items-center justify-between">
+                                <span className="px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] font-bold text-white bg-indigo-600">Mastered</span>
+                                <Brain className="w-4 h-4 text-neutral-300" />
+                            </div>
+                            <div className="mt-auto">
+                                <div className="flex items-baseline gap-2">
+                                    <span
+                                        className="text-[48px] font-normal text-neutral-900 leading-none tracking-tight"
+                                        style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
+                                    >
+                                        {learningStats.masteredPhrases}
+                                    </span>
+                                </div>
+                                <p className="text-xs text-neutral-400 italic mt-2" style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}>
+                                    Phrases fully learned
+                                </p>
                             </div>
                         </div>
                     </div>
@@ -492,12 +536,10 @@ export default function ProfilePage() {
                         {/* Right Column - Sidebar */}
                         <div className="lg:col-span-4 flex flex-col gap-6">
                             {/* Reading Lists */}
-                            <div className="bg-white border border-neutral-200 p-5">
-                                <div className="flex items-center gap-3 mb-4">
-                                    <div className="h-9 w-9 border border-[#1e3a5f]/20 bg-[#1e3a5f]/5 flex items-center justify-center">
-                                        <LayoutList className="h-4 w-4 text-[#1e3a5f]" />
-                                    </div>
-                                    <h3 className="text-sm font-semibold text-neutral-900 uppercase tracking-[0.1em]">My Reading Lists</h3>
+                            <div className="bg-white border border-neutral-200 p-6">
+                                <div className="flex items-center justify-between mb-4">
+                                    <span className="px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] font-bold text-white bg-blue-600">Reading Lists</span>
+                                    <LayoutList className="h-4 w-4 text-neutral-300" />
                                 </div>
                                 {readingLists.length === 0 ? (
                                     <p className="text-sm text-neutral-500">
@@ -526,17 +568,14 @@ export default function ProfilePage() {
                             </div>
 
                             {/* Badges - Coming Soon */}
-                            <div className="bg-white border border-neutral-200 border-dashed p-5 relative overflow-hidden">
-                                <div className="absolute top-3 right-3">
+                            <div className="bg-white border border-neutral-200 border-dashed p-6 relative overflow-hidden">
+                                <div className="absolute top-4 right-4">
                                     <span className="text-[9px] font-semibold uppercase tracking-[0.15em] text-neutral-400 border border-neutral-200 px-2 py-1">
                                         Coming Soon
                                     </span>
                                 </div>
-                                <div className="flex items-center gap-3 mb-3">
-                                    <div className="h-9 w-9 border border-neutral-200 flex items-center justify-center">
-                                        <Award className="h-4 w-4 text-neutral-900" />
-                                    </div>
-                                    <h3 className="text-sm font-semibold text-neutral-900 uppercase tracking-[0.1em]">Badges</h3>
+                                <div className="flex items-center justify-between mb-4">
+                                    <span className="px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] font-bold text-white bg-amber-500">Badges</span>
                                 </div>
                                 <p className="text-sm text-neutral-500 mb-4">
                                     Earn badges for reaching milestones, maintaining streaks, and mastering vocabulary.
@@ -558,17 +597,14 @@ export default function ProfilePage() {
                             </div>
 
                             {/* Social Features - Coming Soon */}
-                            <div className="bg-white border border-neutral-200 border-dashed p-5 relative overflow-hidden">
-                                <div className="absolute top-3 right-3">
+                            <div className="bg-white border border-neutral-200 border-dashed p-6 relative overflow-hidden">
+                                <div className="absolute top-4 right-4">
                                     <span className="text-[9px] font-semibold uppercase tracking-[0.15em] text-neutral-400 border border-neutral-200 px-2 py-1">
                                         Coming Soon
                                     </span>
                                 </div>
-                                <div className="flex items-center gap-3 mb-3">
-                                    <div className="h-9 w-9 border border-neutral-200 flex items-center justify-center">
-                                        <Users className="h-4 w-4 text-neutral-900" />
-                                    </div>
-                                    <h3 className="text-sm font-semibold text-neutral-900 uppercase tracking-[0.1em]">Connect & Learn</h3>
+                                <div className="flex items-center justify-between mb-4">
+                                    <span className="px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] font-bold text-white bg-emerald-600">Connect & Learn</span>
                                 </div>
                                 <p className="text-sm text-neutral-500 mb-4">
                                     Follow friends, compare progress, and get personalized learner recommendations.
