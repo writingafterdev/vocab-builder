@@ -1047,10 +1047,42 @@ export default function AdminPage() {
                 <div className="space-y-4">
                     <div className="flex justify-between items-center">
                         <h2 className="text-lg font-semibold">Posts ({posts.filter(p => !p.isArticle).length})</h2>
-                        <Button onClick={() => setShowPostForm(!showPostForm)}>
-                            <Plus className="h-4 w-4 mr-2" />
-                            Create Post
-                        </Button>
+                        <div className="flex gap-2">
+                            <Button 
+                                variant="destructive" 
+                                size="sm"
+                                onClick={async () => {
+                                    const postCount = posts.filter(p => !p.isArticle).length;
+                                    if (postCount === 0) {
+                                        alert('No posts to delete.');
+                                        return;
+                                    }
+                                    const confirmed = confirm(`⚠️ Are you ABSOLUTELY sure you want to delete ALL ${postCount} posts? This cannot be undone!`);
+                                    if (!confirmed) return;
+
+                                    const doubleConfirm = prompt('Type "DELETE ALL POSTS" to confirm:');
+                                    if (doubleConfirm !== 'DELETE ALL POSTS') {
+                                        alert('Deletion cancelled.');
+                                        return;
+                                    }
+
+                                    try {
+                                        const result = await bulkDeleteAllPosts();
+                                        alert(`✅ Deleted ${result.deleted} posts${result.errors.length > 0 ? ` (${result.errors.length} errors)` : ''}`);
+                                        loadStats();
+                                    } catch (error) {
+                                        alert(error instanceof Error ? error.message : 'Failed to delete posts');
+                                    }
+                                }}
+                            >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete All Posts
+                            </Button>
+                            <Button onClick={() => setShowPostForm(!showPostForm)}>
+                                <Plus className="h-4 w-4 mr-2" />
+                                Create Post
+                            </Button>
+                        </div>
                     </div>
 
                     {/* Create Post Form */}
@@ -1314,45 +1346,6 @@ export default function AdminPage() {
             {activeTab === 'import' && (
                 <div className="space-y-6">
                     <ScrapeImportTab onImportComplete={loadStats} />
-
-                    {/* Danger Zone - Bulk Delete */}
-                    <Card className="border-red-200 bg-red-50">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2 text-red-700">
-                                <Trash2 className="h-5 w-5" />
-                                Danger Zone
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-sm text-red-600 mb-4">
-                                Permanently delete all articles/posts from the database. This action cannot be undone!
-                            </p>
-                            <Button
-                                variant="destructive"
-                                onClick={async () => {
-                                    const confirmed = confirm('⚠️ Are you ABSOLUTELY sure you want to delete ALL posts? This cannot be undone!');
-                                    if (!confirmed) return;
-
-                                    const doubleConfirm = prompt('Type "DELETE ALL" to confirm:');
-                                    if (doubleConfirm !== 'DELETE ALL') {
-                                        alert('Deletion cancelled.');
-                                        return;
-                                    }
-
-                                    try {
-                                        const result = await bulkDeleteAllPosts();
-                                        alert(`✅ Deleted ${result.deleted} posts${result.errors.length > 0 ? ` (${result.errors.length} errors)` : ''}`);
-                                        loadStats();
-                                    } catch (error) {
-                                        alert(error instanceof Error ? error.message : 'Failed to delete posts');
-                                    }
-                                }}
-                            >
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                Delete All Posts
-                            </Button>
-                        </CardContent>
-                    </Card>
                 </div>
             )}
 
