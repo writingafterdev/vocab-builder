@@ -242,6 +242,7 @@ export function DictionaryWidget() {
                         register={popup.register}
                         nuance={popup.nuance}
                         context={popup.context}
+                        examples={popup.examples}
                         contextTranslation={popup.contextTranslation}
                         pronunciation={popup.pronunciation}
                         topic={popup.topic}

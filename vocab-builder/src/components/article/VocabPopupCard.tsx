@@ -10,6 +10,7 @@ interface VocabPopupCardProps {
     register?: string | string[];
     nuance?: string | string[];
     context?: string;
+    examples?: string[];
     contextTranslation?: string;
     pronunciation?: string;
     topic?: string | string[];
@@ -44,6 +45,7 @@ export function VocabPopupCard({
     register,
     nuance,
     context,
+    examples,
     pronunciation,
     topic,
     subtopic,
@@ -62,7 +64,7 @@ export function VocabPopupCard({
     const topics = toArray(topic);
     const subtopics = toArray(subtopic);
     const primarySubtopic = subtopics[0];
-    const hasDetails = context || registers.length > 0 || nuances.length > 0 || topics.length > 0;
+    const hasDetails = (examples && examples.length > 0) || registers.length > 0 || nuances.length > 0 || topics.length > 0;
 
     // Reset expanded state when phrase changes
     useEffect(() => { setExpanded(false); }, [phrase]);
@@ -163,13 +165,17 @@ export function VocabPopupCard({
                                     </div>
                                 )}
 
-                                {/* Context */}
-                                {context && (
+                                {/* Examples */}
+                                {examples && examples.length > 0 && (
                                     <div className="px-5 py-2 border-t border-neutral-50">
-                                        <span className="text-[9px] uppercase tracking-wider text-neutral-400 font-bold block mb-1">Context</span>
-                                        <p className="text-[13px] text-neutral-500 italic leading-relaxed">
-                                            &ldquo;{context}&rdquo;
-                                        </p>
+                                        <span className="text-[9px] uppercase tracking-wider text-neutral-400 font-bold block mb-1">Examples</span>
+                                        <ul className="space-y-1.5">
+                                            {examples.map((ex, i) => (
+                                                <li key={i} className="text-[13px] text-neutral-500 italic leading-relaxed relative pl-3 before:content-['•'] before:absolute before:left-0 before:text-neutral-300">
+                                                    &ldquo;{ex}&rdquo;
+                                                </li>
+                                            ))}
+                                        </ul>
                                     </div>
                                 )}
 

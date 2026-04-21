@@ -9,6 +9,7 @@ export interface DictionaryPopupState {
     nuance?: string | string[];
     context?: string;
     contextTranslation?: string;
+    examples?: string[];
     pronunciation?: string;
     topic?: string | string[];
     subtopic?: string | string[];
@@ -123,6 +124,7 @@ export const useDictionaryStore = create<DictionaryStore>((set, get) => ({
                         register: data.register,
                         nuance: data.nuance,
                         context: data.context || current.context,
+                        examples: data.examples || (data.commonUsages ? data.commonUsages.map((c: any) => c.example).filter(Boolean) : []),
                         contextTranslation: data.contextTranslation,
                         pronunciation: data.pronunciation,
                         topic: data.topic,
