@@ -36,7 +36,6 @@ import {
     MapPin,
     LayoutList
 } from 'lucide-react';
-import LearningDashboard from '@/components/learning-dashboard';
 import { FavoriteQuote } from '@/lib/db/favorite-quotes';
 import { getUserReposts } from '@/lib/db/social';
 import { getPost } from '@/lib/db/posts';
@@ -206,7 +205,6 @@ export default function ProfilePage() {
         { id: 'comments', label: `Fav Quotes (${favQuotes.length})` },
         { id: 'reposts', label: `Reposts (${reposts.length})` },
         { id: 'bookmarked', label: `Bookmarked (${savedArticles.length})` },
-        { id: 'insights', label: 'Insights' },
     ];
 
     return (
@@ -489,9 +487,6 @@ export default function ProfilePage() {
                                 </div>
                             )}
 
-                            {activeTab === 'insights' && (
-                                <LearningDashboard stats={learningStats} />
-                            )}
                         </div>
 
                         {/* Right Column - Sidebar */}
