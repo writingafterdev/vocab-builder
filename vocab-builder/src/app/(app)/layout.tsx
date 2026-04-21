@@ -36,7 +36,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     const { user, profile, loading, signOut } = useAuth();
     const router = useRouter();
     const pathname = usePathname();
-    const [sidebarOpen, setSidebarOpen] = useState(false);
     useOnlineStatus(); // Show toast on offline/online
 
     // Hydrate global dictionary store with user credentials
@@ -85,11 +84,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         return null;
     }
 
-    const handleSignOut = async () => {
-        await signOut();
-        router.push('/');
-    };
-
     const isAdmin = user?.email === ADMIN_EMAIL;
 
     const isActive = (href: string) => {
@@ -129,9 +123,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         {
             href: `/profile/${profile?.username || 'me'}`,
             icon: <User className="w-5 h-5" weight={isActive('/profile') ? 'fill' : 'regular'} />,
-            label: 'Menu',
-            isActive: sidebarOpen,
-            onClick: () => setSidebarOpen(true),
+            label: 'Profile',
+            isActive: isActive('/profile')
         },
         {
             href: '/settings',
@@ -185,102 +178,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                     </div>
                 )}
             </main>
-
-            {/* Mobile slide-out menu for user actions */}
-            <AnimatePresence>
-                {sidebarOpen && (
-                    <>
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 0.5 }}
-                            exit={{ opacity: 0 }}
-                            className="fixed inset-0 z-50 bg-black"
-                            onClick={() => setSidebarOpen(false)}
-                        />
-                        <motion.aside
-                            initial={{ x: '100%' }}
-                            animate={{ x: 0 }}
-                            exit={{ x: '100%' }}
-                            transition={{ type: 'spring', damping: 20 }}
-                            className="fixed right-0 top-0 bottom-0 z-50 w-72 bg-white flex flex-col font-sans"
-                        >
-                            {/* Close Bar */}
-                            <div className="flex justify-end p-4">
-                                <button
-                                    onClick={() => setSidebarOpen(false)}
-                                    className="p-2 -mr-2 text-neutral-300 hover:text-neutral-900 transition-colors"
-                                >
-                                    <X className="h-5 w-5" />
-                                </button>
-                            </div>
-
-                            <div className="px-8 flex-1 flex flex-col">
-                                {/* User Info (Editorial Header) */}
-                                <div className="mb-12 flex flex-col gap-4">
-                                    <Avatar className="h-16 w-16 border border-neutral-100 shadow-sm">
-                                        <AvatarImage src={profile?.photoURL} alt={profile?.displayName} />
-                                        <AvatarFallback className="bg-neutral-50 text-neutral-400 text-lg font-serif italic">{profile?.displayName?.charAt(0) || 'U'}</AvatarFallback>
-                                    </Avatar>
-                                    <div>
-                                        <h2 
-                                            className="text-[26px] text-neutral-900 tracking-tight italic leading-none" 
-                                            style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
-                                        >
-                                            {profile?.displayName}
-                                        </h2>
-                                        <p className="text-[10px] text-neutral-400 uppercase tracking-[0.15em] mt-2 font-medium">@{profile?.username}</p>
-                                    </div>
-                                </div>
-
-                                {/* Navigation Links */}
-                                <div className="flex flex-col gap-5 border-t border-neutral-100 pt-8">
-                                    <Link
-                                        href={`/profile/${profile?.username || 'me'}`}
-                                        onClick={() => setSidebarOpen(false)}
-                                        className="text-[14px] text-neutral-500 hover:text-neutral-900 transition-colors tracking-wide"
-                                    >
-                                        View Profile
-                                    </Link>
-                                    
-                                    <Link
-                                        href="/settings"
-                                        onClick={() => setSidebarOpen(false)}
-                                        className="text-[14px] text-neutral-500 hover:text-neutral-900 transition-colors tracking-wide"
-                                    >
-                                        Settings
-                                    </Link>
-
-                                    {/* Quiet Premium CTA */}
-                                    {profile?.subscription?.status === 'trial' && (
-                                        <Link 
-                                            href="/subscription" 
-                                            onClick={() => setSidebarOpen(false)}
-                                            className="text-[14px] text-neutral-500 hover:text-neutral-900 transition-colors flex items-center gap-1.5 group tracking-wide mt-2"
-                                        >
-                                            <Sparkle className="w-4 h-4 text-neutral-300 group-hover:text-amber-500 transition-colors" weight="fill" />
-                                            Upgrade Premium
-                                        </Link>
-                                    )}
-                                </div>
-
-                                {/* Bottom Anchor */}
-                                <div className="mt-auto pb-10">
-                                    <button
-                                        onClick={() => {
-                                            handleSignOut();
-                                            setSidebarOpen(false);
-                                        }}
-                                        className="flex items-center gap-2 text-[11px] uppercase tracking-[0.1em] font-semibold text-neutral-400 hover:text-neutral-900 transition-colors"
-                                    >
-                                        <SignOut className="h-3.5 w-3.5" weight="bold" />
-                                        Log Out
-                                    </button>
-                                </div>
-                            </div>
-                        </motion.aside>
-                    </>
-                )}
-            </AnimatePresence>
         </div>
     );
 }

@@ -21,7 +21,7 @@ import { EditorialLoader } from '@/components/ui/editorial-loader';
 
 export default function SettingsPage() {
     const router = useRouter();
-    const { user, profile, refreshProfile } = useAuth();
+    const { user, profile, refreshProfile, signOut } = useAuth();
 
     // Profile form state
     const [displayName, setDisplayName] = useState('');
@@ -286,6 +286,23 @@ export default function SettingsPage() {
                                         Upgrade to Pro
                                     </button>
                                 </div>
+                            </div>
+
+                            {/* Log Out */}
+                            <div className="p-6 md:p-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                <div className="flex flex-col gap-1">
+                                    <h3 className="text-sm font-medium text-neutral-900">Sign Out</h3>
+                                    <p className="text-sm text-neutral-400">Sign out of your account on this device.</p>
+                                </div>
+                                <button 
+                                    onClick={async () => {
+                                        await signOut();
+                                        router.push('/');
+                                    }}
+                                    className="px-4 py-2 border border-neutral-200 text-neutral-700 text-sm font-medium hover:bg-neutral-50 transition-colors"
+                                >
+                                    Log Out
+                                </button>
                             </div>
 
                             {/* Danger Zone */}
