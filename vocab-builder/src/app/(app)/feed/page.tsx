@@ -46,6 +46,7 @@ import { BentoGrid, BentoCard, getCardSize, getBentoPattern, StackingCards, Stac
 import { LibraryCard as NewLibraryCard } from '@/components/library';
 import { QuoteSwiper } from '@/components/quotes';
 import { FeedFilter } from '@/components/article/FeedFilter';
+import { ContentFilterWidget, ContentFilterState } from '@/components/vocab/ContentFilterWidget';
 
 type FilterTab = 'all' | 'books' | 'articles' | 'news' | 'unread';
 
@@ -380,6 +381,9 @@ export default function LibraryPage() {
     const [activeSectionFilter, setActiveSectionFilter] = useState<string | null>(null);
     const [activeTopicFilter, setActiveTopicFilter] = useState<string | null>(null);
     
+    // Quote topic filter (driven by ContentFilterWidget)
+    const [quoteTopics, setQuoteTopics] = useState<string[]>([]);
+    
     const [lastDoc, setLastDoc] = useState<any>(null);
     const [loadingMore, setLoadingMore] = useState(false);
     const [hasMore, setHasMore] = useState(true);
@@ -661,6 +665,20 @@ export default function LibraryPage() {
 
     return (
         <div className="flex gap-6 max-w-[1400px] mx-auto font-[Inter,sans-serif]">
+            {/* Content Filter Widget (floating left button) */}
+            <ContentFilterWidget
+                filters={{
+                    quoteTopics,
+                    articleSource: activeSourceFilter,
+                    articleSection: activeSectionFilter,
+                    articleTopic: activeTopicFilter,
+                }}
+                onQuoteTopicsChange={setQuoteTopics}
+                onArticleSourceChange={setActiveSourceFilter}
+                onArticleSectionChange={setActiveSectionFilter}
+                onArticleTopicChange={setActiveTopicFilter}
+            />
+
             {/* Main Content - Full Page Scroll Experience */}
             <div className="flex-1 min-w-0">
                 {/* Section 1: Quote Swiper */}
@@ -668,7 +686,7 @@ export default function LibraryPage() {
 
                     {/* Quote Swiper - Centered */}
                     <div className="w-full max-w-4xl px-8 flex-1 flex flex-col justify-center -mt-8">
-                        {user?.$id && <QuoteSwiper userId={user.$id} preGeneratedQuestions={preGeneratedQuestions} />}
+                        {user?.$id && <QuoteSwiper userId={user.$id} preGeneratedQuestions={preGeneratedQuestions} externalTopics={quoteTopics.length > 0 ? quoteTopics : undefined} onTopicsChange={setQuoteTopics} />}
                     </div>
 
                     {/* Scroll hint */}

@@ -31,6 +31,8 @@ const VISIBLE_CARDS = 4;
 interface QuoteSwiperProps {
     userId: string;
     preGeneratedQuestions?: any[];
+    externalTopics?: string[];
+    onTopicsChange?: (topics: string[]) => void;
 }
 
 // Stack position presets: front → middle → back
@@ -101,7 +103,7 @@ const FEED_TOPICS = [
     { id: 'health', label: 'Health', emoji: '❤️‍🩹' },
 ] as const;
 
-export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps) {
+export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onTopicsChange }: QuoteSwiperProps) {
     const router = useRouter();
     const [deck, setDeck] = useState<DeckItem[]>([]);
     const [loading, setLoading] = useState(true);
@@ -109,7 +111,15 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
     const [savedQuotes, setSavedQuotes] = useState<Set<string>>(new Set());
     const [phase, setPhase] = useState<'idle' | 'sending-to-back' | 'bringing-to-front'>('idle');
     const [needsOnboarding, setNeedsOnboarding] = useState(false);
-    const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
+    const [internalSelectedTopics, setInternalSelectedTopics] = useState<string[]>([]);
+    
+    // Use external topics if provided, otherwise internal
+    const selectedTopics = externalTopics ?? internalSelectedTopics;
+    const setSelectedTopics = (updater: string[] | ((prev: string[]) => string[])) => {
+        const next = typeof updater === 'function' ? updater(selectedTopics) : updater;
+        setInternalSelectedTopics(next);
+        onTopicsChange?.(next);
+    };
     const isAnimating = useRef(false);
     const cardStackRef = useRef<HTMLDivElement>(null);
     // Master cache of ALL fetched quotes (never wiped on topic change)
