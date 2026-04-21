@@ -777,17 +777,10 @@ export function QuoteSwiper({ userId, preGeneratedQuestions }: QuoteSwiperProps)
                                     )}
 
                                     {/* Quote Text */}
-                                    <div className="flex-1 flex items-center px-10 md:px-14 py-8 overflow-y-auto no-scrollbar">
+                                    <div className="flex-1 flex items-center px-10 md:px-14 py-8 overflow-hidden">
                                         <TapToSelect
                                             text={decodeHtmlEntities((item.data as Quote).text)}
-                                            className={cn(
-                                                "text-neutral-900 tracking-tight",
-                                                (item.data as Quote).text?.length > 250
-                                                    ? "text-base md:text-lg md:leading-[1.6]"
-                                                    : (item.data as Quote).text?.length > 150
-                                                        ? "text-lg md:text-xl md:leading-[1.6]"
-                                                        : "text-xl md:text-[24px] md:leading-[1.6]"
-                                            )}
+                                            className="text-xl md:text-[24px] md:leading-[1.6] text-neutral-900 tracking-tight line-clamp-5"
                                             style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
                                             onLookup={handleTapLookup}
                                             highlightedPhrases={isTop && reviewOpen ? reviewCards.map(c => c.phrase) : []}

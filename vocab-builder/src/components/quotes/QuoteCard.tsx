@@ -43,7 +43,13 @@ export function QuoteCard({ quote, onPhraseClick }: QuoteCardProps) {
             <CardContent className="flex-1 p-8 flex flex-col justify-center">
                 {/* Quote - Large and Prominent */}
                 <p
-                    className="text-2xl md:text-3xl font-serif leading-relaxed text-neutral-900 mb-8 cursor-text select-text"
+                    className={`font-serif leading-relaxed text-neutral-900 mb-8 cursor-text select-text ${
+                        quote.text?.length > 250
+                            ? 'text-lg md:text-xl'
+                            : quote.text?.length > 150
+                                ? 'text-xl md:text-2xl'
+                                : 'text-2xl md:text-3xl'
+                    }`}
                     onClick={handleTextClick}
                 >
                     "{quote.text}"

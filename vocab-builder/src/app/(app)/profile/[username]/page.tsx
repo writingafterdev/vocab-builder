@@ -535,15 +535,15 @@ export default function ProfilePage() {
 
                         {/* Right Column - Sidebar */}
                         <div className="lg:col-span-4 flex flex-col gap-6">
-                            {/* Reading Lists */}
+                            {/* Saved Collections */}
                             <div className="bg-white border border-neutral-200 p-6">
                                 <div className="flex items-center justify-between mb-4">
-                                    <span className="px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] font-bold text-white bg-blue-600">Reading Lists</span>
+                                    <span className="px-2 py-0.5 text-[10px] uppercase tracking-[0.1em] font-bold text-white bg-blue-600">Saved Collections</span>
                                     <LayoutList className="h-4 w-4 text-neutral-300" />
                                 </div>
                                 {readingLists.length === 0 ? (
                                     <p className="text-sm text-neutral-500">
-                                        No reading lists yet. Clone collections from the Library to get started.
+                                        No saved collections yet. Clone collections from the Library to get started.
                                     </p>
                                 ) : (
                                     <div className="space-y-3">
