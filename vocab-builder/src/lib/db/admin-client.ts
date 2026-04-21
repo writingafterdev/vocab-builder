@@ -138,6 +138,10 @@ export async function bulkDeleteAllPosts(): Promise<{ deleted: number; errors: s
     return adminPost('bulk-delete-posts');
 }
 
+export async function bulkDeleteAllArticles(): Promise<{ deleted: number; errors: string[] }> {
+    return adminPost('bulk-delete-articles');
+}
+
 export async function createPostWithComments(input: any): Promise<string> {
     const data = await adminPost('create-post-with-comments', { input });
     return data.postId;

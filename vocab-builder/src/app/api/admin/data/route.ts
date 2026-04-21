@@ -4,6 +4,7 @@ import {
     getAllUsers,
     deletePost,
     bulkDeleteAllPosts,
+    bulkDeleteAllArticles,
     getUserSavedPhrases,
     getUserScenarios,
     getUserPosts,
@@ -104,6 +105,10 @@ export async function POST(request: NextRequest) {
             }
             case 'bulk-delete-posts': {
                 const result = await bulkDeleteAllPosts();
+                return NextResponse.json(result);
+            }
+            case 'bulk-delete-articles': {
+                const result = await bulkDeleteAllArticles();
                 return NextResponse.json(result);
             }
             case 'update-learning-settings': {

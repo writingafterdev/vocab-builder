@@ -55,6 +55,7 @@ import {
     UserPost,
     UserTokenUsage,
     bulkDeleteAllPosts,
+    bulkDeleteAllArticles,
     setAdminEmail,
     getTokenUsageStats,
     getDetailedTokenUsage,
@@ -1152,10 +1153,42 @@ export default function AdminPage() {
                 <div className="space-y-4">
                     <div className="flex justify-between items-center">
                         <h2 className="text-lg font-semibold">Articles ({posts.filter(p => p.isArticle).length})</h2>
-                        <Button onClick={() => setActiveTab('import')} variant="outline">
-                            <Upload className="h-4 w-4 mr-2" />
-                            Import Articles (CSV)
-                        </Button>
+                        <div className="flex gap-2">
+                            <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={async () => {
+                                    const articleCount = posts.filter(p => p.isArticle).length;
+                                    if (articleCount === 0) {
+                                        alert('No articles to delete.');
+                                        return;
+                                    }
+                                    const confirmed = confirm(`⚠️ Are you sure you want to delete ALL ${articleCount} articles? This cannot be undone!`);
+                                    if (!confirmed) return;
+
+                                    const doubleConfirm = prompt('Type "DELETE ALL ARTICLES" to confirm:');
+                                    if (doubleConfirm !== 'DELETE ALL ARTICLES') {
+                                        alert('Deletion cancelled.');
+                                        return;
+                                    }
+
+                                    try {
+                                        const result = await bulkDeleteAllArticles();
+                                        alert(`✅ Deleted ${result.deleted} articles${result.errors.length > 0 ? ` (${result.errors.length} errors)` : ''}`);
+                                        loadStats();
+                                    } catch (error) {
+                                        alert(error instanceof Error ? error.message : 'Failed to delete articles');
+                                    }
+                                }}
+                            >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete All Articles
+                            </Button>
+                            <Button onClick={() => setActiveTab('import')} variant="outline">
+                                <Upload className="h-4 w-4 mr-2" />
+                                Import Articles (CSV)
+                            </Button>
+                        </div>
                     </div>
 
 

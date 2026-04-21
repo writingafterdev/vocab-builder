@@ -87,6 +87,48 @@ export async function bulkDeleteAllPosts(): Promise<{ deleted: number; errors: s
     return { deleted, errors };
 }
 
+/**
+ * Bulk delete only articles (isArticle === true) from the database
+ * Also cleans up associated comments and reposts
+ */
+export async function bulkDeleteAllArticles(): Promise<{ deleted: number; errors: string[] }> {
+    const docs = await queryCollection('posts', [
+        Query.equal('isArticle', true),
+        Query.limit(500),
+    ]);
+
+    let deleted = 0;
+    const errors: string[] = [];
+
+    for (const doc of docs) {
+        try {
+            // Delete associated comments
+            const comments = await queryCollection('comments', [
+                Query.equal('postId', doc.id),
+            ]);
+            for (const comment of comments) {
+                await deleteDocument('comments', comment.id);
+            }
+
+            // Delete associated reposts
+            const reposts = await queryCollection('reposts', [
+                Query.equal('postId', doc.id),
+            ]);
+            for (const repost of reposts) {
+                await deleteDocument('reposts', repost.id);
+            }
+
+            await deleteDocument('posts', doc.id);
+            deleted++;
+        } catch (error) {
+            console.error(`Failed to delete article ${doc.id}:`, error);
+            errors.push(doc.id);
+        }
+    }
+
+    return { deleted, errors };
+}
+
 export async function updatePost(postId: string, data: Partial<Omit<Post, 'id' | 'createdAt'>>): Promise<void> {
     const { setDocument: _, ...updateData } = data as any;
     const { updateDocument } = await import('@/lib/appwrite/database');
