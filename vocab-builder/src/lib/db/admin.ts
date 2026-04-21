@@ -75,6 +75,9 @@ export async function bulkDeleteAllPosts(): Promise<{ deleted: number; errors: s
     const errors: string[] = [];
 
     for (const doc of docs) {
+        // Skip articles, this function should only delete regular posts
+        if (doc.isArticle === true) continue;
+
         try {
             await deleteDocument('posts', doc.id);
             deleted++;
