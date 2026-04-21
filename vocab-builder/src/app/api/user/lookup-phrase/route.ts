@@ -69,26 +69,27 @@ export async function POST(request: NextRequest) {
 
                 // Verify the cached doc actually has data (phraseDictionary attrs may not be registered)
                 if (existing.meaning) {
+                    // Fire-and-forget: log to lookup history
+                    if (userId) {
+                        addDocument('lookupHistory', {
+                            userId,
+                            phraseKey,
+                            phrase: phrase.trim(),
+                            meaning: (existing.meaning as string) || '',
+                            context: context || '',
+                            register: JSON.stringify(existing.register || ''),
+                            nuance: JSON.stringify(existing.nuance || ''),
+                            topic: JSON.stringify(existing.topic || ''),
+                            subtopic: JSON.stringify(existing.subtopic || ''),
+                            lookedUpAt: new Date().toISOString(),
+                        }).catch(() => {});
+                    }
+
                     return NextResponse.json({
                         data: existing as unknown as GlobalPhraseData,
                         cached: true,
                         success: true,
                     });
-                }
-                // Fire-and-forget: log to lookup history
-                if (userId && existing.meaning) {
-                    addDocument('lookupHistory', {
-                        userId,
-                        phraseKey,
-                        phrase: phrase.trim(),
-                        meaning: (existing.meaning as string) || '',
-                        context: context || '',
-                        register: JSON.stringify(existing.register || ''),
-                        nuance: JSON.stringify(existing.nuance || ''),
-                        topic: JSON.stringify(existing.topic || ''),
-                        subtopic: JSON.stringify(existing.subtopic || ''),
-                        lookedUpAt: new Date().toISOString(),
-                    }).catch(() => {});
                 }
                 // Document exists but fields were stripped on write — treat as cache miss
                 console.log(`[Lookup] Cache hit for "${phraseKey}" but meaning is empty — re-generating`);

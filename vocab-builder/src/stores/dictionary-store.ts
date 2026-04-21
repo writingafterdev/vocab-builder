@@ -20,9 +20,11 @@ interface DictionaryStore {
     popup: DictionaryPopupState | null;
     bounceKey: number;
     isSaved: boolean;
+    lastSaveMessage: string | null;
 
     // ── Popup actions ──
     openPopup: (phrase: string, context: string, userId: string, userEmail: string) => void;
+    openPopupDirect: (data: DictionaryPopupState) => void;
     updatePopup: (data: Partial<DictionaryPopupState>) => void;
     dismissPopup: () => void;
     markSaved: () => void;
@@ -48,6 +50,7 @@ export const useDictionaryStore = create<DictionaryStore>((set, get) => ({
     popup: null,
     bounceKey: 0,
     isSaved: false,
+    lastSaveMessage: null,
     reviewOpen: false,
     reviewCards: [],
     recentLookups: [],
@@ -155,13 +158,31 @@ export const useDictionaryStore = create<DictionaryStore>((set, get) => ({
         }
     },
 
+    // ── Open popup with already-resolved data (no API call) ──
+    openPopupDirect: (data) => {
+        // Also add to recentLookups so session cache is populated
+        set(s => {
+            const existing = s.recentLookups.filter(
+                r => r.phrase.toLowerCase() !== data.phrase.toLowerCase()
+            );
+            const newRecentLookups = [data, ...existing].slice(0, 20);
+            return {
+                popup: data,
+                bounceKey: 0,
+                isSaved: false,
+                lastSaveMessage: null,
+                recentLookups: newRecentLookups,
+            };
+        });
+    },
+
     updatePopup: (data) => {
         set(s => ({
             popup: s.popup ? { ...s.popup, ...data } : null,
         }));
     },
 
-    dismissPopup: () => set({ popup: null, bounceKey: 0, isSaved: false }),
+    dismissPopup: () => set({ popup: null, bounceKey: 0, isSaved: false, lastSaveMessage: null }),
 
     markSaved: () => set({ isSaved: true }),
 
@@ -194,7 +215,13 @@ export const useDictionaryStore = create<DictionaryStore>((set, get) => ({
             });
 
             if (res.ok) {
-                set({ isSaved: true });
+                const data = await res.json();
+                if (data.isDuplicate) {
+                    // Already saved — mark as saved but relay the message
+                    set({ isSaved: true, lastSaveMessage: data.message || 'Already saved!' });
+                } else {
+                    set({ isSaved: true, lastSaveMessage: null });
+                }
             } else {
                 const data = await res.json();
                 console.error('Save failed:', data.error);

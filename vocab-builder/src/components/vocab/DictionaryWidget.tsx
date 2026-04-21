@@ -27,6 +27,7 @@ export function DictionaryWidget() {
         popup,
         bounceKey,
         isSaved,
+        lastSaveMessage,
         dismissPopup,
         savePhrase,
         markSaved,
@@ -36,6 +37,7 @@ export function DictionaryWidget() {
         userId,
         userEmail,
         openPopup,
+        openPopupDirect,
     } = useDictionaryStore();
 
     const [reviewMode, setReviewMode] = useState<ReviewMode>('session');
@@ -100,21 +102,33 @@ export function DictionaryWidget() {
     // Handle save with toast feedback
     const handleSave = async () => {
         await savePhrase();
-        const phrase = useDictionaryStore.getState().popup?.phrase;
-        if (useDictionaryStore.getState().isSaved && phrase) {
-            toast.success(`Saved "${phrase}"!`, {
-                action: {
-                    label: 'View in Bank',
-                    onClick: () => window.location.href = '/vocab',
-                },
-            });
+        const state = useDictionaryStore.getState();
+        const phrase = state.popup?.phrase;
+        if (state.isSaved && phrase) {
+            if (state.lastSaveMessage) {
+                // Already saved (duplicate) — show info toast instead
+                toast.info(state.lastSaveMessage, {
+                    action: {
+                        label: 'View in Bank',
+                        onClick: () => window.location.href = '/vocab',
+                    },
+                });
+            } else {
+                toast.success(`Saved "${phrase}"!`, {
+                    action: {
+                        label: 'View in Bank',
+                        onClick: () => window.location.href = '/vocab',
+                    },
+                });
+            }
         }
     };
 
-    // Handle clicking a review card → open it in the main popup
+    // Handle clicking a review card → open it in the main popup directly (no re-fetch)
     const handleReviewCardClick = (card: DictionaryPopupState) => {
         if (!userId || !userEmail) return;
-        openPopup(card.phrase, card.context || '', userId, userEmail);
+        // Use openPopupDirect to set the popup with full data already in hand
+        openPopupDirect(card);
         useDictionaryStore.setState({ reviewOpen: false });
     };
 
