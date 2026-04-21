@@ -151,6 +151,33 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
     const dragX = useMotionValue(0);
     const dragRotate = useTransform(dragX, [-200, 0, 200], [-8, 0, 8]);
 
+    // Vertical swipe detection for mobile scroll-to-advance
+    const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
+    const sendToBackRef = useRef<() => void>(() => {});
+    const goPreviousRef = useRef<() => void>(() => {});
+    const handleTouchStart = useCallback((e: React.TouchEvent) => {
+        const touch = e.touches[0];
+        touchStartRef.current = { x: touch.clientX, y: touch.clientY, time: Date.now() };
+    }, []);
+    const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+        if (!touchStartRef.current) return;
+        const touch = e.changedTouches[0];
+        const dx = touch.clientX - touchStartRef.current.x;
+        const dy = touch.clientY - touchStartRef.current.y;
+        const dt = Date.now() - touchStartRef.current.time;
+        touchStartRef.current = null;
+        // Only trigger if mostly vertical and fast enough
+        if (Math.abs(dy) > 40 && Math.abs(dy) > Math.abs(dx) * 1.2 && dt < 600) {
+            if (dy < 0) {
+                // Swipe up → next card
+                sendToBackRef.current();
+            } else {
+                // Swipe down → previous card
+                goPreviousRef.current();
+            }
+        }
+    }, []);
+
     // Reset dwell timer when active card changes
     useEffect(() => {
         cardShownAtRef.current = Date.now();
@@ -552,6 +579,10 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
         }, 500);
     };
 
+    // Keep refs updated for vertical swipe handler
+    sendToBackRef.current = sendToBack;
+    goPreviousRef.current = goPrevious;
+
     const goToArticle = () => {
         stopAudio();
         const item = deck[activeIndex];
@@ -691,7 +722,12 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
         <div className="relative">
 
             {/* Card Stack */}
-            <div ref={cardStackRef} className="relative w-full max-w-[800px] mx-auto h-[310px]">
+            <div
+                ref={cardStackRef}
+                className="relative w-full max-w-[800px] mx-auto h-[310px]"
+                onTouchStart={handleTouchStart}
+                onTouchEnd={handleTouchEnd}
+            >
                 {/* Render back to front for proper z-order */}
                 {[...cards].reverse().map(({ item, stackPos }) => {
                     const isTop = stackPos === 0;
@@ -702,9 +738,13 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
                         <motion.div
                             key={item.id}
                             className="absolute inset-x-0 top-0"
+                            drag={isTop && phase === 'idle' ? 'x' : false}
+                            dragConstraints={{ left: 0, right: 0 }}
+                            dragElastic={0.7}
+                            onDragEnd={isTop ? handleDragEnd : undefined}
                             style={
                                 isTop && phase === 'idle'
-                                    ? { x: dragX, rotate: dragRotate, zIndex }
+                                    ? { x: dragX, rotate: dragRotate, zIndex, touchAction: 'pan-y' }
                                     : { zIndex: phase === 'sending-to-back' && isTop ? 0 : zIndex }
                             }
                             initial={
