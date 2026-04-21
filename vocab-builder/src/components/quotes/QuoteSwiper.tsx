@@ -689,32 +689,6 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
 
     return (
         <div className="relative">
-            {/* Topic Filter Bar */}
-            <div className="flex gap-2 overflow-x-auto pb-3 mb-6 mt-2 no-scrollbar scroll-smooth border-b border-neutral-200">
-                {FEED_TOPICS.map(topic => {
-                    const isSelected = selectedTopics.includes(topic.id);
-                    return (
-                        <button
-                            key={topic.id}
-                            onClick={() => {
-                                setSelectedTopics(prev => 
-                                    prev.includes(topic.id) 
-                                        ? [] 
-                                        : [topic.id]
-                                );
-                            }}
-                            className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 border text-[11px] font-bold uppercase tracking-[0.08em] transition-all duration-200 ${
-                                isSelected 
-                                ? 'bg-neutral-900 border-neutral-900 text-white' 
-                                : 'bg-transparent border-neutral-200 text-neutral-500 hover:border-neutral-900 hover:text-neutral-900'
-                            }`}
-                        >
-                            <span className="text-sm">{topic.emoji}</span>
-                            <span>{topic.label}</span>
-                        </button>
-                    )
-                })}
-            </div>
 
             {/* Card Stack */}
             <div ref={cardStackRef} className="relative w-full max-w-[800px] mx-auto h-[310px]">

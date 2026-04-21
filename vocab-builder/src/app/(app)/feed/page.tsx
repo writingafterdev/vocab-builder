@@ -45,7 +45,6 @@ import { Timestamp } from '@/lib/appwrite/firestore';
 import { BentoGrid, BentoCard, getCardSize, getBentoPattern, StackingCards, StackingCardItem } from '@/components/library';
 import { LibraryCard as NewLibraryCard } from '@/components/library';
 import { QuoteSwiper } from '@/components/quotes';
-import { FeedFilter } from '@/components/article/FeedFilter';
 import { ContentFilterWidget, ContentFilterState } from '@/components/vocab/ContentFilterWidget';
 
 type FilterTab = 'all' | 'books' | 'articles' | 'news' | 'unread';
@@ -701,16 +700,6 @@ export default function LibraryPage() {
 
                     {/* Stacking Cards */}
                     <div className="relative mt-12">
-                        <div className="mb-6 max-w-[700px] mx-auto px-4">
-                            <FeedFilter 
-                                activeSource={activeSourceFilter}
-                                activeSection={activeSectionFilter}
-                                activeTopic={activeTopicFilter}
-                                onSourceChange={setActiveSourceFilter}
-                                onSectionChange={setActiveSectionFilter}
-                                onTopicChange={setActiveTopicFilter}
-                            />
-                        </div>
                         
                         {loading ? (
                             <div className="space-y-6 max-w-[700px] mx-auto">
