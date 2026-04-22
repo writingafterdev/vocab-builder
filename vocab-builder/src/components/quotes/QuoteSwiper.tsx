@@ -425,46 +425,40 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
 
         // Phase 2: After animation plays, swap the index
         setTimeout(() => {
-            setDeck(prevDeck => {
-                const newIndex = (activeIndex + 1) % prevDeck.length;
-                const nextCard = prevDeck[newIndex];
+            const nextIndex = (activeIndex + 1) % deck.length;
+            const nextCard = deck[nextIndex];
 
-                // Smart Injection Logic
-                if (nextCard?.type === 'quote') {
-                    totalSwipesRef.current += 1;
-                    
-                    if (
-                        targetQuizSwipesRef.current.has(totalSwipesRef.current) &&
-                        quizQueueRef.current.length > 0
-                    ) {
-                        const quizData = quizQueueRef.current.shift()!;
-                        quizzesInjectedRef.current = true;
+            // Smart Injection Logic
+            if (nextCard?.type === 'quote') {
+                totalSwipesRef.current += 1;
+                
+                if (
+                    targetQuizSwipesRef.current.has(totalSwipesRef.current) &&
+                    quizQueueRef.current.length > 0
+                ) {
+                    const quizData = quizQueueRef.current.shift()!;
+                    quizzesInjectedRef.current = true;
 
-                        const insertPos = newIndex + VISIBLE_CARDS - 1;
-                        const quizItem: DeckItem = {
-                            id: quizData.id || `quiz-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-                            type: 'quiz',
-                            data: quizData,
-                            quizState: {
-                                hasAnswered: false,
-                                result: null,
-                            },
-                        };
+                    const insertPos = nextIndex + VISIBLE_CARDS - 1;
+                    const quizItem: DeckItem = {
+                        id: quizData.id || `quiz-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+                        type: 'quiz',
+                        data: quizData,
+                        quizState: {
+                            hasAnswered: false,
+                            result: null,
+                        },
+                    };
 
-                        const nextDeck = [...prevDeck];
-                        nextDeck.splice(insertPos, 0, quizItem);
-                        setActiveIndex(newIndex);
-                        setPhase('idle');
-                        isAnimating.current = false;
-                        return nextDeck;
-                    }
+                    const nextDeck = [...deck];
+                    nextDeck.splice(insertPos, 0, quizItem);
+                    setDeck(nextDeck);
                 }
+            }
 
-                setActiveIndex(newIndex);
-                setPhase('idle');
-                isAnimating.current = false;
-                return prevDeck;
-            });
+            setActiveIndex(nextIndex);
+            setPhase('idle');
+            isAnimating.current = false;
         }, 500);
     };
 
