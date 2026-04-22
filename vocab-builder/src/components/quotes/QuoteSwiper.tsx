@@ -555,9 +555,9 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
     };
 
 
-    const goToArticle = () => {
+    const goToArticle = (specificItem?: DeckItem) => {
         stopAudio();
-        const item = deck[activeIndex];
+        const item = specificItem || deck[activeIndex];
         if (!item || item.type !== 'quote') return;
         const quote = item.data as Quote;
         if ((quote as any).sourceType === 'generated_session' && (quote as any).sessionId) {
@@ -772,7 +772,10 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
                                     )}
 
                                     {/* Quote Text */}
-                                    <div className="flex-1 flex items-center justify-center p-8 sm:p-10 md:p-14">
+                                    <div 
+                                        className="flex-1 flex items-center justify-center p-8 sm:p-10 md:p-14 cursor-pointer"
+                                        onClick={() => goToArticle(item)}
+                                    >
                                         <div className="w-full text-center">
                                             <TapToSelect
                                                 text={decodeHtmlEntities((item.data as Quote).text)}
