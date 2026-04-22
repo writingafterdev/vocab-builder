@@ -696,7 +696,7 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
             {/* Card Stack */}
             <div
                 ref={cardStackRef}
-                className="relative w-full max-w-[800px] mx-auto h-[360px]"
+                className="relative w-full max-w-[540px] mx-auto h-[360px]"
             >
                 {/* Render back to front for proper z-order */}
                 {[...cards].reverse().map(({ item, stackPos }) => {
