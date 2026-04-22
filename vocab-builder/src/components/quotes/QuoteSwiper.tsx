@@ -148,8 +148,7 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
     useVocabHighlighter(cardStackRef, [activeIndex, deck]);
 
     // Drag tracking for the top card
-    const dragX = useMotionValue(0);
-    const dragRotate = useTransform(dragX, [-200, 0, 200], [-8, 0, 8]);
+    const dragY = useMotionValue(0);
 
     // Reset dwell timer when active card changes
     useEffect(() => {
@@ -418,7 +417,7 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
         }
 
         // Reset drag position
-        animate(dragX, 0, { duration: 0.1 });
+        animate(dragY, 0, { duration: 0.1 });
 
         // Phase 1: Animate the front card to the back position
         setPhase('sending-to-back');
@@ -469,17 +468,17 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
     };
 
     const handleDragEnd = (_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
-        if (Math.abs(info.offset.x) > SWIPE_THRESHOLD || Math.abs(info.velocity.x) > 300) {
-            if (info.offset.x < 0 || info.velocity.x < -300) {
-                // Swipe Left -> Next
+        if (Math.abs(info.offset.y) > SWIPE_THRESHOLD || Math.abs(info.velocity.y) > 300) {
+            if (info.offset.y < 0 || info.velocity.y < -300) {
+                // Swipe Up -> Next
                 sendToBack();
             } else {
-                // Swipe Right -> Previous
-                animate(dragX, 0, { type: 'spring', stiffness: 400, damping: 25 });
+                // Swipe Down -> Previous
+                animate(dragY, 0, { type: 'spring', stiffness: 400, damping: 25 });
                 goPrevious();
             }
         } else {
-            animate(dragX, 0, { type: 'spring', stiffness: 400, damping: 25 });
+            animate(dragY, 0, { type: 'spring', stiffness: 400, damping: 25 });
         }
     };
 
@@ -558,6 +557,7 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
             isAnimating.current = false;
         }, 500);
     };
+
 
     const goToArticle = () => {
         stopAudio();
@@ -712,24 +712,24 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
                         <motion.div
                             key={item.id}
                             className="absolute inset-x-0 top-0"
-                            drag={isTop && phase === 'idle' ? 'x' : false}
-                            dragConstraints={{ left: 0, right: 0 }}
+                            drag={isTop && phase === 'idle' ? 'y' : false}
+                            dragConstraints={{ top: 0, bottom: 0 }}
                             dragElastic={0.7}
                             onDragEnd={isTop ? handleDragEnd : undefined}
                             style={
                                 isTop && phase === 'idle'
-                                    ? { x: dragX, rotate: dragRotate, zIndex, touchAction: 'pan-y' }
+                                    ? { y: dragY, zIndex, touchAction: 'pan-x' }
                                     : { zIndex: phase === 'sending-to-back' && isTop ? 0 : zIndex }
                             }
                             initial={
                                 phase === 'bringing-to-front' && isTop
-                                    ? { ...POSITIONS.hidden, x: POSITIONS.hidden.x, rotate: POSITIONS.hidden.rotate }
+                                    ? { ...POSITIONS.hidden, y: POSITIONS.hidden.y }
                                     : false
                             }
                             animate={{
-                                y: target.y,
-                                x: isTop && phase === 'idle' ? 0 : target.x,
-                                rotate: isTop && phase === 'idle' ? 0 : target.rotate,
+                                x: target.x,
+                                y: isTop && phase === 'idle' ? 0 : target.y,
+                                rotate: target.rotate,
                                 scale: target.scale,
                                 opacity: target.opacity,
                             }}
