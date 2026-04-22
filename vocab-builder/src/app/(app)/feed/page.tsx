@@ -375,10 +375,10 @@ export default function LibraryPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [activeFilter, setActiveFilter] = useState<FilterTab>('all');
     
-    // 3-Layer Filter States
     const [activeSourceFilter, setActiveSourceFilter] = useState<string | null>(null);
     const [activeSectionFilter, setActiveSectionFilter] = useState<string | null>(null);
     const [activeTopicFilter, setActiveTopicFilter] = useState<string | null>(null);
+    const [activeTab, setActiveTab] = useState<'quotes' | 'articles'>('quotes');
     
     // Quote topic filter (driven by ContentFilterWidget)
     const [quoteTopics, setQuoteTopics] = useState<string[]>([]);
@@ -667,93 +667,86 @@ export default function LibraryPage() {
             {/* Content Filter Widget (floating left button) */}
             <ContentFilterWidget
                 filters={{
+                    activeTab,
                     quoteTopics,
                     articleSource: activeSourceFilter,
                     articleSection: activeSectionFilter,
                     articleTopic: activeTopicFilter,
                 }}
+                onActiveTabChange={setActiveTab}
                 onQuoteTopicsChange={setQuoteTopics}
                 onArticleSourceChange={setActiveSourceFilter}
                 onArticleSectionChange={setActiveSectionFilter}
                 onArticleTopicChange={setActiveTopicFilter}
             />
 
-            {/* Main Content - Full Page Scroll Experience */}
+            {/* Main Content - Full Page Experience */}
             <div className="flex-1 min-w-0">
-                {/* Section 1: Quote Swiper */}
-                <section className="min-h-[calc(100vh-4rem)] flex flex-col justify-center items-center relative">
-
-                    {/* Quote Swiper - Centered */}
-                    <div className="w-full max-w-4xl px-8 flex-1 flex flex-col justify-center -mt-8">
-                        {user?.$id && <QuoteSwiper userId={user.$id} preGeneratedQuestions={preGeneratedQuestions} externalTopics={quoteTopics.length > 0 ? quoteTopics : undefined} onTopicsChange={setQuoteTopics} />}
-                    </div>
-
-                    {/* Scroll hint */}
-                    <div className="absolute bottom-4 flex flex-col items-center gap-1 text-neutral-300 animate-bounce">
-                        <span className="text-[10px] uppercase tracking-[0.2em] font-medium">Articles</span>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
-                    </div>
-                </section>
-
-                {/* Section 2: Articles - Stacking Cards */}
-                <section className="relative pb-32">
-
-                    {/* Stacking Cards */}
-                    <div className="relative mt-12">
-                        
-                        {loading ? (
-                            <div className="space-y-6 max-w-[700px] mx-auto">
-                                <LibraryCardSkeleton />
-                                <LibraryCardSkeleton />
-                                <LibraryCardSkeleton />
-                            </div>
-                        ) : filteredPosts.length === 0 ? (
-                            <div className="text-center py-24">
-                                <BookOpen className="h-16 w-16 text-neutral-200 mx-auto mb-6" />
-                                <h3 className="text-xl font-medium text-neutral-800 mb-2">No materials yet</h3>
-                                <p className="text-neutral-500 mb-6">Import articles or books to build your library.</p>
-                                <Button
-                                    onClick={() => setShowImportModal(true)}
-                                    variant="outline"
-                                    className="gap-2"
-                                >
-                                    <Plus className="h-4 w-4" />
-                                    Import Material
-                                </Button>
-                            </div>
-                        ) : (
-                            <StackingCards totalCards={filteredPosts.length}>
-                                {/* Library cards */}
-                                {filteredPosts.map((post) => (
-                                    <StackingCardItem key={post.id} topOffset={120}>
-                                        <div className="mb-4">
-                                            <NewLibraryCard
-                                                post={post}
-                                                size="featured"
-                                                userLists={userLists}
-                                                onAddToList={handleAddToList}
-                                            />
+                {activeTab === 'quotes' ? (
+                    <section className="min-h-[calc(100vh-4rem)] flex flex-col justify-center items-center relative">
+                        {/* Quote Swiper - Centered */}
+                        <div className="w-full max-w-4xl px-8 flex-1 flex flex-col justify-center -mt-8">
+                            {user?.$id && <QuoteSwiper userId={user.$id} preGeneratedQuestions={preGeneratedQuestions} externalTopics={quoteTopics.length > 0 ? quoteTopics : undefined} onTopicsChange={setQuoteTopics} />}
+                        </div>
+                    </section>
+                ) : (
+                    <section className="relative pb-32 min-h-[calc(100vh-4rem)] pt-8">
+                        {/* Stacking Cards for Articles */}
+                        <div className="relative w-full max-w-4xl px-4 md:px-8 mx-auto">
+                            {loading ? (
+                                <div className="space-y-6 w-full max-w-[800px] mx-auto">
+                                    <LibraryCardSkeleton />
+                                    <LibraryCardSkeleton />
+                                    <LibraryCardSkeleton />
+                                </div>
+                            ) : filteredPosts.length === 0 ? (
+                                <div className="text-center py-24">
+                                    <BookOpen className="h-16 w-16 text-neutral-200 mx-auto mb-6" />
+                                    <h3 className="text-xl font-medium text-neutral-800 mb-2">No materials yet</h3>
+                                    <p className="text-neutral-500 mb-6">Import articles or books to build your library.</p>
+                                    <Button
+                                        onClick={() => setShowImportModal(true)}
+                                        variant="outline"
+                                        className="gap-2"
+                                    >
+                                        <Plus className="h-4 w-4" />
+                                        Import Material
+                                    </Button>
+                                </div>
+                            ) : (
+                                <StackingCards totalCards={filteredPosts.length}>
+                                    {/* Library cards */}
+                                    {filteredPosts.map((post) => (
+                                        <StackingCardItem key={post.id} topOffset={120}>
+                                            <div className="mb-4">
+                                                <NewLibraryCard
+                                                    post={post}
+                                                    size="featured"
+                                                    userLists={userLists}
+                                                    onAddToList={handleAddToList}
+                                                />
+                                            </div>
+                                        </StackingCardItem>
+                                    ))}
+                                </StackingCards>
+                            )}
+                            
+                            {/* Infinite Scroll trigger */}
+                            {posts.length > 0 && hasMore && (
+                                <div ref={observerTarget} className="w-full py-16 flex justify-center mt-8">
+                                    {loadingMore ? (
+                                        <div className="flex flex-col items-center gap-3">
+                                            <div className="w-6 h-6 border-2 border-neutral-300 border-t-neutral-800 rounded-full animate-spin" />
+                                            <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Loading...</span>
                                         </div>
-                                    </StackingCardItem>
-                                ))}
-                            </StackingCards>
-                        )}
-                        
-                        {/* Infinite Scroll trigger */}
-                        {posts.length > 0 && hasMore && (
-                            <div ref={observerTarget} className="w-full py-16 flex justify-center mt-8">
-                                {loadingMore ? (
-                                    <div className="flex flex-col items-center gap-3">
-                                        <div className="w-6 h-6 border-2 border-neutral-300 border-t-neutral-800 rounded-full animate-spin" />
-                                        <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Loading...</span>
-                                    </div>
-                                ) : (
-                                    <div className="h-6" />
-                                )}
-                            </div>
-                        )}
-                    </div>
-                </section>
+                                    ) : (
+                                        <div className="h-6" />
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </section>
+                )}
             </div>
 
             {/* Import Modal */}

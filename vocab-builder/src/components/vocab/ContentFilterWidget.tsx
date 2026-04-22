@@ -20,8 +20,8 @@ const TOPICS = [
     { id: 'art',        label: 'Art',        emoji: '🎨' },
 ] as const;
 
-// ── Props ──
 export interface ContentFilterState {
+    activeTab?: 'quotes' | 'articles';
     // Quotes
     quoteTopics: string[];
     // Articles
@@ -32,6 +32,7 @@ export interface ContentFilterState {
 
 interface ContentFilterWidgetProps {
     filters: ContentFilterState;
+    onActiveTabChange?: (tab: 'quotes' | 'articles') => void;
     onQuoteTopicsChange: (topics: string[]) => void;
     onArticleSourceChange: (sourceId: string | null) => void;
     onArticleSectionChange: (sectionId: string | null) => void;
@@ -57,14 +58,13 @@ const refineChipClass = (active: boolean) =>
 
 export function ContentFilterWidget({
     filters,
+    onActiveTabChange,
     onQuoteTopicsChange,
     onArticleSourceChange,
     onArticleSectionChange,
     onArticleTopicChange,
 }: ContentFilterWidgetProps) {
     const [open, setOpen] = useState(false);
-    const [quotesExpanded, setQuotesExpanded] = useState(true);
-    const [articlesExpanded, setArticlesExpanded] = useState(true);
 
     const selectedSourceDef = filters.articleSource
         ? SOURCE_CATALOG.find(s => s.id === filters.articleSource)
@@ -138,33 +138,50 @@ export function ContentFilterWidget({
                             </div>
                         </div>
 
-                        {/* Scrollable body */}
-                        <div className="overflow-y-auto flex-1 divide-y divide-[var(--border)]">
-                            {/* ── Section 1: Quotes Filter ── */}
-                            <div className="px-4 py-3">
-                                <button
-                                    onClick={() => setQuotesExpanded(!quotesExpanded)}
-                                    className="flex items-center justify-between w-full mb-2"
-                                >
-                                    <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-neutral-400">
-                                        Quotes
-                                        {filters.quoteTopics.length > 0 && (
-                                            <span className="ml-1.5 text-neutral-900">({filters.quoteTopics.length})</span>
-                                        )}
-                                    </span>
-                                    <ChevronDown className={cn('w-3.5 h-3.5 text-neutral-400 transition-transform duration-200', quotesExpanded && 'rotate-180')} />
-                                </button>
+                        {/* Tabs */}
+                        <div className="flex border-b border-[var(--border)]">
+                            <button
+                                onClick={() => onActiveTabChange?.('quotes')}
+                                className={cn(
+                                    "flex-1 py-3 text-[11px] font-bold uppercase tracking-wider transition-all duration-200",
+                                    filters.activeTab === 'quotes' 
+                                        ? "text-neutral-900 border-b-2 border-neutral-900 bg-neutral-50" 
+                                        : "text-neutral-400 hover:text-neutral-600 hover:bg-neutral-50/50 border-b-2 border-transparent"
+                                )}
+                            >
+                                Quotes
+                            </button>
+                            <button
+                                onClick={() => onActiveTabChange?.('articles')}
+                                className={cn(
+                                    "flex-1 py-3 text-[11px] font-bold uppercase tracking-wider transition-all duration-200",
+                                    filters.activeTab === 'articles' 
+                                        ? "text-neutral-900 border-b-2 border-neutral-900 bg-neutral-50" 
+                                        : "text-neutral-400 hover:text-neutral-600 hover:bg-neutral-50/50 border-b-2 border-transparent"
+                                )}
+                            >
+                                Articles
+                            </button>
+                        </div>
 
-                                <AnimatePresence initial={false}>
-                                    {quotesExpanded && (
-                                        <motion.div
-                                            initial={{ height: 0, opacity: 0 }}
-                                            animate={{ height: 'auto', opacity: 1 }}
-                                            exit={{ height: 0, opacity: 0 }}
-                                            transition={{ duration: 0.2 }}
-                                            className="overflow-hidden"
-                                        >
-                                            <div className="flex flex-wrap gap-1.5 pt-1">
+                        {/* Scrollable body */}
+                        <div className="overflow-y-auto flex-1 p-4">
+                            <AnimatePresence mode="wait">
+                                {filters.activeTab === 'quotes' ? (
+                                    <motion.div
+                                        key="quotes-filters"
+                                        initial={{ opacity: 0, x: -10 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        exit={{ opacity: 0, x: -10 }}
+                                        transition={{ duration: 0.2 }}
+                                        className="space-y-4"
+                                    >
+                                        <div>
+                                            <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-neutral-400 mb-3 block">
+                                                Quote Topics
+                                                {filters.quoteTopics.length > 0 && <span className="ml-1.5 text-neutral-900">({filters.quoteTopics.length})</span>}
+                                            </span>
+                                            <div className="flex flex-wrap gap-2">
                                                 {TOPICS.map(topic => {
                                                     const isActive = filters.quoteTopics.includes(topic.id);
                                                     return (
@@ -178,124 +195,103 @@ export function ContentFilterWidget({
                                                             }}
                                                             className={chipClass(isActive)}
                                                         >
-                                                            <span className="text-xs">{topic.emoji}</span>
+                                                            <span className="text-sm">{topic.emoji}</span>
                                                             <span>{topic.label}</span>
                                                         </button>
                                                     );
                                                 })}
                                             </div>
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
-                            </div>
+                                        </div>
+                                    </motion.div>
+                                ) : (
+                                    <motion.div
+                                        key="articles-filters"
+                                        initial={{ opacity: 0, x: 10 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        exit={{ opacity: 0, x: 10 }}
+                                        transition={{ duration: 0.2 }}
+                                        className="space-y-6"
+                                    >
+                                        {/* Layer 1: Sources */}
+                                        <div>
+                                            <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-neutral-400 mb-3 block">Source</span>
+                                            <div className="flex flex-wrap gap-2">
+                                                <button
+                                                    onClick={() => { onArticleSourceChange(null); onArticleSectionChange(null); }}
+                                                    className={chipClass(!filters.articleSource)}
+                                                >
+                                                    <span className="text-sm">🌐</span>
+                                                    <span>All</span>
+                                                </button>
+                                                {SOURCE_CATALOG.map(source => {
+                                                    const isActive = filters.articleSource === source.id;
+                                                    return (
+                                                        <button
+                                                            key={source.id}
+                                                            onClick={() => { onArticleSourceChange(source.id); onArticleSectionChange(null); }}
+                                                            className={chipClass(isActive)}
+                                                            style={isActive && source.themeParams ? {
+                                                                backgroundColor: source.themeParams.accentColor,
+                                                                borderColor: source.themeParams.accentColor,
+                                                                color: '#fff',
+                                                            } : {}}
+                                                        >
+                                                            <span className="text-sm">{source.icon}</span>
+                                                            <span>{source.label}</span>
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
 
-                            {/* ── Section 2: Articles Filter ── */}
-                            <div className="px-4 py-3">
-                                <button
-                                    onClick={() => setArticlesExpanded(!articlesExpanded)}
-                                    className="flex items-center justify-between w-full mb-2"
-                                >
-                                    <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-neutral-400">
-                                        Articles
-                                        {(filters.articleSource || filters.articleTopic) && (
-                                            <span className="ml-1.5 text-neutral-900">
-                                                ({[filters.articleSource, filters.articleSection, filters.articleTopic].filter(Boolean).length})
-                                            </span>
-                                        )}
-                                    </span>
-                                    <ChevronDown className={cn('w-3.5 h-3.5 text-neutral-400 transition-transform duration-200', articlesExpanded && 'rotate-180')} />
-                                </button>
-
-                                <AnimatePresence initial={false}>
-                                    {articlesExpanded && (
-                                        <motion.div
-                                            initial={{ height: 0, opacity: 0 }}
-                                            animate={{ height: 'auto', opacity: 1 }}
-                                            exit={{ height: 0, opacity: 0 }}
-                                            transition={{ duration: 0.2 }}
-                                            className="overflow-hidden"
-                                        >
-                                            {/* Layer 1: Sources */}
-                                            <div className="pt-1">
-                                                <span className="text-[9px] font-bold uppercase tracking-[0.12em] text-neutral-300 mb-1.5 block">Source</span>
+                                        {/* Layer 2: Sections (only if source has them) */}
+                                        {selectedSourceDef?.hasSections && selectedSourceDef.sections && (
+                                            <div>
+                                                <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-neutral-400 mb-2 block">Section</span>
                                                 <div className="flex flex-wrap gap-1.5">
                                                     <button
-                                                        onClick={() => { onArticleSourceChange(null); onArticleSectionChange(null); }}
-                                                        className={chipClass(!filters.articleSource)}
+                                                        onClick={() => onArticleSectionChange(null)}
+                                                        className={refineChipClass(!filters.articleSection)}
                                                     >
-                                                        <span className="text-xs">🌐</span>
-                                                        <span>All</span>
+                                                        All
                                                     </button>
-                                                    {SOURCE_CATALOG.map(source => {
-                                                        const isActive = filters.articleSource === source.id;
-                                                        return (
-                                                            <button
-                                                                key={source.id}
-                                                                onClick={() => { onArticleSourceChange(source.id); onArticleSectionChange(null); }}
-                                                                className={chipClass(isActive)}
-                                                                style={isActive && source.themeParams ? {
-                                                                    backgroundColor: source.themeParams.accentColor,
-                                                                    borderColor: source.themeParams.accentColor,
-                                                                    color: '#fff',
-                                                                } : {}}
-                                                            >
-                                                                <span className="text-xs">{source.icon}</span>
-                                                                <span>{source.label}</span>
-                                                            </button>
-                                                        );
-                                                    })}
-                                                </div>
-                                            </div>
-
-                                            {/* Layer 2: Sections (only if source has them) */}
-                                            {selectedSourceDef?.hasSections && selectedSourceDef.sections && (
-                                                <div className="pt-3">
-                                                    <span className="text-[9px] font-bold uppercase tracking-[0.12em] text-neutral-300 mb-1.5 block">Section</span>
-                                                    <div className="flex flex-wrap gap-1">
+                                                    {selectedSourceDef.sections.map(sec => (
                                                         <button
-                                                            onClick={() => onArticleSectionChange(null)}
-                                                            className={refineChipClass(!filters.articleSection)}
+                                                            key={sec.id}
+                                                            onClick={() => onArticleSectionChange(sec.id)}
+                                                            className={refineChipClass(filters.articleSection === sec.id)}
                                                         >
-                                                            All
-                                                        </button>
-                                                        {selectedSourceDef.sections.map(sec => (
-                                                            <button
-                                                                key={sec.id}
-                                                                onClick={() => onArticleSectionChange(sec.id)}
-                                                                className={refineChipClass(filters.articleSection === sec.id)}
-                                                            >
-                                                                {sec.label}
-                                                            </button>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {/* Layer 3: Topics */}
-                                            <div className="pt-3">
-                                                <span className="text-[9px] font-bold uppercase tracking-[0.12em] text-neutral-300 mb-1.5 block">Topic</span>
-                                                <div className="flex flex-wrap gap-1">
-                                                    <button
-                                                        onClick={() => onArticleTopicChange(null)}
-                                                        className={refineChipClass(!filters.articleTopic)}
-                                                    >
-                                                        <span className="text-xs">✨</span> All
-                                                    </button>
-                                                    {TOPICS.map(topic => (
-                                                        <button
-                                                            key={topic.id}
-                                                            onClick={() => onArticleTopicChange(topic.id)}
-                                                            className={refineChipClass(filters.articleTopic === topic.id)}
-                                                        >
-                                                            <span className="text-xs">{topic.emoji}</span> {topic.label}
+                                                            {sec.label}
                                                         </button>
                                                     ))}
                                                 </div>
                                             </div>
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
-                            </div>
+                                        )}
+
+                                        {/* Layer 3: Topics */}
+                                        <div>
+                                            <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-neutral-400 mb-2 block">Article Topic</span>
+                                            <div className="flex flex-wrap gap-1.5">
+                                                <button
+                                                    onClick={() => onArticleTopicChange(null)}
+                                                    className={refineChipClass(!filters.articleTopic)}
+                                                >
+                                                    <span className="text-sm">✨</span> All
+                                                </button>
+                                                {TOPICS.map(topic => (
+                                                    <button
+                                                        key={topic.id}
+                                                        onClick={() => onArticleTopicChange(topic.id)}
+                                                        className={refineChipClass(filters.articleTopic === topic.id)}
+                                                    >
+                                                        <span className="text-sm">{topic.emoji}</span> {topic.label}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                         </div>
                     </motion.div>
                 )}
