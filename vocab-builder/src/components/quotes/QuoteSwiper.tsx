@@ -700,7 +700,7 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
             {/* Card Stack */}
             <div
                 ref={cardStackRef}
-                className="relative w-full max-w-[800px] mx-auto h-[440px]"
+                className="relative w-full max-w-[800px] mx-auto h-[360px]"
             >
                 {/* Render back to front for proper z-order */}
                 {[...cards].reverse().map(({ item, stackPos }) => {
@@ -758,7 +758,7 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
                             ) : (
                                 /* Regular Quote Card */
                                 <div
-                                    className="w-full h-[400px] bg-white border border-neutral-200 flex flex-col justify-center transition-shadow duration-300 relative"
+                                    className="w-full h-[320px] bg-white border border-neutral-200 flex flex-col justify-center transition-shadow duration-300 relative"
                                     style={{
                                         boxShadow: isTop
                                             ? '0 8px 30px -5px rgba(0,0,0,0.12)'
