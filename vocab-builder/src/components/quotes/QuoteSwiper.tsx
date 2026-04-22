@@ -700,7 +700,7 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
             {/* Card Stack */}
             <div
                 ref={cardStackRef}
-                className="relative w-full max-w-[800px] mx-auto h-[310px]"
+                className="relative w-full max-w-[800px] mx-auto h-[440px]"
             >
                 {/* Render back to front for proper z-order */}
                 {[...cards].reverse().map(({ item, stackPos }) => {
@@ -758,7 +758,7 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
                             ) : (
                                 /* Regular Quote Card */
                                 <div
-                                    className="w-full h-[280px] bg-white border border-neutral-200 flex flex-col overflow-hidden transition-shadow duration-300"
+                                    className="w-full h-[400px] bg-white border border-neutral-200 flex flex-col justify-center transition-shadow duration-300 relative"
                                     style={{
                                         boxShadow: isTop
                                             ? '0 8px 30px -5px rgba(0,0,0,0.12)'
@@ -767,56 +767,35 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
                                 >
                                     {/* Generated session badge */}
                                     {(item.data as any).sourceType === 'generated_session' && (
-                                        <div className="absolute top-3 left-3 z-10">
-                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-neutral-700 bg-neutral-100 border border-neutral-200 rounded-sm">
+                                        <div className="absolute top-4 left-4 z-10">
+                                            <span className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-neutral-700 bg-neutral-100 border border-neutral-200 rounded-sm">
                                                 ✦ Practice Article
                                             </span>
                                         </div>
                                     )}
 
                                     {/* Quote Text */}
-                                    <div className="flex-1 flex items-center px-10 md:px-14 py-8 overflow-y-auto no-scrollbar">
-                                        <TapToSelect
-                                            text={decodeHtmlEntities((item.data as Quote).text)}
-                                            className={cn(
-                                                "text-neutral-900 tracking-tight",
-                                                (item.data as Quote).text?.length > 250
-                                                    ? "text-base md:text-lg md:leading-[1.6]"
-                                                    : (item.data as Quote).text?.length > 150
-                                                        ? "text-lg md:text-xl md:leading-[1.6]"
-                                                        : "text-xl md:text-[24px] md:leading-[1.6]"
-                                            )}
-                                            style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
-                                            onLookup={handleTapLookup}
-                                            highlightedPhrases={isTop && reviewOpen ? reviewCards.map(c => c.phrase) : []}
-                                            onHighlightClick={handleHighlightClick}
-                                            disabled={!isTop}
-                                        />
-                                    </div>
-
-                                    {/* Bottom bar */}
-                                    <div className="flex items-center justify-between px-10 md:px-14 py-4 border-t border-neutral-100">
-                                        <div className="flex flex-col min-w-0 flex-1 mr-4">
-                                            <span className="text-xs font-medium text-neutral-900 truncate">
-                                                {(item.data as Quote).author || 'Unknown'}
-                                            </span>
-                                            <span className="text-[11px] text-neutral-400 truncate">
-                                                {(item.data as Quote).postTitle || 'Untitled'}
-                                            </span>
+                                    <div className="flex-1 flex items-center justify-center p-8 sm:p-10 md:p-14">
+                                        <div className="w-full text-center">
+                                            <TapToSelect
+                                                text={decodeHtmlEntities((item.data as Quote).text)}
+                                                className={cn(
+                                                    "text-neutral-900 tracking-tight mx-auto inline-block",
+                                                    (item.data as Quote).text?.length > 400
+                                                        ? "text-sm md:text-base md:leading-[1.6]"
+                                                        : (item.data as Quote).text?.length > 250
+                                                            ? "text-base md:text-lg md:leading-[1.6]"
+                                                            : (item.data as Quote).text?.length > 150
+                                                                ? "text-lg md:text-xl md:leading-[1.6]"
+                                                                : "text-2xl md:text-[28px] md:leading-[1.5]"
+                                                )}
+                                                style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
+                                                onLookup={handleTapLookup}
+                                                highlightedPhrases={isTop && reviewOpen ? reviewCards.map(c => c.phrase) : []}
+                                                onHighlightClick={handleHighlightClick}
+                                                disabled={!isTop}
+                                            />
                                         </div>
-                                        <button
-                                            onClick={(e) => { e.stopPropagation(); goToArticle(); }}
-                                            className={cn(
-                                                "text-[11px] font-semibold uppercase tracking-[0.15em] whitespace-nowrap flex-shrink-0 transition-all duration-300",
-                                                isTop
-                                                    ? (item.data as any).sourceType === 'generated_session'
-                                                        ? "text-neutral-400 hover:text-neutral-900 translate-y-0 opacity-100"
-                                                        : "text-neutral-400 hover:text-neutral-900 translate-y-0 opacity-100"
-                                                    : "text-transparent pointer-events-none translate-y-1 opacity-0"
-                                            )}
-                                        >
-                                            {(item.data as any).sourceType === 'generated_session' ? 'Read Article →' : 'Read Source →'}
-                                        </button>
                                     </div>
                                 </div>
                             )}
