@@ -857,6 +857,15 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
                                         </div>
                                     )}
 
+                                    {/* Article excerpt badge */}
+                                    {(item.data as any).sourceType === 'article' && (
+                                        <div className="absolute top-4 left-4 z-10">
+                                            <span className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-sm">
+                                                ✦ Article Excerpt
+                                            </span>
+                                        </div>
+                                    )}
+
                                     {/* Quote Text */}
                                     <div 
                                         className={cn(
@@ -871,12 +880,12 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
                                                 className={cn(
                                                     "text-neutral-900 tracking-tight mx-auto inline-block",
                                                     (item.data as Quote).text?.length > 400
-                                                        ? "text-sm md:text-base md:leading-[1.6]"
+                                                        ? "text-base md:text-xl md:leading-[1.6]"
                                                         : (item.data as Quote).text?.length > 250
-                                                            ? "text-base md:text-lg md:leading-[1.6]"
+                                                            ? "text-lg md:text-2xl md:leading-[1.6]"
                                                             : (item.data as Quote).text?.length > 150
-                                                                ? "text-lg md:text-xl md:leading-[1.6]"
-                                                                : "text-2xl md:text-[28px] md:leading-[1.5]"
+                                                                ? "text-xl md:text-3xl md:leading-[1.5]"
+                                                                : "text-2xl md:text-4xl md:leading-[1.4]"
                                                 )}
                                                 style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
                                                 onLookup={handleTapLookup}
