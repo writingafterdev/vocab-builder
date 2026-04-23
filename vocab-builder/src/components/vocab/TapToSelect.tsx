@@ -20,6 +20,8 @@ interface TapToSelectProps {
     highlightedPhrases?: string[];
     /** Called when a highlighted phrase <mark> is clicked */
     onHighlightClick?: (phrase: string, context: string) => void;
+    /** Optional custom CSS class for highlighted phrases */
+    highlightClassName?: string;
 }
 
 /**
@@ -36,6 +38,7 @@ export function TapToSelect({
     disabled = false,
     highlightedPhrases = [],
     onHighlightClick,
+    highlightClassName,
 }: TapToSelectProps) {
     // Selected word indices (contiguous range)
     const [selStart, setSelStart] = useState<number | null>(null);
@@ -234,7 +237,9 @@ export function TapToSelect({
                                 ${isSelected
                                     ? 'text-[var(--foreground)] underline decoration-2 underline-offset-[3px] decoration-[var(--foreground)]'
                                     : isHighlighted
-                                        ? `text-inherit border-b border-[var(--border)] ${disabled ? '' : 'cursor-pointer'}`
+                                        ? highlightClassName 
+                                            ? `${highlightClassName} ${disabled ? '' : 'cursor-pointer'}`
+                                            : `text-inherit border-b border-[var(--border)] ${disabled ? '' : 'cursor-pointer'}`
                                         : disabled ? '' : 'hover:text-[var(--muted-foreground)]'
                                 }
                             `}

@@ -43,7 +43,7 @@ export type VocabularyDataMap = Record<string, PrebuiltVocabItem>;
 
 import { fetchWithKeyRotation } from './api-key-rotation';
 
-const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.0-flash-preview:generateContent';
+const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.0-flash:generateContent';
 
 /**
  * Extract all unique words from article text

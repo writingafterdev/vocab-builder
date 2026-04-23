@@ -34,6 +34,7 @@ export interface QuoteBankEntry {
     sessionId?: string;
     userId?: string;
     createdAt: string;
+    vocabularyData?: any; // Pre-generated metadata
 }
 
 export interface QuoteFeedState {
@@ -106,6 +107,7 @@ export async function getAllQuotes(): Promise<QuoteBankEntry[]> {
         sourceType: (doc.sourceType as 'article' | 'generated_session' | 'generated_fact') || 'article',
         sessionId: doc.sessionId as string | undefined,
         createdAt: doc.createdAt as string,
+        vocabularyData: doc.vocabularyData,
     }));
 }
 
@@ -239,7 +241,8 @@ const FEED_SIZE = 40;
 export async function getPersonalizedFeed(
     userId: string, 
     savedPhrases: string[] = [], 
-    explicitTopics?: string[]
+    explicitTopics?: string[],
+    deckId?: string | null
 ): Promise<{
     quotes: QuoteBankEntry[];
     needsOnboarding: boolean;
@@ -259,6 +262,11 @@ export async function getPersonalizedFeed(
     let candidates = allQuotes.filter(q => {
         if (!q.id || viewedSet.has(q.id)) return false;
         
+        // If deckId is passed, ONLY return quotes generated for that deck
+        if (deckId) {
+            return q.tags?.includes(`deck:${deckId}`);
+        }
+
         // If explicit UI topics are passed (e.g., user clicked "History" pill), ONLY return History.
         if (explicitTopics && explicitTopics.length > 0) {
             return explicitTopics.includes(q.topic);
@@ -268,7 +276,18 @@ export async function getPersonalizedFeed(
 
     // If too few unviewed, allow oldest-viewed to resurface
     if (candidates.length < FEED_SIZE) {
-        const viewedQuotes = allQuotes.filter(q => q.id && viewedSet.has(q.id));
+        const viewedQuotes = allQuotes.filter(q => {
+            if (!q.id || !viewedSet.has(q.id)) return false;
+            
+            if (deckId) {
+                return q.tags?.includes(`deck:${deckId}`);
+            }
+
+            if (explicitTopics && explicitTopics.length > 0) {
+                return explicitTopics.includes(q.topic);
+            }
+            return true;
+        });
         // Add oldest-viewed first (they're at the beginning of the FIFO array)
         candidates = [...candidates, ...viewedQuotes];
     }

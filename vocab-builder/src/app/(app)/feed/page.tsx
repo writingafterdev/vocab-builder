@@ -20,6 +20,7 @@ import {
     Link as LinkIcon,
     FileText,
     Sparkles,
+    Layers,
 } from 'lucide-react';
 import {
     DropdownMenu,
@@ -378,7 +379,8 @@ export default function LibraryPage() {
     const [activeSourceFilter, setActiveSourceFilter] = useState<string | null>(null);
     const [activeSectionFilter, setActiveSectionFilter] = useState<string | null>(null);
     const [activeTopicFilter, setActiveTopicFilter] = useState<string | null>(null);
-    const [activeTab, setActiveTab] = useState<'quotes' | 'articles'>('quotes');
+    const [activeTab, setActiveTab] = useState<'quotes' | 'articles' | 'decks'>('quotes');
+    const [activeDeckId, setActiveDeckId] = useState<string | null>(null);
     
     // Quote topic filter (driven by ContentFilterWidget)
     const [quoteTopics, setQuoteTopics] = useState<string[]>([]);
@@ -666,6 +668,7 @@ export default function LibraryPage() {
         <div className="flex gap-6 max-w-[1400px] mx-auto font-[Inter,sans-serif]">
             {/* Content Filter Widget (floating left button) */}
             <ContentFilterWidget
+                userId={user?.$id}
                 filters={{
                     activeTab,
                     quoteTopics,
@@ -678,15 +681,35 @@ export default function LibraryPage() {
                 onArticleSourceChange={setActiveSourceFilter}
                 onArticleSectionChange={setActiveSectionFilter}
                 onArticleTopicChange={setActiveTopicFilter}
+                activeDeckId={activeDeckId}
+                onDeckSelect={(deckId) => {
+                    setActiveDeckId(deckId);
+                    setActiveTab('decks'); // Ensure we switch to decks mode
+                }}
             />
 
             {/* Main Content - Full Page Experience */}
             <div className="flex-1 min-w-0">
-                {activeTab === 'quotes' ? (
+                {activeTab === 'quotes' || activeTab === 'decks' ? (
                     <section className="min-h-[calc(100vh-4rem)] flex flex-col justify-center items-center relative">
                         {/* Quote Swiper - Centered */}
                         <div className="w-full max-w-4xl px-8 flex-1 flex flex-col justify-center -mt-8">
-                            {user?.$id && <QuoteSwiper userId={user.$id} preGeneratedQuestions={preGeneratedQuestions} externalTopics={quoteTopics.length > 0 ? quoteTopics : undefined} onTopicsChange={setQuoteTopics} />}
+                            {user?.$id && activeTab === 'decks' && !activeDeckId ? (
+                                <div className="text-center text-neutral-400 flex flex-col items-center gap-4">
+                                    <div className="w-16 h-16 rounded-full bg-neutral-100 flex items-center justify-center">
+                                        <Layers className="w-8 h-8 text-neutral-300" />
+                                    </div>
+                                    <p className="text-lg">Select a deck from the menu to start practicing.</p>
+                                </div>
+                            ) : user?.$id ? (
+                                <QuoteSwiper 
+                                    userId={user.$id} 
+                                    preGeneratedQuestions={preGeneratedQuestions} 
+                                    externalTopics={activeTab === 'quotes' && quoteTopics.length > 0 ? quoteTopics : undefined} 
+                                    deckId={activeTab === 'decks' ? activeDeckId : undefined}
+                                    onTopicsChange={activeTab === 'quotes' ? setQuoteTopics : undefined} 
+                                />
+                            ) : null}
                         </div>
                     </section>
                 ) : (

@@ -396,6 +396,44 @@ const SCHEMAS = {
         { key: 'subtopic', type: 'string', size: 500 },
         { key: 'lookedUpAt', type: 'string', size: 100 },
     ],
+
+    // ─── Curated Vocabulary Decks ────────────────────────────────────────
+
+    decks: [
+        { key: 'name', type: 'string', size: 255, required: true },
+        { key: 'type', type: 'string', size: 50, required: true },  // 'linguistic' | 'thematic'
+        { key: 'description', type: 'string', size: 1000 },
+        { key: 'icon', type: 'string', size: 50 },
+        { key: 'color', type: 'string', size: 50 },
+        { key: 'phraseCount', type: 'integer' },
+        { key: 'status', type: 'string', size: 50 },                // 'draft' | 'active' | 'archived'
+        { key: 'createdAt', type: 'string', size: 100 },
+        { key: 'updatedAt', type: 'string', size: 100 },
+    ],
+
+    deckPhrases: [
+        { key: 'deckId', type: 'string', size: 255, required: true },
+        { key: 'phrase', type: 'string', size: 500, required: true },
+        { key: 'meaning', type: 'string', size: 2000 },
+        { key: 'meaningVi', type: 'string', size: 1000 },
+        { key: 'phonetic', type: 'string', size: 255 },
+        { key: 'partOfSpeech', type: 'string', size: 100 },
+        { key: 'register', type: 'string', size: 500 },             // JSON
+        { key: 'nuance', type: 'string', size: 500 },               // JSON
+        { key: 'example', type: 'string', size: 2000 },
+        { key: 'commonUsages', type: 'string', size: 3000 },        // JSON array
+        { key: 'topic', type: 'string', size: 500 },                // JSON
+        { key: 'subtopic', type: 'string', size: 500 },             // JSON
+        { key: 'isHighFrequency', type: 'boolean' },
+        { key: 'metadataStatus', type: 'string', size: 50 },        // 'pending' | 'generated' | 'failed'
+        { key: 'createdAt', type: 'string', size: 100 },
+    ],
+
+    userDeckSubscriptions: [
+        { key: 'userId', type: 'string', size: 255, required: true },
+        { key: 'deckId', type: 'string', size: 255, required: true },
+        { key: 'subscribedAt', type: 'string', size: 100 },
+    ],
 };
 
 // ─── Execution ───────────────────────────────────────────────────────

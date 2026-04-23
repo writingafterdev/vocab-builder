@@ -46,9 +46,10 @@ export async function GET(request: NextRequest) {
         const url = new URL(request.url);
         const explicitTopicsStr = url.searchParams.get('explicitTopics');
         const explicitTopics = explicitTopicsStr ? explicitTopicsStr.split(',') : undefined;
+        const deckId = url.searchParams.get('deckId');
 
         // ─── Try personalized feed from quotes collection ───
-        const feed = await getPersonalizedFeed(userId, userSavedPhrases, explicitTopics);
+        const feed = await getPersonalizedFeed(userId, userSavedPhrases, explicitTopics, deckId);
 
         // Check onboarding
         if (feed.needsOnboarding) {
@@ -58,8 +59,8 @@ export async function GET(request: NextRequest) {
             });
         }
 
-        // If we have enough quotes in the bank, use them
-        if (feed.quotes.length >= 5) {
+        // If we have enough quotes in the bank (or if a specific deck is requested), use them
+        if (feed.quotes.length >= 5 || deckId) {
             const quotes: QuoteResponse[] = feed.quotes.map(q => ({
                 id: q.id || `quote-${q.postId}-${Math.random().toString(36).slice(2, 8)}`,
                 text: q.text,
@@ -71,6 +72,7 @@ export async function GET(request: NextRequest) {
                 highlightedPhrases: q.highlightedPhrases || [],
                 sourceType: q.sourceType,
                 sessionId: q.sessionId,
+                vocabularyData: q.vocabularyData,
             }));
 
             return NextResponse.json({ quotes, needsOnboarding: false });

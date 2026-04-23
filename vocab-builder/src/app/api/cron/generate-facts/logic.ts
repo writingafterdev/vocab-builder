@@ -1,7 +1,9 @@
 import { getGrokKey } from '@/lib/grok-client';
 import { GENERATE_FACTS_PROMPT } from '@/lib/prompts/fact-prompts';
+import { DECK_PHRASES_INJECTION, DECK_TOPIC_INJECTION } from '@/lib/prompts/deck-prompts';
 import { addQuotesToBank } from '@/lib/db/quote-feed';
 import { queryCollection } from '@/lib/appwrite/database';
+import { getUserDeckPhrases } from '@/lib/db/decks';
 
 const XAI_URL = 'https://api.x.ai/v1/chat/completions';
 
@@ -121,6 +123,42 @@ export async function runGenerateFactsLogic() {
         let prompt = GENERATE_FACTS_PROMPT.replace('{TOPICS}', selectedTopics.map(t => `- ${t}`).join('\n'));
         prompt = prompt.replace('{TARGET_PHRASES}', userDuePhrases.map(p => `- ${p}`).join('\n'));
 
+        // ── Deck-Aware: merge subscribed deck phrases into prompt ──
+        let deckTags: string[] = [];
+        try {
+            const userDecks = await getUserDeckPhrases(userId);
+            const linguisticPhrases: string[] = [];
+            const thematicTopics: string[] = [];
+
+            for (const deck of userDecks) {
+                if (deck.deckType === 'linguistic' && deck.phrases.length > 0) {
+                    // Pick up to 5 phrases per linguistic deck
+                    const picked = pickRandom(deck.phrases, Math.min(5, deck.phrases.length));
+                    linguisticPhrases.push(...picked);
+                    deckTags.push(`deck:${deck.deckId}`);
+                } else if (deck.deckType === 'thematic') {
+                    thematicTopics.push(deck.deckName);
+                    deckTags.push(`deck:${deck.deckId}`);
+                }
+            }
+
+            if (linguisticPhrases.length > 0) {
+                prompt += DECK_PHRASES_INJECTION.replace(
+                    '{DECK_PHRASES}',
+                    linguisticPhrases.map(p => `- ${p}`).join('\n')
+                );
+            }
+            if (thematicTopics.length > 0) {
+                prompt += DECK_TOPIC_INJECTION.replace(
+                    '{DECK_TOPICS}',
+                    thematicTopics.map(t => `- ${t}`).join('\n')
+                );
+            }
+        } catch (e) {
+            console.error(`[FactGen] Failed to fetch deck data for user ${userId}`, e);
+            // Non-fatal — continue with SRS phrases only
+        }
+
         try {
             const response = await fetch(XAI_URL, {
                 method: 'POST',
@@ -172,6 +210,11 @@ export async function runGenerateFactsLogic() {
                 if (isCommunityPick) {
                     author = 'Vocab AI (Community Pick)';
                     if (!tags.includes('community_pick')) tags.push('community_pick');
+                }
+
+                // Add deck tags for attribution
+                for (const dt of deckTags) {
+                    if (!tags.includes(dt)) tags.push(dt);
                 }
 
                 return {

@@ -1045,3 +1045,53 @@ export interface AIEvaluationResult {
     feedback: string;                // One-paragraph diagnosis
     suggestion?: string;             // Better phrasing if applicable
 }
+
+// ============================================================================
+// CURATED VOCABULARY DECKS
+// ============================================================================
+
+export type DeckType = 'linguistic' | 'thematic';
+export type DeckStatus = 'draft' | 'active' | 'archived';
+export type PhraseMetadataStatus = 'pending' | 'generated' | 'failed';
+
+// Admin-managed vocabulary deck
+export interface Deck {
+    id: string;
+    name: string;                    // "Academic English", "Psychology"
+    type: DeckType;                  // linguistic = strict phrase list, thematic = flexible topic
+    description: string;
+    icon: string;                    // Emoji for UI
+    color: string;                   // Hex accent color
+    phraseCount: number;             // Cached count
+    status: DeckStatus;
+    createdAt: string;
+    updatedAt: string;
+}
+
+// Phrase within a linguistic deck (with rich metadata)
+export interface DeckPhrase {
+    id: string;
+    deckId: string;
+    phrase: string;
+    meaning: string;
+    meaningVi?: string;
+    phonetic?: string;
+    partOfSpeech?: string;
+    register?: Register | Register[];
+    nuance?: Nuance | Nuance[];
+    example?: string;
+    commonUsages?: CommonUsage[];
+    topic?: string | string[];
+    subtopic?: string | string[];
+    isHighFrequency?: boolean;
+    metadataStatus: PhraseMetadataStatus;
+    createdAt: string;
+}
+
+// User subscription to a deck
+export interface UserDeckSubscription {
+    id: string;
+    userId: string;
+    deckId: string;
+    subscribedAt: string;
+}

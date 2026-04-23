@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { SlidersHorizontal, ChevronDown, X } from 'lucide-react';
+import { SlidersHorizontal, ChevronDown, X, Loader2, Check } from 'lucide-react';
 import { SOURCE_CATALOG } from '@/lib/source-catalog';
 import { cn } from '@/lib/utils';
+import type { Deck } from '@/lib/db/types';
 
 // ── Topic list (shared with QuoteSwiper / FeedFilter) ──
 const TOPICS = [
@@ -21,7 +22,7 @@ const TOPICS = [
 ] as const;
 
 export interface ContentFilterState {
-    activeTab?: 'quotes' | 'articles';
+    activeTab?: 'quotes' | 'articles' | 'decks';
     // Quotes
     quoteTopics: string[];
     // Articles
@@ -30,13 +31,20 @@ export interface ContentFilterState {
     articleTopic: string | null;
 }
 
+interface DeckWithSub extends Deck {
+    isSubscribed: boolean;
+}
+
 interface ContentFilterWidgetProps {
     filters: ContentFilterState;
-    onActiveTabChange?: (tab: 'quotes' | 'articles') => void;
+    userId?: string;
+    onActiveTabChange?: (tab: 'quotes' | 'articles' | 'decks') => void;
     onQuoteTopicsChange: (topics: string[]) => void;
     onArticleSourceChange: (sourceId: string | null) => void;
     onArticleSectionChange: (sectionId: string | null) => void;
     onArticleTopicChange: (topic: string | null) => void;
+    activeDeckId?: string | null;
+    onDeckSelect?: (deckId: string) => void;
 }
 
 // ── Pill styling helpers ──
@@ -58,13 +66,65 @@ const refineChipClass = (active: boolean) =>
 
 export function ContentFilterWidget({
     filters,
+    userId,
     onActiveTabChange,
     onQuoteTopicsChange,
     onArticleSourceChange,
     onArticleSectionChange,
     onArticleTopicChange,
+    activeDeckId,
+    onDeckSelect,
 }: ContentFilterWidgetProps) {
     const [open, setOpen] = useState(false);
+
+    // ── Deck subscription state ──
+    const [decks, setDecks] = useState<DeckWithSub[]>([]);
+    const [decksLoading, setDecksLoading] = useState(false);
+    const [togglingDeck, setTogglingDeck] = useState<string | null>(null);
+
+    const fetchDecks = useCallback(async () => {
+        if (!userId) return;
+        setDecksLoading(true);
+        try {
+            const res = await fetch(`/api/user/deck-subscriptions?userId=${userId}`);
+            if (res.ok) {
+                const data = await res.json();
+                setDecks(data.decks || []);
+            }
+        } catch (e) {
+            console.error('Failed to fetch decks:', e);
+        } finally {
+            setDecksLoading(false);
+        }
+    }, [userId]);
+
+    // Fetch decks when panel opens on decks tab or when switching to decks tab
+    useEffect(() => {
+        if (open && filters.activeTab === 'decks' && decks.length === 0) {
+            fetchDecks();
+        }
+    }, [open, filters.activeTab, fetchDecks, decks.length]);
+
+    const toggleSubscription = async (deckId: string, currentlySubscribed: boolean) => {
+        if (!userId) return;
+        setTogglingDeck(deckId);
+        try {
+            await fetch('/api/user/deck-subscriptions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId,
+                    deckId,
+                    action: currentlySubscribed ? 'unsubscribe' : 'subscribe',
+                }),
+            });
+            setDecks(prev => prev.map(d => d.id === deckId ? { ...d, isSubscribed: !currentlySubscribed } : d));
+        } catch (e) {
+            console.error('Failed to toggle subscription:', e);
+        } finally {
+            setTogglingDeck(null);
+        }
+    };
 
     const selectedSourceDef = filters.articleSource
         ? SOURCE_CATALOG.find(s => s.id === filters.articleSource)
@@ -140,28 +200,23 @@ export function ContentFilterWidget({
 
                         {/* Tabs */}
                         <div className="flex border-b border-[var(--border)]">
-                            <button
-                                onClick={() => onActiveTabChange?.('quotes')}
-                                className={cn(
-                                    "flex-1 py-3 text-[11px] font-bold uppercase tracking-wider transition-all duration-200",
-                                    filters.activeTab === 'quotes' 
-                                        ? "text-neutral-900 border-b-2 border-neutral-900 bg-neutral-50" 
-                                        : "text-neutral-400 hover:text-neutral-600 hover:bg-neutral-50/50 border-b-2 border-transparent"
-                                )}
-                            >
-                                Quotes
-                            </button>
-                            <button
-                                onClick={() => onActiveTabChange?.('articles')}
-                                className={cn(
-                                    "flex-1 py-3 text-[11px] font-bold uppercase tracking-wider transition-all duration-200",
-                                    filters.activeTab === 'articles' 
-                                        ? "text-neutral-900 border-b-2 border-neutral-900 bg-neutral-50" 
-                                        : "text-neutral-400 hover:text-neutral-600 hover:bg-neutral-50/50 border-b-2 border-transparent"
-                                )}
-                            >
-                                Articles
-                            </button>
+                            {(['quotes', 'articles', 'decks'] as const).map(tab => (
+                                <button
+                                    key={tab}
+                                    onClick={() => {
+                                        onActiveTabChange?.(tab);
+                                        if (tab === 'decks' && decks.length === 0) fetchDecks();
+                                    }}
+                                    className={cn(
+                                        "flex-1 py-3 text-[11px] font-bold uppercase tracking-wider transition-all duration-200",
+                                        filters.activeTab === tab
+                                            ? "text-neutral-900 border-b-2 border-neutral-900 bg-neutral-50"
+                                            : "text-neutral-400 hover:text-neutral-600 hover:bg-neutral-50/50 border-b-2 border-transparent"
+                                    )}
+                                >
+                                    {tab}
+                                </button>
+                            ))}
                         </div>
 
                         {/* Scrollable body */}
@@ -203,7 +258,7 @@ export function ContentFilterWidget({
                                             </div>
                                         </div>
                                     </motion.div>
-                                ) : (
+                                ) : filters.activeTab === 'articles' ? (
                                     <motion.div
                                         key="articles-filters"
                                         initial={{ opacity: 0, x: 10 }}
@@ -289,6 +344,79 @@ export function ContentFilterWidget({
                                                 ))}
                                             </div>
                                         </div>
+                                    </motion.div>
+                                ) : (
+                                    /* ── Decks Tab ── */
+                                    <motion.div
+                                        key="decks-filters"
+                                        initial={{ opacity: 0, x: 10 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        exit={{ opacity: 0, x: 10 }}
+                                        transition={{ duration: 0.2 }}
+                                        className="space-y-3"
+                                    >
+                                        <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-neutral-400 block">
+                                            Vocabulary Decks
+                                        </span>
+
+                                        {decksLoading ? (
+                                            <div className="flex items-center justify-center py-6 text-neutral-400">
+                                                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                                <span className="text-xs">Loading decks...</span>
+                                            </div>
+                                        ) : decks.length === 0 ? (
+                                            <p className="text-xs text-neutral-400 py-4 text-center">No decks available yet.</p>
+                                        ) : (
+                                            <div className="space-y-2">
+                                                {decks.map(deck => (
+                                                    <div
+                                                        key={deck.id}
+                                                        onClick={() => onDeckSelect?.(deck.id)}
+                                                        className={cn(
+                                                            'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all duration-200 cursor-pointer',
+                                                            deck.id === activeDeckId
+                                                                ? 'bg-neutral-900 text-white'
+                                                                : 'bg-neutral-50 text-neutral-700 hover:bg-neutral-100 border border-neutral-200'
+                                                        )}
+                                                    >
+                                                        <span className="text-lg flex-shrink-0">{deck.icon}</span>
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="text-[11px] font-bold uppercase tracking-wider truncate">{deck.name}</div>
+                                                            {deck.description && (
+                                                                <div className={cn(
+                                                                    'text-[10px] truncate mt-0.5',
+                                                                    deck.id === activeDeckId ? 'text-neutral-400' : 'text-neutral-400'
+                                                                )}>
+                                                                    {deck.description}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                toggleSubscription(deck.id, deck.isSubscribed);
+                                                            }}
+                                                            disabled={togglingDeck === deck.id}
+                                                            className="flex-shrink-0 cursor-pointer p-1"
+                                                        >
+                                                            {togglingDeck === deck.id ? (
+                                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                                            ) : deck.isSubscribed ? (
+                                                                <div className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center">
+                                                                    <Check className="w-3 h-3 text-white" />
+                                                                </div>
+                                                            ) : (
+                                                                <div className="w-5 h-5 rounded-full border-2 border-neutral-300" />
+                                                            )}
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        <p className="text-[10px] text-neutral-400 pt-2 leading-relaxed">
+                                            Subscribed decks feed you targeted vocabulary in your daily quotes & facts.
+                                        </p>
                                     </motion.div>
                                 )}
                             </AnimatePresence>

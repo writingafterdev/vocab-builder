@@ -33,6 +33,7 @@ interface QuoteSwiperProps {
     preGeneratedQuestions?: any[];
     externalTopics?: string[];
     onTopicsChange?: (topics: string[]) => void;
+    deckId?: string | null;
 }
 
 // Stack position presets: front → middle → back
@@ -103,7 +104,7 @@ const FEED_TOPICS = [
     { id: 'health', label: 'Health', emoji: '❤️‍🩹' },
 ] as const;
 
-export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onTopicsChange }: QuoteSwiperProps) {
+export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onTopicsChange, deckId }: QuoteSwiperProps) {
     const router = useRouter();
     const [deck, setDeck] = useState<DeckItem[]>([]);
     const [loading, setLoading] = useState(true);
@@ -208,7 +209,9 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
             const headers: HeadersInit = { 'x-user-id': userId };
 
             const url = new URL('/api/quotes/get-mixed-quotes', window.location.origin);
-            if (selectedTopics.length > 0) {
+            if (deckId) {
+                url.searchParams.set('deckId', deckId);
+            } else if (selectedTopics.length > 0) {
                 url.searchParams.set('explicitTopics', selectedTopics.join(','));
             }
 
@@ -255,8 +258,15 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
                 // Use userId header only — no JWT needed for read-only quote fetching
                 const headers: HeadersInit = { 'x-user-id': userId };
 
+                const url = new URL('/api/quotes/get-mixed-quotes', window.location.origin);
+                if (deckId) {
+                    url.searchParams.set('deckId', deckId);
+                } else if (selectedTopics.length > 0) {
+                    url.searchParams.set('explicitTopics', selectedTopics.join(','));
+                }
+
                 const [quotesRes, savedRes] = await Promise.all([
-                    fetch(`/api/quotes/get-mixed-quotes?${selectedTopics.length > 0 ? `explicitTopics=${selectedTopics.join(',')}` : ''}`, { 
+                    fetch(url.toString(), { 
                         headers,
                         cache: 'no-store'
                     }),
@@ -287,7 +297,10 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
                         masterQuotesRef.current = [...masterQuotesRef.current, ...newItems];
 
                         // Build filtered deck from master cache
-                        if (selectedTopics.length > 0) {
+                        if (deckId) {
+                            // Backend already filters by deckId, so just use newItems
+                            setDeck(newItems);
+                        } else if (selectedTopics.length > 0) {
                             const filtered = masterQuotesRef.current.filter(d => {
                                 const topic = (d.data as any)?.topic;
                                 return topic && selectedTopics.includes(topic);
@@ -313,10 +326,17 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
         }
         fetchQuotesAndSaved();
         return () => { cancelled = true; };
-    }, [userId, selectedTopics]);
+    }, [userId, selectedTopics, deckId]);
 
     // Instant client-side filter when topics change (no loading spinner)
     const isInitialMount = useRef(true);
+    // Track deckId change to reset loading
+    useEffect(() => {
+        setLoading(true);
+        masterQuotesRef.current = []; // Wipe cache when deck changes
+        setDeck([]);
+    }, [deckId]);
+
     useEffect(() => {
         // Skip on initial mount (let the fetch handle it)
         if (isInitialMount.current) {
@@ -562,6 +582,9 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
         const quote = item.data as Quote;
         if ((quote as any).sourceType === 'generated_session' && (quote as any).sessionId) {
             router.push(`/practice/session/${(quote as any).sessionId}`);
+        } else if ((quote as any).sourceType === 'generated_fact') {
+            // No article for generated facts
+            return;
         } else {
             router.push(`/post/${quote.postId}`);
         }
@@ -615,14 +638,68 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
     // Handle lookup from TapToSelect — pipe to global dictionary store
     const handleTapLookup = useCallback((phrase: string, context: string) => {
         if (!storeUserId || !storeUserEmail) return;
+
+        const currentItem = deck[activeIndex];
+        const quote = currentItem?.type === 'quote' ? currentItem.data as Quote : null;
+        
+        // Instant lookup using pre-generated vocabularyData if available
+        if (quote && quote.vocabularyData) {
+            const lowerPhrase = phrase.toLowerCase().trim();
+            const vocabMeta = quote.vocabularyData[lowerPhrase] || Object.values(quote.vocabularyData).find((v: any) => v.phrase.toLowerCase() === lowerPhrase);
+            
+            if (vocabMeta) {
+                useDictionaryStore.getState().openPopupDirect({
+                    phrase: vocabMeta.phrase,
+                    meaning: vocabMeta.meaning,
+                    register: vocabMeta.register,
+                    nuance: vocabMeta.nuance,
+                    context: context,
+                    contextTranslation: vocabMeta.meaningVi,
+                    examples: vocabMeta.example ? [vocabMeta.example] : [],
+                    pronunciation: vocabMeta.phonetic,
+                    topic: vocabMeta.topic,
+                    subtopic: vocabMeta.subtopic,
+                    isHighFrequency: vocabMeta.isHighFrequency,
+                });
+                return;
+            }
+        }
+
         globalOpenPopup(phrase, context, storeUserId, storeUserEmail);
-    }, [storeUserId, storeUserEmail, globalOpenPopup]);
+    }, [storeUserId, storeUserEmail, globalOpenPopup, deck, activeIndex]);
 
     // Handle clicking a highlighted review phrase — also pipe to global store
     const handleHighlightClick = useCallback((phrase: string, context: string) => {
         if (!storeUserId || !storeUserEmail) return;
+        
+        const currentItem = deck[activeIndex];
+        const quote = currentItem?.type === 'quote' ? currentItem.data as Quote : null;
+        
+        // Instant lookup using pre-generated vocabularyData if available
+        if (quote && quote.vocabularyData) {
+            const lowerPhrase = phrase.toLowerCase().trim();
+            const vocabMeta = quote.vocabularyData[lowerPhrase] || Object.values(quote.vocabularyData).find((v: any) => v.phrase.toLowerCase() === lowerPhrase);
+            
+            if (vocabMeta) {
+                useDictionaryStore.getState().openPopupDirect({
+                    phrase: vocabMeta.phrase,
+                    meaning: vocabMeta.meaning,
+                    register: vocabMeta.register,
+                    nuance: vocabMeta.nuance,
+                    context: context,
+                    contextTranslation: vocabMeta.meaningVi,
+                    examples: vocabMeta.example ? [vocabMeta.example] : [],
+                    pronunciation: vocabMeta.phonetic,
+                    topic: vocabMeta.topic,
+                    subtopic: vocabMeta.subtopic,
+                    isHighFrequency: vocabMeta.isHighFrequency,
+                });
+                return;
+            }
+        }
+
         globalOpenPopup(phrase, context, storeUserId, storeUserEmail);
-    }, [storeUserId, storeUserEmail, globalOpenPopup]);
+    }, [storeUserId, storeUserEmail, globalOpenPopup, deck, activeIndex]);
 
     // Load review cards when active card text changes
     useEffect(() => {
@@ -771,9 +848,21 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
                                         </div>
                                     )}
 
+                                    {/* Generated fact badge */}
+                                    {(item.data as any).sourceType === 'generated_fact' && (
+                                        <div className="absolute top-4 left-4 z-10">
+                                            <span className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-sm">
+                                                ✦ Curated Fact
+                                            </span>
+                                        </div>
+                                    )}
+
                                     {/* Quote Text */}
                                     <div 
-                                        className="flex-1 flex items-center justify-center p-8 sm:p-10 md:p-14 cursor-pointer"
+                                        className={cn(
+                                            "flex-1 flex items-center justify-center p-8 sm:p-10 md:p-14",
+                                            (item.data as any).sourceType === 'generated_fact' ? "" : "cursor-pointer"
+                                        )}
                                         onClick={() => goToArticle(item)}
                                     >
                                         <div className="w-full text-center">
@@ -791,7 +880,11 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
                                                 )}
                                                 style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
                                                 onLookup={handleTapLookup}
-                                                highlightedPhrases={isTop && reviewOpen ? reviewCards.map(c => c.phrase) : []}
+                                                highlightedPhrases={[
+                                                    ...(isTop && reviewOpen ? reviewCards.map(c => c.phrase) : []),
+                                                    ...((item.data as Quote).highlightedPhrases || [])
+                                                ]}
+                                                highlightClassName={(item.data as any).sourceType === 'generated_fact' ? 'bg-indigo-100/50 text-indigo-900 border-b border-indigo-300 font-medium px-0.5 rounded-sm' : undefined}
                                                 onHighlightClick={handleHighlightClick}
                                                 disabled={!isTop}
                                             />

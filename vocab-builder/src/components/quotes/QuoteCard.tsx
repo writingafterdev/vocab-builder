@@ -15,6 +15,7 @@ export interface Quote {
     topic?: string;
     tags?: string[];
     highlightedPhrases?: string[];
+    vocabularyData?: Record<string, any>;
 }
 
 interface QuoteCardProps {

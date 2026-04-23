@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import { ScrapeImportTab } from '@/components/admin/ScrapeImportTab';
+import { DecksManagementTab } from '@/components/admin/DecksManagementTab';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -163,7 +164,7 @@ async function extractPhrasesBatchFromServer(contents: string[], userEmail: stri
 export default function AdminPage() {
     const { user, loading } = useAuth();
     const router = useRouter();
-    const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'posts' | 'articles' | 'learning' | 'import' | 'tokens' | 'sources'>('overview');
+    const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'posts' | 'articles' | 'learning' | 'import' | 'tokens' | 'sources' | 'decks'>('overview');
     const [activeSource, setActiveSource] = useState<string>('the-new-yorker');
     const [stats, setStats] = useState<{
         totalUsers: number;
@@ -875,6 +876,7 @@ export default function AdminPage() {
                     { id: 'learning',  label: 'Learning Cycle',  icon: Clock,        activeClass: 'bg-amber-600 text-white shadow',     idleClass: 'text-amber-600 hover:bg-amber-50' },
                     { id: 'import',    label: 'Bulk Import',     icon: Upload,       activeClass: 'bg-pink-600 text-white shadow',      idleClass: 'text-pink-600 hover:bg-pink-50' },
                     { id: 'sources',   label: 'Content Sources', icon: Rss,          activeClass: 'bg-teal-600 text-white shadow',      idleClass: 'text-teal-600 hover:bg-teal-50' },
+                    { id: 'decks',     label: 'Decks',           icon: BookOpen,     activeClass: 'bg-violet-600 text-white shadow',    idleClass: 'text-violet-600 hover:bg-violet-50' },
                     { id: 'tokens',    label: 'Token Usage',     icon: Coins,        activeClass: 'bg-yellow-500 text-white shadow',    idleClass: 'text-yellow-600 hover:bg-yellow-50' },
                 ].map((tab) => (
                     <Button
@@ -1358,6 +1360,11 @@ export default function AdminPage() {
                         forceSourceId={activeSource}
                     />
                 </div>
+            )}
+
+            {/* Decks Tab */}
+            {activeTab === 'decks' && (
+                <DecksManagementTab />
             )}
 
             {activeTab === 'tokens' && (
