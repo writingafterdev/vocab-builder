@@ -437,10 +437,11 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
             }
         }
 
-        // Reset drag position
-        animate(dragX, 0, { duration: 0.1 });
+        // Instantly reset drag position so the phase animation takes over cleanly
+        // (jump = no tween, so no snap-back flicker)
+        dragX.jump(0);
 
-        // Phase 1: Animate the front card to the back position
+        // Phase 1: Animate the front card to the back position (same for drag & button)
         setPhase('sending-to-back');
 
         // Phase 2: After animation plays, swap the index
