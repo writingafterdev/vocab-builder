@@ -42,7 +42,7 @@ import { getUserPhrases } from '@/lib/db/srs';
 // import { getCollections } from '@/lib/db/collections';
 import { RichTextEditor } from '@/components/rich-text-editor';
 import type { Post as PostType, Collection, LexileLevel } from '@/lib/db/types';
-import { Timestamp } from '@/lib/appwrite/firestore';
+import { Timestamp } from '@/lib/appwrite/timestamp';
 import { BentoGrid, BentoCard, getCardSize, getBentoPattern, StackingCards, StackingCardItem } from '@/components/library';
 import { LibraryCard as NewLibraryCard } from '@/components/library';
 import { QuoteSwiper } from '@/components/quotes';

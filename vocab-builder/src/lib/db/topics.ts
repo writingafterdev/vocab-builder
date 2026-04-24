@@ -4,16 +4,12 @@
  */
 
 import {
-    collection,
-    doc,
-    getDocs,
-    getDoc,
-    setDoc,
-    updateDoc,
-    arrayUnion,
+    getDocument,
+    queryCollection,
     serverTimestamp,
-} from '@/lib/appwrite/firestore';
-import { getDbAsync } from './core';
+    setDocument,
+    updateDocument,
+} from '@/lib/appwrite/client-db';
 
 // Topic document structure in Firestore
 export interface TopicDocument {
@@ -23,50 +19,31 @@ export interface TopicDocument {
         id: string;              // "decision_making"
         label: string;           // "Decision Making"
     }[];
-    createdAt: any;
-    updatedAt: any;
+    createdAt: string | Date | null;
+    updatedAt: string | Date | null;
 }
 
 /**
  * Get all topics from Firestore
  */
 export async function getAllTopics(): Promise<TopicDocument[]> {
-    const firestore = await getDbAsync();
-    const topicsRef = collection(firestore, 'topics');
-    const snapshot = await getDocs(topicsRef);
-
-    return snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-    })) as TopicDocument[];
+    return queryCollection<TopicDocument>('topics');
 }
 
 /**
  * Get a single topic by ID
  */
 export async function getTopic(topicId: string): Promise<TopicDocument | null> {
-    const firestore = await getDbAsync();
-    const topicRef = doc(firestore, 'topics', topicId);
-    const snapshot = await getDoc(topicRef);
-
-    if (!snapshot.exists()) return null;
-
-    return {
-        id: snapshot.id,
-        ...snapshot.data()
-    } as TopicDocument;
+    return getDocument<TopicDocument>('topics', topicId);
 }
 
 /**
  * Create a new topic (if doesn't exist)
  */
 export async function createTopic(id: string, label: string): Promise<TopicDocument> {
-    const firestore = await getDbAsync();
-    const topicRef = doc(firestore, 'topics', id);
-
-    const existing = await getDoc(topicRef);
-    if (existing.exists()) {
-        return { id: existing.id, ...existing.data() } as TopicDocument;
+    const existing = await getDocument<TopicDocument>('topics', id);
+    if (existing) {
+        return existing;
     }
 
     const newTopic: Omit<TopicDocument, 'id'> = {
@@ -76,7 +53,7 @@ export async function createTopic(id: string, label: string): Promise<TopicDocum
         updatedAt: serverTimestamp(),
     };
 
-    await setDoc(topicRef, newTopic);
+    await setDocument('topics', id, newTopic);
 
     return { id, ...newTopic };
 }
@@ -89,11 +66,17 @@ export async function addSubtopic(
     subtopicId: string,
     subtopicLabel: string
 ): Promise<void> {
-    const firestore = await getDbAsync();
-    const topicRef = doc(firestore, 'topics', topicId);
+    const topic = await getDocument<TopicDocument>('topics', topicId);
+    if (!topic) {
+        throw new Error('Topic not found');
+    }
 
-    await updateDoc(topicRef, {
-        subtopics: arrayUnion({ id: subtopicId, label: subtopicLabel }),
+    const subtopics = topic.subtopics.some((subtopic) => subtopic.id === subtopicId)
+        ? topic.subtopics
+        : [...topic.subtopics, { id: subtopicId, label: subtopicLabel }];
+
+    await updateDocument('topics', topicId, {
+        subtopics,
         updatedAt: serverTimestamp(),
     });
 }
@@ -187,11 +170,8 @@ export async function seedInitialTopics(): Promise<void> {
         },
     ];
 
-    const firestore = await getDbAsync();
-
     for (const topic of initialTopics) {
-        const topicRef = doc(firestore, 'topics', topic.id);
-        await setDoc(topicRef, {
+        await setDocument('topics', topic.id, {
             label: topic.label,
             subtopics: topic.subtopics,
             createdAt: serverTimestamp(),

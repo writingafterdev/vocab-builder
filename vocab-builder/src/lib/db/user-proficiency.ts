@@ -5,7 +5,7 @@
  * Used to adapt reading and exercise difficulty.
  */
 
-import { Timestamp } from '@/lib/appwrite/firestore';
+import { Timestamp } from '@/lib/appwrite/timestamp';
 import { getDocument, setDocument, updateDocument } from '@/lib/appwrite/database';
 
 // Proficiency labels shown to users

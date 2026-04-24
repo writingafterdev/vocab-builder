@@ -2,52 +2,50 @@
  * Social interactions domain module (Likes, Reposts)
  */
 import {
-    collection,
-    doc,
-    addDoc,
-    getDocs,
-    updateDoc,
-    deleteDoc,
-    query,
-    where,
-    orderBy,
-    increment,
+    addDocument,
+    deleteDocument,
+    incrementBy,
+    queryCollection,
     serverTimestamp,
-} from '@/lib/appwrite/firestore';
-import { getDbAsync } from './core';
+    updateDocument,
+} from '@/lib/appwrite/client-db';
 import type { Repost } from './types';
 
 // ============ LIKES ============
 
 export async function likeComment(commentId: string, userId: string): Promise<void> {
-    const firestore = await getDbAsync();
-    const likesRef = collection(firestore, 'commentLikes');
-    const q = query(likesRef, where('commentId', '==', commentId), where('userId', '==', userId));
-    const snapshot = await getDocs(q);
+    const likes = await queryCollection<{ id: string }>('commentLikes', {
+        where: [
+            { field: 'commentId', op: '==', value: commentId },
+            { field: 'userId', op: '==', value: userId },
+        ],
+        limit: 1,
+    });
 
-    if (!snapshot.empty) {
+    if (likes.length > 0) {
         // Unlike
-        await deleteDoc(snapshot.docs[0].ref);
-        const commentRef = doc(firestore, 'comments', commentId);
-        await updateDoc(commentRef, { likeCount: increment(-1) });
+        await deleteDocument('commentLikes', likes[0].id);
+        await updateDocument('comments', commentId, { likeCount: incrementBy(-1) });
     } else {
         // Like
-        await addDoc(likesRef, {
+        await addDocument('commentLikes', {
             commentId,
             userId,
             createdAt: serverTimestamp(),
         });
-        const commentRef = doc(firestore, 'comments', commentId);
-        await updateDoc(commentRef, { likeCount: increment(1) });
+        await updateDocument('comments', commentId, { likeCount: incrementBy(1) });
     }
 }
 
 export async function hasUserLikedComment(commentId: string, userId: string): Promise<boolean> {
-    const firestore = await getDbAsync();
-    const likesRef = collection(firestore, 'commentLikes');
-    const q = query(likesRef, where('commentId', '==', commentId), where('userId', '==', userId));
-    const snapshot = await getDocs(q);
-    return !snapshot.empty;
+    const likes = await queryCollection('commentLikes', {
+        where: [
+            { field: 'commentId', op: '==', value: commentId },
+            { field: 'userId', op: '==', value: userId },
+        ],
+        limit: 1,
+    });
+    return likes.length > 0;
 }
 
 /**
@@ -57,10 +55,6 @@ export async function hasUserLikedComment(commentId: string, userId: string): Pr
 export async function getBatchUserLikes(commentIds: string[], userId: string): Promise<Set<string>> {
     if (!commentIds.length || !userId) return new Set();
 
-    const firestore = await getDbAsync();
-    const likesRef = collection(firestore, 'commentLikes');
-
-    // Firestore 'in' queries support up to 30 items
     const chunks: string[][] = [];
     for (let i = 0; i < commentIds.length; i += 30) {
         chunks.push(commentIds.slice(i, i + 30));
@@ -69,15 +63,15 @@ export async function getBatchUserLikes(commentIds: string[], userId: string): P
     const likedCommentIds = new Set<string>();
 
     for (const chunk of chunks) {
-        const q = query(
-            likesRef,
-            where('userId', '==', userId),
-            where('commentId', 'in', chunk)
-        );
-        const snapshot = await getDocs(q);
-        snapshot.docs.forEach(doc => {
-            const data = doc.data();
-            likedCommentIds.add(data.commentId);
+        const likes = await queryCollection<{ commentId: string }>('commentLikes', {
+            where: [
+                { field: 'userId', op: '==', value: userId },
+                { field: 'commentId', op: 'in', value: chunk },
+            ],
+        });
+
+        likes.forEach((like) => {
+            likedCommentIds.add(like.commentId);
         });
     }
 
@@ -87,34 +81,38 @@ export async function getBatchUserLikes(commentIds: string[], userId: string): P
 // ============ REPOSTS ============
 
 export async function repostPost(postId: string, userId: string): Promise<void> {
-    const firestore = await getDbAsync();
-    const repostsRef = collection(firestore, 'reposts');
-    const q = query(repostsRef, where('postId', '==', postId), where('userId', '==', userId));
-    const snapshot = await getDocs(q);
+    const reposts = await queryCollection<{ id: string }>('reposts', {
+        where: [
+            { field: 'postId', op: '==', value: postId },
+            { field: 'userId', op: '==', value: userId },
+        ],
+        limit: 1,
+    });
 
-    if (!snapshot.empty) {
+    if (reposts.length > 0) {
         // Unrepost
-        await deleteDoc(snapshot.docs[0].ref);
-        const postRef = doc(firestore, 'posts', postId);
-        await updateDoc(postRef, { repostCount: increment(-1) });
+        await deleteDocument('reposts', reposts[0].id);
+        await updateDocument('posts', postId, { repostCount: incrementBy(-1) });
     } else {
         // Repost
-        await addDoc(repostsRef, {
+        await addDocument('reposts', {
             postId,
             userId,
             createdAt: serverTimestamp(),
         });
-        const postRef = doc(firestore, 'posts', postId);
-        await updateDoc(postRef, { repostCount: increment(1) });
+        await updateDocument('posts', postId, { repostCount: incrementBy(1) });
     }
 }
 
 export async function hasUserReposted(postId: string, userId: string): Promise<boolean> {
-    const firestore = await getDbAsync();
-    const repostsRef = collection(firestore, 'reposts');
-    const q = query(repostsRef, where('postId', '==', postId), where('userId', '==', userId));
-    const snapshot = await getDocs(q);
-    return !snapshot.empty;
+    const reposts = await queryCollection('reposts', {
+        where: [
+            { field: 'postId', op: '==', value: postId },
+            { field: 'userId', op: '==', value: userId },
+        ],
+        limit: 1,
+    });
+    return reposts.length > 0;
 }
 
 /**
@@ -123,10 +121,6 @@ export async function hasUserReposted(postId: string, userId: string): Promise<b
 export async function getBatchUserReposts(postIds: string[], userId: string): Promise<Set<string>> {
     if (!postIds.length || !userId) return new Set();
 
-    const firestore = await getDbAsync();
-    const repostsRef = collection(firestore, 'reposts');
-
-    // Firestore 'in' queries support up to 30 items
     const chunks: string[][] = [];
     for (let i = 0; i < postIds.length; i += 30) {
         chunks.push(postIds.slice(i, i + 30));
@@ -135,15 +129,15 @@ export async function getBatchUserReposts(postIds: string[], userId: string): Pr
     const repostedPostIds = new Set<string>();
 
     for (const chunk of chunks) {
-        const q = query(
-            repostsRef,
-            where('userId', '==', userId),
-            where('postId', 'in', chunk)
-        );
-        const snapshot = await getDocs(q);
-        snapshot.docs.forEach(doc => {
-            const data = doc.data();
-            repostedPostIds.add(data.postId);
+        const reposts = await queryCollection<{ postId: string }>('reposts', {
+            where: [
+                { field: 'userId', op: '==', value: userId },
+                { field: 'postId', op: 'in', value: chunk },
+            ],
+        });
+
+        reposts.forEach((repost) => {
+            repostedPostIds.add(repost.postId);
         });
     }
 
@@ -151,9 +145,8 @@ export async function getBatchUserReposts(postIds: string[], userId: string): Pr
 }
 
 export async function getUserReposts(userId: string): Promise<Repost[]> {
-    const firestore = await getDbAsync();
-    const repostsRef = collection(firestore, 'reposts');
-    const q = query(repostsRef, where('userId', '==', userId), orderBy('createdAt', 'desc'));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Repost));
+    return queryCollection<Repost>('reposts', {
+        where: [{ field: 'userId', op: '==', value: userId }],
+        orderBy: [{ field: 'createdAt', direction: 'desc' }],
+    });
 }

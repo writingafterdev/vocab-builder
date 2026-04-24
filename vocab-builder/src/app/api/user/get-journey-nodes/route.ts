@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { runQuery, updateDocument, serverTimestamp } from '@/lib/appwrite/database';
+import { getRequestUser } from '@/lib/request-auth';
 
 /**
  * GET: Return all journey nodes for a user, ordered by `order` field.
@@ -7,7 +8,8 @@ import { runQuery, updateDocument, serverTimestamp } from '@/lib/appwrite/databa
  */
 export async function GET(request: NextRequest) {
     try {
-        const userId = request.headers.get('x-user-id');
+        const authUser = await getRequestUser(request, { allowHeaderFallback: true });
+        const userId = authUser?.userId;
         if (!userId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
@@ -32,7 +34,8 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
     try {
-        const userId = request.headers.get('x-user-id');
+        const authUser = await getRequestUser(request, { allowHeaderFallback: true });
+        const userId = authUser?.userId;
         if (!userId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }

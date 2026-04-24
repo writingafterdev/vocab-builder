@@ -3,7 +3,34 @@ import { updateDocument, serverTimestamp, getDocument, setDocument } from '@/lib
 import { updateSkillProgress } from '@/lib/db/skill-progress';
 import { recordResult } from '@/lib/db/question-weaknesses';
 import { unlockChildren } from '@/lib/db/srs';
-import type { SessionQuestionResult } from '@/lib/db/types';
+import type { LearningBand, SessionQuestionResult } from '@/lib/db/types';
+import { getRequestUser } from '@/lib/request-auth';
+import { savePracticeAttemptLogs } from '@/lib/exercise/shared-pool';
+
+type CompleteSessionBody = {
+    sessionId?: string;
+    phraseIds?: string[];
+    results?: SessionQuestionResult[];
+    correctCount?: number;
+    totalQuestions?: number;
+};
+
+type StoredQuestion = {
+    id?: string;
+    learningBand?: string;
+    testedPhraseIds?: string[];
+};
+
+type SavedPhraseDoc = {
+    learningStep?: number;
+};
+
+function toLearningBand(value: string | undefined): LearningBand | undefined {
+    if (value === 'recognition' || value === 'active_recall' || value === 'production') {
+        return value;
+    }
+    return undefined;
+}
 
 /**
  * POST /api/practice/complete-session
@@ -12,9 +39,8 @@ import type { SessionQuestionResult } from '@/lib/db/types';
  */
 export async function POST(request: NextRequest) {
     try {
-        const { getAuthFromRequest } = await import('@/lib/appwrite/auth-admin');
-        const authUser = await getAuthFromRequest(request);
-        const userId = authUser?.userId || request.headers.get('x-user-id');
+        const authUser = await getRequestUser(request);
+        const userId = authUser?.userId;
 
         if (!userId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -26,13 +52,13 @@ export async function POST(request: NextRequest) {
             results,        // SessionQuestionResult[]
             correctCount,   // total correct (fallback for legacy)
             totalQuestions,  // total questions (fallback for legacy)
-        } = await request.json();
+        } = await request.json() as CompleteSessionBody;
 
         if (!sessionId) {
             return NextResponse.json({ error: 'Missing sessionId' }, { status: 400 });
         }
 
-        const session = await getDocument('generatedSessions', sessionId) as any;
+        const session = await getDocument('generatedSessions', sessionId) as Record<string, unknown> | null;
 
         if (!session) {
             return NextResponse.json({ error: 'Session not found' }, { status: 404 });
@@ -51,12 +77,36 @@ export async function POST(request: NextRequest) {
         const accuracy = actualTotal > 0 ? Math.round((actualCorrect / actualTotal) * 100) : 0;
 
         if (isOwner) {
+            const sessionQuestions = typeof session.questions === 'string'
+                ? JSON.parse(session.questions) as StoredQuestion[]
+                : (Array.isArray(session.questions) ? session.questions as StoredQuestion[] : []);
+
             // 1. Mark session as completed with results
             await updateDocument('generatedSessions', sessionId, {
                 status: `completed_${accuracy}pct`,
                 results: JSON.stringify(questionResults),
                 createdAt: serverTimestamp(), // repurpose as last-updated
             });
+
+            try {
+                await savePracticeAttemptLogs(
+                    userId,
+                    'practice',
+                    questionResults.map((result) => {
+                        const question = sessionQuestions.find((item) => item.id === result.questionId) || {};
+                        return {
+                            questionId: result.questionId,
+                            type: result.type,
+                            correct: result.correct,
+                            userAnswer: result.userAnswer,
+                            learningBand: toLearningBand(question.learningBand),
+                            testedPhraseIds: question.testedPhraseIds || [],
+                        };
+                    })
+                );
+            } catch (attemptError) {
+                console.warn('Practice attempt logging error (non-fatal):', attemptError);
+            }
 
             // 2. Record per-question-type weaknesses
             for (const result of questionResults) {
@@ -94,7 +144,7 @@ export async function POST(request: NextRequest) {
                 const DEFAULT_INTERVALS = [1, 3, 7, 14, 30, 90];
 
                 for (const phraseId of vocabIds) {
-                    const updates: any = {
+                    const updates: Record<string, string | number> = {
                         lastReviewedAt: serverTimestamp(),
                         lastReviewSource: 'session',
                     };
@@ -105,7 +155,7 @@ export async function POST(request: NextRequest) {
                     if (productionResult) {
                         // ── Production-level SRS: per-phrase granular ──
                         try {
-                            const phraseDoc = await getDocument('savedPhrases', phraseId) as any;
+                            const phraseDoc = await getDocument('savedPhrases', phraseId) as SavedPhraseDoc | null;
                             if (phraseDoc) {
                                 const currentStep = phraseDoc.learningStep || 0;
                                 if (productionResult === 'natural') {
@@ -125,13 +175,13 @@ export async function POST(request: NextRequest) {
                                 nextDate.setHours(0, 0, 0, 0);
                                 updates.nextReviewDate = nextDate.toISOString();
                             }
-                        } catch (e) {
+                        } catch {
                             // Ignore fetch errors
                         }
                     } else {
                         // ── Non-production: overall performance-based ──
                         try {
-                            const phraseDoc = await getDocument('savedPhrases', phraseId) as any;
+                            const phraseDoc = await getDocument('savedPhrases', phraseId) as SavedPhraseDoc | null;
                             if (phraseDoc) {
                                 const currentStep = phraseDoc.learningStep || 0;
                                 if (performance >= 0.75) {
@@ -151,7 +201,7 @@ export async function POST(request: NextRequest) {
                                 nextDate.setHours(0, 0, 0, 0);
                                 updates.nextReviewDate = nextDate.toISOString();
                             }
-                        } catch (e) {
+                        } catch {
                             // Ignore fetch errors — phrase may have been deleted
                         }
                     }

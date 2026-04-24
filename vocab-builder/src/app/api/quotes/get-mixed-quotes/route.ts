@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPersonalizedFeed } from '@/lib/db/quote-feed';
 import { queryCollection, runQuery } from '@/lib/appwrite/database';
+import { getRequestUser } from '@/lib/request-auth';
 
 interface QuoteResponse {
     id: string;
@@ -17,14 +18,8 @@ interface QuoteResponse {
 
 export async function GET(request: NextRequest) {
     try {
-        // Secure authentication
-        const { getAuthFromRequest } = await import('@/lib/appwrite/auth-admin');
-        const authUser = await getAuthFromRequest(request);
-        let userId = authUser?.userId;
-
-        if (!userId) {
-            userId = request.headers.get('x-user-id') || undefined;
-        }
+        const authUser = await getRequestUser(request, { allowHeaderFallback: true });
+        const userId = authUser?.userId;
 
         if (!userId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

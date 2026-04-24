@@ -18,6 +18,7 @@ import {
 import { updateUserProfile, checkUsernameAvailable, updateCommentsUsername } from '@/lib/db/users';
 import { toast } from 'sonner';
 import { EditorialLoader } from '@/components/ui/editorial-loader';
+import { authFromUser, clientApiJson } from '@/lib/client-api';
 
 export default function SettingsPage() {
     const router = useRouter();
@@ -56,17 +57,14 @@ export default function SettingsPage() {
         async function fetchProficiency() {
             if (!user) return;
             try {
-                const token = await user.getJwt();
-                const res = await fetch('/api/user/get-proficiency', {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'x-user-id': user.$id
-                    }
+                const data = await clientApiJson<{
+                    label: string;
+                    level: number;
+                    hasTakenTest: boolean;
+                }>('/api/user/get-proficiency', {
+                    auth: authFromUser(user),
                 });
-                if (res.ok) {
-                    const data = await res.json();
-                    setProficiency(data);
-                }
+                setProficiency(data);
             } catch (e) {
                 console.error('Failed to fetch proficiency:', e);
             }

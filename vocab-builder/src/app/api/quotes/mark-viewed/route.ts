@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { markQuotesViewed, boostTopic } from '@/lib/db/quote-feed';
+import { getRequestUser } from '@/lib/request-auth';
 
 /**
  * POST /api/quotes/mark-viewed
@@ -11,13 +12,8 @@ import { markQuotesViewed, boostTopic } from '@/lib/db/quote-feed';
  */
 export async function POST(request: NextRequest) {
     try {
-        const { getAuthFromRequest } = await import('@/lib/appwrite/auth-admin');
-        const authUser = await getAuthFromRequest(request);
-        let userId = authUser?.userId;
-
-        if (!userId) {
-            userId = request.headers.get('x-user-id') || undefined;
-        }
+        const authUser = await getRequestUser(request, { allowHeaderFallback: true });
+        const userId = authUser?.userId;
 
         if (!userId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

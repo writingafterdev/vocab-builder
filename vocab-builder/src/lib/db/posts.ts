@@ -2,39 +2,57 @@
  * Posts domain module
  */
 import {
-    collection,
-    doc,
-    addDoc,
-    getDoc,
-    getDocs,
-    query,
-    where,
-    orderBy,
-    limit,
-    startAfter,
+    addDocument,
+    getDocument,
+    queryCollection,
     serverTimestamp,
-} from '@/lib/appwrite/firestore';
-import { getDbAsync } from './core';
+} from '@/lib/appwrite/client-db';
+import { Timestamp } from '@/lib/appwrite/timestamp';
 import type { Post, ExtractedPhrase, SentencePair } from './types';
+
+type PaginatedPostsResult = { posts: Post[]; lastDoc: Post | null };
+type DateLike = Timestamp | Date | { toMillis?: () => number; getTime?: () => number } | number | null | undefined;
+const APPWRITE_DOC_ID_RE = /^[A-Za-z0-9][A-Za-z0-9_]{0,35}$/;
+
+function normalizeLegacyPostId(postId: string): string {
+    let normalized = postId.replace(/[^a-zA-Z0-9.\-_]/g, '');
+    if (normalized.length > 36) {
+        normalized = normalized.slice(-36);
+    }
+    if (/^[^a-zA-Z0-9]/.test(normalized)) {
+        normalized = `i${normalized.slice(1)}`;
+    }
+    return normalized;
+}
+
+function getPostIdCandidates(postId: string): string[] {
+    const trimmed = postId.trim();
+    if (!trimmed) {
+        return [];
+    }
+
+    const candidates = new Set<string>();
+    if (APPWRITE_DOC_ID_RE.test(trimmed)) {
+        candidates.add(trimmed);
+    }
+
+    const normalized = normalizeLegacyPostId(trimmed);
+    if (normalized) {
+        candidates.add(normalized);
+    }
+
+    return [...candidates];
+}
 
 /**
  * Get posts for a user's feed
  * Shows all public posts + AI-generated posts for the specific user
  */
 export async function getPosts(limitCount = 20, userId?: string): Promise<Post[]> {
-    const firestore = await getDbAsync();
-    const postsRef = collection(firestore, 'posts');
-
-    // Simple query - get all posts ordered by date
-    // Client-side filter for personalized content is safer than complex Firestore or() queries
-    const q = query(
-        postsRef,
-        orderBy('createdAt', 'desc'),
-        limit(limitCount * 2) // Get extra to filter
-    );
-
-    const snapshot = await getDocs(q);
-    let posts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Post));
+    let posts = await queryCollection<Post>('posts', {
+        orderBy: [{ field: 'createdAt', direction: 'desc' }],
+        limit: limitCount * 2,
+    });
 
     // Filter out AI posts that belong to other users
     if (userId) {
@@ -59,31 +77,16 @@ export async function getPosts(limitCount = 20, userId?: string): Promise<Post[]
 export async function getPostsPaginated(
     limitCount = 20, 
     userId?: string, 
-    startAfterDoc?: any,
+    startAfterDoc?: { id?: string } | null,
     topicScores?: Record<string, number>
-): Promise<{ posts: Post[], lastDoc: any }> {
-    const firestore = await getDbAsync();
-    const postsRef = collection(firestore, 'posts');
+): Promise<PaginatedPostsResult> {
+    let posts = await queryCollection<Post>('posts', {
+        orderBy: [{ field: 'createdAt', direction: 'desc' }],
+        limit: limitCount * 2,
+        cursorAfter: startAfterDoc?.id,
+    });
 
-    let q = query(
-        postsRef,
-        orderBy('createdAt', 'desc'),
-        limit(limitCount * 2) // Get extra to filter
-    );
-
-    if (startAfterDoc) {
-        q = query(
-            postsRef,
-            orderBy('createdAt', 'desc'),
-            startAfter(startAfterDoc),
-            limit(limitCount * 2) // Get extra to filter
-        );
-    }
-
-    const snapshot = await getDocs(q);
-    const lastDoc = snapshot.docs.length > 0 ? snapshot.docs[snapshot.docs.length - 1] : null;
-
-    let posts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Post));
+    const lastDoc = posts.length > 0 ? posts[posts.length - 1] : null;
 
     // Filter out AI posts that belong to other users
     if (userId) {
@@ -100,9 +103,21 @@ export async function getPostsPaginated(
 
     // Smart Sorting: locally sort by topic scores if provided
     if (topicScores && Object.keys(topicScores).length > 0) {
+        const getTimeValue = (value: DateLike): number => {
+            if (!value) return 0;
+            if (value instanceof Timestamp) return value.toMillis();
+            if (value instanceof Date) return value.getTime();
+            if (typeof value === 'number') return value;
+            if (typeof value.toMillis === 'function') return value.toMillis();
+            if (typeof value.getTime === 'function') return value.getTime();
+            return 0;
+        };
+
         posts.sort((a, b) => {
-            const aTopic = (a as any).importTopic || 'general';
-            const bTopic = (b as any).importTopic || 'general';
+            const aTopicValue = (a as Post & { importTopic?: string }).importTopic;
+            const bTopicValue = (b as Post & { importTopic?: string }).importTopic;
+            const aTopic = typeof aTopicValue === 'string' ? aTopicValue : 'general';
+            const bTopic = typeof bTopicValue === 'string' ? bTopicValue : 'general';
             const aScore = topicScores[aTopic] || 0;
             const bScore = topicScores[bTopic] || 0;
             
@@ -112,10 +127,8 @@ export async function getPostsPaginated(
             }
             
             // Secondary sort by date DESC (which they originally were, but sort might not be stable)
-            // @ts-ignore
-            const aTime = a.createdAt?.seconds || 0;
-            // @ts-ignore
-            const bTime = b.createdAt?.seconds || 0;
+            const aTime = getTimeValue(a.createdAt);
+            const bTime = getTimeValue(b.createdAt);
             return bTime - aTime;
         });
     }
@@ -127,31 +140,31 @@ export async function getPostsPaginated(
  * Get all posts (admin/debug only)
  */
 export async function getAllPosts(limitCount = 20): Promise<Post[]> {
-    const firestore = await getDbAsync();
-    const postsRef = collection(firestore, 'posts');
-    const q = query(postsRef, orderBy('createdAt', 'desc'), limit(limitCount));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Post));
+    return queryCollection<Post>('posts', {
+        orderBy: [{ field: 'createdAt', direction: 'desc' }],
+        limit: limitCount,
+    });
 }
 
 export async function getPost(postId: string): Promise<Post | null> {
-    const firestore = await getDbAsync();
-    const postRef = doc(firestore, 'posts', postId);
-    const snapshot = await getDoc(postRef);
-    if (!snapshot.exists()) return null;
-    return { id: snapshot.id, ...snapshot.data() } as Post;
+    for (const candidate of getPostIdCandidates(postId)) {
+        const post = await getDocument<Post>('posts', candidate);
+        if (post) {
+            return post;
+        }
+    }
+
+    return null;
 }
 
 export async function createPost(data: Omit<Post, 'id' | 'createdAt' | 'commentCount' | 'repostCount'>): Promise<string> {
-    const firestore = await getDbAsync();
-    const postsRef = collection(firestore, 'posts');
-    const docRef = await addDoc(postsRef, {
+    const post = await addDocument<Post>('posts', {
         ...data,
         commentCount: 0,
         repostCount: 0,
         createdAt: serverTimestamp(),
     });
-    return docRef.id;
+    return post.id;
 }
 
 // Article-specific interface

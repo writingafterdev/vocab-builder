@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { BookOpen } from 'lucide-react';
+import { toast } from 'sonner';
 
 export interface Quote {
     id: string;
@@ -25,6 +26,7 @@ interface QuoteCardProps {
 
 export function QuoteCard({ quote, onPhraseClick }: QuoteCardProps) {
     const router = useRouter();
+    const hasArticleTarget = Boolean(quote.postId && quote.postId !== 'null');
 
     const handleTextClick = (e: React.MouseEvent<HTMLParagraphElement>) => {
         const selection = window.getSelection();
@@ -36,6 +38,10 @@ export function QuoteCard({ quote, onPhraseClick }: QuoteCardProps) {
     };
 
     const goToArticle = () => {
+        if (!hasArticleTarget) {
+            toast.error('This quote does not have a linked article');
+            return;
+        }
         router.push(`/post/${quote.postId}`);
     };
 
@@ -75,6 +81,7 @@ export function QuoteCard({ quote, onPhraseClick }: QuoteCardProps) {
                 <Button
                     onClick={goToArticle}
                     variant="default"
+                    disabled={!hasArticleTarget}
                     className="bg-neutral-900 hover:bg-neutral-800"
                 >
                     <BookOpen className="w-4 h-4 mr-2" />

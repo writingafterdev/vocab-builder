@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthFromRequest } from '@/lib/appwrite/auth-admin';
 import { addDocument, setDocument, serverTimestamp } from '@/lib/appwrite/database';
-import { Timestamp } from '@/lib/appwrite/firestore';
+import { Timestamp } from '@/lib/appwrite/timestamp';
+import { isProductionEnv } from '@/lib/env/server';
+import { getRequestUser } from '@/lib/request-auth';
 
 /**
  * POST /api/test/seed-phrases
@@ -164,22 +165,15 @@ const SAMPLE_WEAKNESSES = [
 
 export async function POST(request: NextRequest) {
     try {
-        // Try auth token first, fall back to x-user-id header for testing
-        let userId: string | undefined;
-
-        try {
-            const authUser = await getAuthFromRequest(request);
-            userId = authUser?.userId;
-        } catch {
-            // Auth failed, try header fallback
+        if (isProductionEnv()) {
+            return NextResponse.json({ error: 'Not found' }, { status: 404 });
         }
 
-        if (!userId) {
-            userId = request.headers.get('x-user-id') || undefined;
-        }
+        const authUser = await getRequestUser(request, { allowHeaderFallback: true });
+        const userId = authUser?.userId;
 
         if (!userId) {
-            return NextResponse.json({ error: 'Unauthorized - pass x-user-id header' }, { status: 401 });
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
         const now = Timestamp.now();

@@ -4,6 +4,7 @@ import { getGrokKey } from '@/lib/grok-client';
 import { safeParseAIJson } from '@/lib/ai-utils';
 import { logTokenUsage } from '@/lib/db/token-tracking';
 import { normalizeTopicId } from '@/lib/db/topics';
+import { getRequestUser } from '@/lib/request-auth';
 
 /**
  * POST /api/user/import-phrases
@@ -257,11 +258,9 @@ Return JSON:
 
 export async function POST(request: NextRequest) {
     try {
-        // Auth
-        const { getAuthFromRequest } = await import('@/lib/appwrite/auth-admin');
-        const authUser = await getAuthFromRequest(request);
-        let userId = authUser?.userId || request.headers.get('x-user-id') || undefined;
-        let userEmail = authUser?.userEmail || request.headers.get('x-user-email') || undefined;
+        const authUser = await getRequestUser(request, { allowHeaderFallback: true });
+        const userId = authUser?.userId || undefined;
+        const userEmail = authUser?.userEmail || undefined;
 
         if (!userId) {
             return NextResponse.json({ error: 'Authentication required' }, { status: 401 });

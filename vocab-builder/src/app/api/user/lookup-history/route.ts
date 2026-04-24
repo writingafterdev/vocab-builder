@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { queryCollection } from '@/lib/appwrite/database';
 import { Query } from 'node-appwrite';
+import { getRequestUser } from '@/lib/request-auth';
 
 /**
  * GET user's lookup history (all previously looked-up phrases)
@@ -8,7 +9,8 @@ import { Query } from 'node-appwrite';
  */
 export async function GET(request: NextRequest) {
     try {
-        const userId = request.headers.get('x-user-id') || request.nextUrl.searchParams.get('userId');
+        const authUser = await getRequestUser(request, { allowHeaderFallback: true });
+        const userId = authUser?.userId || request.nextUrl.searchParams.get('userId');
         const limit = parseInt(request.nextUrl.searchParams.get('limit') || '100', 10);
 
         if (!userId) {

@@ -2,19 +2,13 @@
  * Reading Lists module - User-owned reading lists (cloned or created)
  */
 import {
-    collection,
-    doc,
-    addDoc,
-    getDoc,
-    getDocs,
-    updateDoc,
-    deleteDoc,
-    query,
-    where,
-    orderBy,
+    addDocument,
+    deleteDocument,
+    getDocument,
+    queryCollection,
     serverTimestamp,
-} from '@/lib/appwrite/firestore';
-import { getDbAsync } from './core';
+    updateDocument,
+} from '@/lib/appwrite/client-db';
 import type { UserReadingList, Collection } from './types';
 
 const COLLECTION_NAME = 'userReadingLists';
@@ -23,42 +17,30 @@ const COLLECTION_NAME = 'userReadingLists';
  * Get all reading lists for a user
  */
 export async function getUserReadingLists(userId: string): Promise<UserReadingList[]> {
-    const firestore = await getDbAsync();
-    const listsRef = collection(firestore, COLLECTION_NAME);
-    const q = query(
-        listsRef,
-        where('userId', '==', userId),
-        orderBy('createdAt', 'desc')
-    );
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as UserReadingList[];
+    return queryCollection<UserReadingList>(COLLECTION_NAME, {
+        where: [{ field: 'userId', op: '==', value: userId }],
+        orderBy: [{ field: 'createdAt', direction: 'desc' }],
+    });
 }
 
 /**
  * Get public reading lists for a user (for profile display)
  */
 export async function getPublicReadingLists(userId: string): Promise<UserReadingList[]> {
-    const firestore = await getDbAsync();
-    const listsRef = collection(firestore, COLLECTION_NAME);
-    const q = query(
-        listsRef,
-        where('userId', '==', userId),
-        where('isPublic', '==', true),
-        orderBy('createdAt', 'desc')
-    );
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as UserReadingList[];
+    return queryCollection<UserReadingList>(COLLECTION_NAME, {
+        where: [
+            { field: 'userId', op: '==', value: userId },
+            { field: 'isPublic', op: '==', value: true },
+        ],
+        orderBy: [{ field: 'createdAt', direction: 'desc' }],
+    });
 }
 
 /**
  * Get a single reading list by ID
  */
 export async function getReadingList(id: string): Promise<UserReadingList | null> {
-    const firestore = await getDbAsync();
-    const listRef = doc(firestore, COLLECTION_NAME, id);
-    const snapshot = await getDoc(listRef);
-    if (!snapshot.exists()) return null;
-    return { id: snapshot.id, ...snapshot.data() } as UserReadingList;
+    return getDocument<UserReadingList>(COLLECTION_NAME, id);
 }
 
 /**
@@ -68,21 +50,14 @@ export async function cloneCollection(
     userId: string,
     collectionId: string
 ): Promise<string> {
-    const firestore = await getDbAsync();
-
     // Get the source collection
-    const collectionRef = doc(firestore, 'collections', collectionId);
-    const collectionSnap = await getDoc(collectionRef);
-
-    if (!collectionSnap.exists()) {
+    const sourceCollection = await getDocument<Collection>('collections', collectionId);
+    if (!sourceCollection) {
         throw new Error('Collection not found');
     }
 
-    const sourceCollection = collectionSnap.data() as Collection;
-
     // Create user's copy
-    const listsRef = collection(firestore, COLLECTION_NAME);
-    const docRef = await addDoc(listsRef, {
+    const list = await addDocument<UserReadingList>(COLLECTION_NAME, {
         userId,
         name: sourceCollection.name,
         description: sourceCollection.description || '',
@@ -94,7 +69,7 @@ export async function cloneCollection(
         updatedAt: serverTimestamp(),
     });
 
-    return docRef.id;
+    return list.id;
 }
 
 /**
@@ -106,9 +81,7 @@ export async function createReadingList(
     description?: string,
     coverColor?: string
 ): Promise<string> {
-    const firestore = await getDbAsync();
-    const listsRef = collection(firestore, COLLECTION_NAME);
-    const docRef = await addDoc(listsRef, {
+    const list = await addDocument<UserReadingList>(COLLECTION_NAME, {
         userId,
         name,
         description: description || '',
@@ -118,7 +91,7 @@ export async function createReadingList(
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
     });
-    return docRef.id;
+    return list.id;
 }
 
 /**
@@ -133,9 +106,7 @@ export async function updateReadingList(
         isPublic?: boolean;
     }
 ): Promise<void> {
-    const firestore = await getDbAsync();
-    const listRef = doc(firestore, COLLECTION_NAME, id);
-    await updateDoc(listRef, {
+    await updateDocument(COLLECTION_NAME, id, {
         ...updates,
         updatedAt: serverTimestamp(),
     });
@@ -145,9 +116,7 @@ export async function updateReadingList(
  * Delete a reading list
  */
 export async function deleteReadingList(id: string): Promise<void> {
-    const firestore = await getDbAsync();
-    const listRef = doc(firestore, COLLECTION_NAME, id);
-    await deleteDoc(listRef);
+    await deleteDocument(COLLECTION_NAME, id);
 }
 
 /**
@@ -157,17 +126,14 @@ export async function addPostToReadingList(
     listId: string,
     postId: string
 ): Promise<void> {
-    const firestore = await getDbAsync();
-    const listRef = doc(firestore, COLLECTION_NAME, listId);
-    const list = await getDoc(listRef);
-
-    if (!list.exists()) {
+    const list = await getDocument<UserReadingList>(COLLECTION_NAME, listId);
+    if (!list) {
         throw new Error('Reading list not found');
     }
 
-    const currentPosts = list.data().postIds || [];
+    const currentPosts = list.postIds || [];
     if (!currentPosts.includes(postId)) {
-        await updateDoc(listRef, {
+        await updateDocument(COLLECTION_NAME, listId, {
             postIds: [...currentPosts, postId],
             updatedAt: serverTimestamp(),
         });
@@ -181,16 +147,13 @@ export async function removePostFromReadingList(
     listId: string,
     postId: string
 ): Promise<void> {
-    const firestore = await getDbAsync();
-    const listRef = doc(firestore, COLLECTION_NAME, listId);
-    const list = await getDoc(listRef);
-
-    if (!list.exists()) {
+    const list = await getDocument<UserReadingList>(COLLECTION_NAME, listId);
+    if (!list) {
         throw new Error('Reading list not found');
     }
 
-    const currentPosts = list.data().postIds || [];
-    await updateDoc(listRef, {
+    const currentPosts = list.postIds || [];
+    await updateDocument(COLLECTION_NAME, listId, {
         postIds: currentPosts.filter((id: string) => id !== postId),
         updatedAt: serverTimestamp(),
     });
@@ -203,13 +166,12 @@ export async function hasClonedCollection(
     userId: string,
     collectionId: string
 ): Promise<boolean> {
-    const firestore = await getDbAsync();
-    const listsRef = collection(firestore, COLLECTION_NAME);
-    const q = query(
-        listsRef,
-        where('userId', '==', userId),
-        where('sourceId', '==', collectionId)
-    );
-    const snapshot = await getDocs(q);
-    return !snapshot.empty;
+    const lists = await queryCollection<UserReadingList>(COLLECTION_NAME, {
+        where: [
+            { field: 'userId', op: '==', value: userId },
+            { field: 'sourceId', op: '==', value: collectionId },
+        ],
+        limit: 1,
+    });
+    return lists.length > 0;
 }

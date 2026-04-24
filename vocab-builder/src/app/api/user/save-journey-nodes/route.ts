@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { setDocument, runQuery, serverTimestamp } from '@/lib/appwrite/database';
+import { getRequestUser } from '@/lib/request-auth';
 
 /**
  * Save new journey nodes to Firestore.
@@ -8,7 +9,8 @@ import { setDocument, runQuery, serverTimestamp } from '@/lib/appwrite/database'
  */
 export async function POST(request: NextRequest) {
     try {
-        const userId = request.headers.get('x-user-id');
+        const authUser = await getRequestUser(request, { allowHeaderFallback: true });
+        const userId = authUser?.userId;
         if (!userId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }

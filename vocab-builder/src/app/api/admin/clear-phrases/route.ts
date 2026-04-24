@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { runQuery, deleteDocument } from '@/lib/appwrite/database';
+import { getAdminRequestContext } from '@/lib/admin-auth';
 
 /**
  * DELETE all saved phrases for a user
@@ -7,10 +8,15 @@ import { runQuery, deleteDocument } from '@/lib/appwrite/database';
  */
 export async function DELETE(request: NextRequest) {
     try {
-        const userId = request.headers.get('x-user-id');
+        const admin = await getAdminRequestContext(request);
+        if (!admin) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+        }
+
+        const userId = request.nextUrl.searchParams.get('userId');
 
         if (!userId) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return NextResponse.json({ error: 'userId is required' }, { status: 400 });
         }
 
         console.log(`[Clear Phrases] Deleting all phrases for user: ${userId}`);

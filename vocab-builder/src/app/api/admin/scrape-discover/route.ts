@@ -1,14 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Query } from 'node-appwrite';
 import { SOURCE_CATALOG } from '@/lib/source-catalog';
-import { getDbAsync } from '@/lib/db/core';
-import { collection, query, where, getDocs } from '@/lib/appwrite/firestore';
-
-const ADMIN_EMAIL = 'ducanhcontactonfb@gmail.com';
-
-function isAdmin(request: NextRequest): boolean {
-    const email = request.headers.get('x-user-email') || '';
-    return email === ADMIN_EMAIL;
-}
+import { queryCollection } from '@/lib/appwrite/database';
+import { getAdminRequestContext } from '@/lib/admin-auth';
 
 const FIRECRAWL_URL = process.env.FIRECRAWL_URL || 'http://localhost:3002';
 const FIRECRAWL_API_KEY = process.env.FIRECRAWL_API_KEY || 'this_is_just_a_local_dummy_key';
@@ -62,7 +56,8 @@ function inferRssFeed(rootUrl: string, rssFeeds: Record<string, string>): string
 }
 
 export async function POST(request: NextRequest) {
-    if (!isAdmin(request)) {
+    const admin = await getAdminRequestContext(request);
+    if (!admin) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
@@ -164,21 +159,20 @@ export async function POST(request: NextRequest) {
         if (links.length > 0) {
             console.log(`[Discover] Checking ${links.length} discovered links for duplicates...`);
             try {
-                const firestore = await getDbAsync();
-                const postsRef = collection(firestore, 'posts');
-                
                 // Chunk the queries to avoid 'in' clause limit (100 in Appwrite)
                 const chunkSize = 50;
                 const existingUrls = new Set<string>();
                 
                 for (let i = 0; i < links.length; i += chunkSize) {
                     const chunk = links.slice(i, i + chunkSize);
-                    const q = query(postsRef, where('originalUrl', 'in', chunk));
-                    const snapshot = await getDocs(q);
-                    
-                    snapshot.forEach((doc: any) => {
-                        const data = doc.data();
-                        if (data.originalUrl) existingUrls.add(data.originalUrl);
+                    const existingPosts = await queryCollection('posts', [
+                        Query.equal('originalUrl', chunk),
+                    ]);
+
+                    existingPosts.forEach((post) => {
+                        if (typeof post.originalUrl === 'string') {
+                            existingUrls.add(post.originalUrl);
+                        }
                     });
                 }
                 

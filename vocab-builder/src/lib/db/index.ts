@@ -3,9 +3,6 @@
  * Re-exports all domain-specific functions for backward compatibility
  */
 
-// Core utilities
-export { checkDb, db } from './core';
-
 // Domain modules
 export * from './posts';
 export * from './comments';

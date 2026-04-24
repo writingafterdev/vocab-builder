@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { safeParseAIJson } from '@/lib/ai-utils';
 import { logTokenUsage } from '@/lib/db/token-tracking';
 import { getGrokKey } from '@/lib/grok-client';
+import { getRequestUser } from '@/lib/request-auth';
 
 const XAI_API_KEY = getGrokKey('exercises');
 const XAI_URL = 'https://api.x.ai/v1/chat/completions';
@@ -13,9 +14,8 @@ const XAI_URL = 'https://api.x.ai/v1/chat/completions';
  */
 export async function POST(request: NextRequest) {
     try {
-        const { getAuthFromRequest } = await import('@/lib/appwrite/auth-admin');
-        const authUser = await getAuthFromRequest(request);
-        const userId = authUser?.userId || request.headers.get('x-user-id');
+        const authUser = await getRequestUser(request);
+        const userId = authUser?.userId;
 
         if (!userId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -28,10 +28,10 @@ export async function POST(request: NextRequest) {
         const {
             questionType,
             prompt,
-            passageReference,
+            context,
             evaluationCriteria,
             userResponse,
-            anchorPassageText,
+            passageText,
             expectedPhrases,       // Production tracking: phrases user should use
             expectedPhraseIds,     // Corresponding phrase IDs
         } = await request.json();
@@ -59,15 +59,18 @@ For EACH phrase, evaluate whether it was:
 Include a "phraseUsage" array in your response with one entry per expected phrase.`
             : '';
 
+        const contextText = context || '';
+        const extendedContext = passageText || contextText;
+
         const evalPrompt = `You are evaluating a student's response to a thinking exercise.
 
 QUESTION TYPE: ${questionType}
 QUESTION PROMPT: ${prompt}
-${passageReference ? `PASSAGE EXCERPT: "${passageReference}"` : ''}
+${contextText ? `QUESTION CONTEXT: "${contextText}"` : ''}
 ${criteriaText}
 
-ORIGINAL PASSAGE (for context):
-"${(anchorPassageText || '').slice(0, 1000)}"
+FULL REFERENCE CONTEXT (for support only):
+"${(extendedContext || '').slice(0, 1000)}"
 
 STUDENT'S RESPONSE:
 "${userResponse}"

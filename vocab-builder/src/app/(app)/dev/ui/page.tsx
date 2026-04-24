@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import McqInteraction from '@/components/exercise/interactions/McqInteraction';
 import ReorderInteraction from '@/components/exercise/interactions/ReorderInteraction';
 import HighlightInteraction from '@/components/exercise/interactions/HighlightInteraction';
@@ -9,7 +8,7 @@ import FreeWriteInteraction from '@/components/exercise/interactions/FreeWriteIn
 import ABPickInteraction from '@/components/exercise/interactions/ABPickInteraction';
 
 export default function UITestPage() {
-    const handleAnswer = (val: any) => console.log('Answer:', val);
+    const handleAnswer = (value: string | number | string[]) => console.log('Answer:', value);
 
     return (
         <div className="min-h-screen bg-neutral-50 px-4 py-12 pb-32">
@@ -140,7 +139,7 @@ export default function UITestPage() {
                                 explanation: 'Dev explanation',
                                 type: 'fix_argument',
                                 prompt: 'Rewrite the flawed argument from paragraph 3 to make it logically sound.',
-                                passageReference: 'He argued that since teens use phones and are also depressed, phones directly inject depression juices into the brain.',
+                                context: 'He argued that since teens use phones and are also depressed, phones directly inject depression juices into the brain.',
                             }}
                             onAnswer={handleAnswer}
                         />

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 import { getNextApiKey } from '@/lib/api-key-rotation';
 import type { SpeakingAnalysisResult } from '@/lib/speaking-feedback';
+import { requireRequestUser } from '@/lib/request-auth';
 
 /**
  * Analyze pronunciation for a single chunk of text
@@ -20,10 +21,7 @@ export async function POST(request: NextRequest) {
     let chunkIndex = 0;
 
     try {
-        const userId = request.headers.get('x-user-id');
-        if (!userId) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
+        await requireRequestUser(request, { allowHeaderFallback: true });
 
         const body = await request.json();
         chunk = body.chunk || '';

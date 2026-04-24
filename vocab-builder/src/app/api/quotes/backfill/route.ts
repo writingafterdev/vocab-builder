@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { extractAndSaveQuotes } from '@/lib/quote-extraction';
-import { queryCollection, getDocument } from '@/lib/appwrite/database';
+import { queryCollection } from '@/lib/appwrite/database';
+import { getAdminRequestContext } from '@/lib/admin-auth';
 
 /**
  * POST /api/quotes/backfill
@@ -9,17 +10,10 @@ import { queryCollection, getDocument } from '@/lib/appwrite/database';
  * and populate the standalone `quotes` collection.
  * Admin-only endpoint.
  */
-const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase());
-
-function isAdmin(email: string | null): boolean {
-    if (!email) return false;
-    return ADMIN_EMAILS.includes(email.toLowerCase());
-}
-
 export async function POST(request: NextRequest) {
     try {
-        const email = request.headers.get('x-user-email')?.toLowerCase() || null;
-        if (!isAdmin(email)) {
+        const admin = await getAdminRequestContext(request);
+        if (!admin) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
         }
 

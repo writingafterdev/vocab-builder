@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, BookOpen, ChevronDown, Headphones, Volume2 } from 'lucide-react';
+import { ArrowLeft, Headphones, Volume2 } from 'lucide-react';
 import { EditorialLoader } from '@/components/ui/editorial-loader';
 import { toast } from 'sonner';
 import Link from 'next/link';
@@ -25,9 +25,10 @@ import ErrorTapFixInteraction from '@/components/exercise/interactions/ErrorTapF
 import DialoguePickInteraction from '@/components/exercise/interactions/DialoguePickInteraction';
 import MultiBlankInteraction from '@/components/exercise/interactions/MultiBlankInteraction';
 
-import type { AnchorPassage, SessionQuestion, SessionQuestionResult } from '@/lib/db/types';
+import type { SessionQuestion, SessionQuestionResult } from '@/lib/db/types';
 import { QUESTION_INTERACTION_MAP, QUESTION_TYPE_LABELS, QUESTION_SKILL_MAP, SKILL_AXIS_META } from '@/lib/exercise/config';
 import { useTTS } from '@/hooks/use-tts';
+import { authFromUser, clientApiFetch, clientApiJson } from '@/lib/client-api';
 
 // ─── Main Page ────────────────────────────────────────
 
@@ -38,17 +39,15 @@ export default function SessionPage() {
     const userId = user?.$id || '';
 
     // Session data
-    const [anchorPassage, setAnchorPassage] = useState<AnchorPassage | null>(null);
     const [questions, setQuestions] = useState<SessionQuestion[]>([]);
     const [vocabWordIds, setVocabWordIds] = useState<string[]>([]);
+    const [batchMeta, setBatchMeta] = useState<{ summary?: string } | null>(null);
     const [loading, setLoading] = useState(true);
 
     // Progress state
     const [currentIndex, setCurrentIndex] = useState(0);
     const [results, setResults] = useState<SessionQuestionResult[]>([]);
     const [completed, setCompleted] = useState(false);
-    const [submitting, setSubmitting] = useState(false);
-    const [showFullPassage, setShowFullPassage] = useState(false);
 
     // Active question AI evaluation
     const [evaluating, setEvaluating] = useState(false);
@@ -60,46 +59,49 @@ export default function SessionPage() {
 
     // ─── Fetch Session ────────────────────────────────
 
-    useEffect(() => {
-        if (!id || !userId) return;
-        fetchSession();
-    }, [id, userId]);
-
-    const fetchSession = async () => {
+    const fetchSession = useCallback(async () => {
         try {
             setLoading(true);
-            const token = await user?.getJwt();
-            const res = await fetch(`/api/practice/get-session?sessionId=${id}`, {
-                headers: {
-                    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-                    'x-user-id': userId,
-                },
+            const data = await clientApiJson<{ session: {
+                questions: SessionQuestion[];
+                vocabWordIds?: string[];
+                status?: string;
+                results?: SessionQuestionResult[];
+                partialResults?: SessionQuestionResult[];
+                currentIndex?: number;
+                batchMeta?: { summary?: string } | null;
+            } }>(`/api/practice/get-session?sessionId=${id}`, {
+                auth: authFromUser(user),
             });
-
-            if (!res.ok) throw new Error('Failed to fetch session');
-
-            const data = await res.json();
             const session = data.session;
 
-            setAnchorPassage(session.anchorPassage);
             setQuestions(session.questions || []);
             setVocabWordIds(session.vocabWordIds || []);
+            setBatchMeta(session.batchMeta || null);
 
             if (session.status?.startsWith('completed')) {
                 setCompleted(true);
                 setResults(session.results || []);
-            } else if (session.status === 'in_progress' && session.partialResults?.length > 0) {
+            } else {
+                const partialResults = session.partialResults ?? [];
+                if (session.status === 'in_progress' && partialResults.length > 0) {
                 // Resume: restore saved progress
-                setResults(session.partialResults);
-                setCurrentIndex(session.currentIndex || session.partialResults.length);
+                    setResults(partialResults);
+                    setCurrentIndex(session.currentIndex || partialResults.length);
+                }
             }
-        } catch (err) {
+        } catch (err: unknown) {
             console.error('Failed to fetch session:', err);
             toast.error('Could not load session');
         } finally {
             setLoading(false);
         }
-    };
+    }, [id, user]);
+
+    useEffect(() => {
+        if (!id || !userId) return;
+        fetchSession();
+    }, [id, userId, fetchSession]);
 
     // ─── Derived State ────────────────────────────────
 
@@ -112,36 +114,51 @@ export default function SessionPage() {
     // Fire-and-forget save of partial results to server
     const saveProgress = useCallback((newResults: SessionQuestionResult[], nextIdx: number) => {
         if (!id || !userId) return;
-        user?.getJwt().then(token => {
-            fetch('/api/practice/save-progress', {
+        clientApiFetch('/api/practice/save-progress', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-                    'x-user-id': userId,
-                },
-                body: JSON.stringify({
+                auth: authFromUser(user),
+                json: {
                     sessionId: id,
                     results: newResults,
                     currentIndex: nextIdx,
-                }),
+                },
             }).catch(() => {}); // Non-blocking — don't disrupt UX
-        }).catch(() => {});
     }, [id, userId, user]);
+
+    // ─── Complete Session ─────────────────────────────
+    const handleComplete = useCallback(async (finalResults: SessionQuestionResult[]) => {
+        setCompleted(true);
+        try {
+            const correctCount = finalResults.filter(r => r.correct).length;
+
+            await clientApiFetch('/api/practice/complete-session', {
+                method: 'POST',
+                auth: authFromUser(user),
+                json: {
+                    sessionId: id,
+                    phraseIds: vocabWordIds,
+                    results: finalResults,
+                    correctCount,
+                    totalQuestions: questions.length,
+                },
+            });
+        } catch (err: unknown) {
+            console.error('Failed to submit results:', err);
+        }
+    }, [id, questions.length, user, vocabWordIds]);
 
     const advanceToNext = useCallback((newResults: SessionQuestionResult[]) => {
         const nextIndex = currentIndex + 1;
         if (nextIndex < questions.length) {
             setCurrentIndex(nextIndex);
-            setShowFullPassage(false);
             saveProgress(newResults, nextIndex);
         } else {
-            handleComplete(newResults);
+            void handleComplete(newResults);
         }
-    }, [currentIndex, questions.length, saveProgress]);
+    }, [currentIndex, questions.length, saveProgress, handleComplete]);
 
     const recordAnswer = useCallback((questionId: string, correct: boolean, userAnswer?: string) => {
-        const q = questions.find(q => q.id === questionId);
+        const q = questions.find(item => item.id === questionId);
         if (!q) return;
 
         const result: SessionQuestionResult = {
@@ -156,7 +173,6 @@ export default function SessionPage() {
         const newResults = [...results, result];
         setResults(newResults);
 
-        // Auto-advance after feedback delay
         const interaction = QUESTION_INTERACTION_MAP[q.type];
         if (interaction !== 'freewrite') {
             setTimeout(() => {
@@ -180,103 +196,73 @@ export default function SessionPage() {
 
         setEvaluating(true);
         try {
-            const token = await user?.getJwt();
-            const res = await fetch('/api/practice/evaluate-response', {
+            const data = await clientApiJson<{ evaluation: {
+                pass: boolean;
+                feedback?: string;
+                suggestion?: string;
+                phraseUsageResults?: SessionQuestionResult['phraseUsageResults'];
+            } }>('/api/practice/evaluate-response', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-                    'x-user-id': userId,
-                },
-                body: JSON.stringify({
+                auth: authFromUser(user),
+                json: {
                     sessionId: id,
                     questionId: currentQuestion.id,
                     userResponse: text,
                     questionType: currentQuestion.type,
                     prompt: currentQuestion.prompt,
-                    passageText: anchorPassage?.text || '',
+                    context: currentQuestion.context || '',
+                    passageText: currentQuestion.context || '',
                     evaluationCriteria: currentQuestion.evaluationCriteria || [],
-                    // Production tracking: send expected phrases for usage detection
                     expectedPhrases: currentQuestion.expectedPhrases || [],
                     expectedPhraseIds: currentQuestion.expectedPhraseIds || [],
-                }),
+                },
             });
+            const evaluation = data.evaluation;
 
-            if (res.ok) {
-                const data = await res.json();
-                const evaluation = data.evaluation;
-
-                setActiveFeedback(prev => ({
-                    ...prev,
-                    [currentQuestion.id]: {
-                        correct: evaluation.pass,
-                        feedback: evaluation.feedback || '',
-                        suggestion: evaluation.suggestion,
-                    },
-                }));
-
-                const result: SessionQuestionResult = {
-                    questionId: currentQuestion.id,
-                    type: currentQuestion.type,
-                    skillAxis: QUESTION_SKILL_MAP[currentQuestion.type] || currentQuestion.skillAxis || 'task_achievement',
+            setActiveFeedback(prev => ({
+                ...prev,
+                [currentQuestion.id]: {
                     correct: evaluation.pass,
-                    userAnswer: text,
-                    timeTaken: 0,
-                    aiFeedback: evaluation.feedback,
-                    // Include production phrase usage results for SRS adjustment
-                    phraseUsageResults: evaluation.phraseUsageResults || undefined,
-                };
+                    feedback: evaluation.feedback || '',
+                    suggestion: evaluation.suggestion,
+                },
+            }));
 
-                const newResults = [...results, result];
-                setResults(newResults);
+            const result: SessionQuestionResult = {
+                questionId: currentQuestion.id,
+                type: currentQuestion.type,
+                skillAxis: QUESTION_SKILL_MAP[currentQuestion.type] || currentQuestion.skillAxis || 'task_achievement',
+                correct: evaluation.pass,
+                userAnswer: text,
+                timeTaken: 0,
+                aiFeedback: evaluation.feedback,
+                phraseUsageResults: evaluation.phraseUsageResults || undefined,
+            };
 
-                // Auto-advance after showing feedback
-                setTimeout(() => {
-                    advanceToNext(newResults);
-                }, 3000);
-            } else {
-                recordAnswer(currentQuestion.id, true, text);
-                toast.error('Could not evaluate — marked as complete');
-            }
-        } catch (err) {
+            const newResults = [...results, result];
+            setResults(newResults);
+
+            setTimeout(() => {
+                advanceToNext(newResults);
+            }, 3000);
+        } catch (err: unknown) {
             recordAnswer(currentQuestion.id, true, text);
+            toast.error('Could not evaluate — marked as complete');
             console.error('Evaluation error:', err);
         } finally {
             setEvaluating(false);
         }
-    }, [currentQuestion, anchorPassage, userId, user, id, results, recordAnswer, advanceToNext]);
+    }, [currentQuestion, user, id, results, recordAnswer, advanceToNext]);
 
-    // ─── Complete Session ─────────────────────────────
-
-    const handleComplete = async (finalResults: SessionQuestionResult[]) => {
-        setCompleted(true);
-        setSubmitting(true);
-
-        try {
-            const token = await user?.getJwt();
-            const correctCount = finalResults.filter(r => r.correct).length;
-
-            await fetch('/api/practice/complete-session', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-                    'x-user-id': userId,
-                },
-                body: JSON.stringify({
-                    sessionId: id,
-                    phraseIds: vocabWordIds,
-                    results: finalResults,
-                    correctCount,
-                    totalQuestions: questions.length,
-                }),
-            });
-        } catch (err) {
-            console.error('Failed to submit results:', err);
-        } finally {
-            setSubmitting(false);
+    const handleListenPlay = useCallback(async () => {
+        if (!currentQuestion) return;
+        const text = currentQuestion.listeningText || currentQuestion.context || currentQuestion.prompt;
+        if (!text) return;
+        const completedPlayback = await tts.play(text);
+        if (completedPlayback && currentQuestion) {
+            setListenedQuestions(prev => new Set(prev).add(currentQuestion.id));
         }
-    };
+    }, [currentQuestion, tts]);
 
     // ─── Loading ──────────────────────────────────────
 
@@ -288,7 +274,7 @@ export default function SessionPage() {
         );
     }
 
-    if (!anchorPassage) {
+    if (questions.length === 0) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-[var(--background)]">
                 <div className="text-center">
@@ -308,7 +294,6 @@ export default function SessionPage() {
             accuracy={accuracy}
             totalCorrect={totalCorrect}
             results={results}
-            questions={questions}
             onDone={() => router.push('/practice')}
         />;
     }
@@ -319,34 +304,11 @@ export default function SessionPage() {
     const currentResult = results.find(r => r.questionId === currentQuestion?.id);
     const questionLabel = currentQuestion ? QUESTION_TYPE_LABELS[currentQuestion.type] || '' : '';
     const interactionType = currentQuestion ? QUESTION_INTERACTION_MAP[currentQuestion.type] : null;
-    const isFreewrite = interactionType === 'freewrite';
     const isTapPassage = interactionType === 'tap_passage';
     const isListening = currentQuestion?.isListening === true;
     const hasListened = currentQuestion ? listenedQuestions.has(currentQuestion.id) : false;
 
-    // ─── Excerpt grouping ───
-    const currentExcerptId = currentQuestion?.excerptId;
-    const prevExcerptId = currentIndex > 0 ? questions[currentIndex - 1]?.excerptId : null;
-    const isNewExcerpt = currentExcerptId !== prevExcerptId;
-    const excerptText = currentQuestion?.excerptText || currentQuestion?.passageReference;
-    // Compute which excerpt number we're on (1-indexed)
-    const excerptIds = [...new Set(questions.map(q => q.excerptId).filter(Boolean))];
-    const currentExcerptNumber = currentExcerptId ? excerptIds.indexOf(currentExcerptId) + 1 : 0;
-    const totalExcerpts = excerptIds.length;
-    // Count questions within this excerpt
-    const questionsInExcerpt = currentExcerptId ? questions.filter(q => q.excerptId === currentExcerptId) : [];
-    const questionIndexInExcerpt = currentExcerptId ? questionsInExcerpt.findIndex(q => q.id === currentQuestion?.id) + 1 : 0;
-
-    const handleListenPlay = useCallback(async () => {
-        if (!currentQuestion) return;
-        const text = currentQuestion.listeningText || currentQuestion.passageReference || currentQuestion.prompt;
-        if (!text) return;
-        const completed = await tts.play(text);
-        if (completed && currentQuestion) {
-            setListenedQuestions(prev => new Set(prev).add(currentQuestion.id));
-        }
-    }, [currentQuestion, tts]);
-
+    const excerptText = currentQuestion?.context || '';
     return (
         <div className="bg-[var(--background)]">
             {/* ── Top Bar ── */}
@@ -359,69 +321,33 @@ export default function SessionPage() {
                     <span className="text-[11px] font-bold uppercase tracking-widest">Exit</span>
                 </button>
                 <span className="text-[11px] text-[var(--muted-foreground)] tabular-nums font-medium">
-                    {totalExcerpts > 0 ? (
-                        <>Passage {currentExcerptNumber} of {totalExcerpts} · Q{questionIndexInExcerpt} of {questionsInExcerpt.length}</>
-                    ) : (
-                        <>{currentIndex + 1} / {questions.length}</>
-                    )}
+                    {currentIndex + 1} / {questions.length}
                 </span>
             </div>
 
             {/* ── Progress Bar ── */}
             <div className="max-w-2xl w-full mx-auto px-6 pb-3">
-                {totalExcerpts > 0 ? (
-                    <div className="flex gap-2.5">
-                        {excerptIds.map((exId, exIdx) => {
-                            const groupQs = questions.filter(q => q.excerptId === exId);
-                            return (
-                                <div key={exId} className="flex gap-0.5 flex-1">
-                                    {groupQs.map((q) => {
-                                        const result = results.find(r => r.questionId === q.id);
-                                        const qIdx = questions.findIndex(qq => qq.id === q.id);
-                                        const isCurrent = qIdx === currentIndex;
-                                        const axis = QUESTION_SKILL_MAP[q.type] || q.skillAxis || 'task_achievement';
-                                        const axisColor = SKILL_AXIS_META[axis]?.color || '#a3a3a3';
-                                        return (
-                                            <motion.div
-                                                key={q.id}
-                                                className="flex-1 h-1.5 rounded-full"
-                                                animate={{
-                                                    backgroundColor: result
-                                                        ? result.correct ? '#34d399' : '#f87171'
-                                                        : isCurrent ? axisColor : `${axisColor}25`,
-                                                    scale: isCurrent ? 1.15 : 1,
-                                                }}
-                                                transition={{ duration: 0.3, ease: [0.25, 1, 0.5, 1] }}
-                                            />
-                                        );
-                                    })}
-                                </div>
-                            );
-                        })}
-                    </div>
-                ) : (
-                    <div className="flex gap-1">
-                        {questions.map((q, i) => {
-                            const result = results.find(r => r.questionId === q.id);
-                            const isCurrent = i === currentIndex;
-                            const axis = QUESTION_SKILL_MAP[q.type] || q.skillAxis || 'task_achievement';
-                            const axisColor = SKILL_AXIS_META[axis]?.color || '#a3a3a3';
-                            return (
-                                <motion.div
-                                    key={q.id}
-                                    className="flex-1 h-1.5 rounded-full"
-                                    animate={{
-                                        backgroundColor: result
-                                            ? result.correct ? '#34d399' : '#f87171'
-                                            : isCurrent ? axisColor : `${axisColor}25`,
-                                        scale: isCurrent ? 1.15 : 1,
-                                    }}
-                                    transition={{ duration: 0.3, ease: [0.25, 1, 0.5, 1] }}
-                                />
-                            );
-                        })}
-                    </div>
-                )}
+                <div className="flex gap-1">
+                    {questions.map((q, i) => {
+                        const result = results.find(r => r.questionId === q.id);
+                        const isCurrent = i === currentIndex;
+                        const axis = QUESTION_SKILL_MAP[q.type] || q.skillAxis || 'task_achievement';
+                        const axisColor = SKILL_AXIS_META[axis]?.color || '#a3a3a3';
+                        return (
+                            <motion.div
+                                key={q.id}
+                                className="flex-1 h-1.5 rounded-full"
+                                animate={{
+                                    backgroundColor: result
+                                        ? result.correct ? '#34d399' : '#f87171'
+                                        : isCurrent ? axisColor : `${axisColor}25`,
+                                    scale: isCurrent ? 1.15 : 1,
+                                }}
+                                transition={{ duration: 0.3, ease: [0.25, 1, 0.5, 1] }}
+                            />
+                        );
+                    })}
+                </div>
             </div>
 
             {/* ── Content Flow — passage + question + interaction ── */}
@@ -429,7 +355,7 @@ export default function SessionPage() {
                 <div className="max-w-2xl w-full mx-auto px-6 pb-8">
                     <AnimatePresence mode="wait">
                         <motion.div
-                            key={currentExcerptId || currentQuestion?.id || 'none'}
+                            key={currentQuestion?.id || 'none'}
                             initial={{ opacity: 0, y: 16 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -16 }}
@@ -438,13 +364,10 @@ export default function SessionPage() {
                             {/* Sticky excerpt block — stays visible across grouped questions */}
                             {!isListening && !isTapPassage && excerptText && (
                                 <div className="mb-5 bg-[color-mix(in_oklch,var(--background),var(--foreground)_3%)] border border-[var(--border)] px-5 py-4">
-                                    {totalExcerpts > 0 && (
-                                        <div className="flex items-center justify-between mb-2">
+                                    {batchMeta?.summary && (
+                                        <div className="mb-2">
                                             <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--muted-foreground)]">
-                                                Passage {currentExcerptNumber}
-                                            </span>
-                                            <span className="text-[10px] text-[var(--muted-foreground)] tabular-nums">
-                                                {questionIndexInExcerpt} of {questionsInExcerpt.length} questions
+                                                Shared Pool Context
                                             </span>
                                         </div>
                                     )}
@@ -519,43 +442,6 @@ export default function SessionPage() {
                                             Listen to the audio to unlock the question
                                         </motion.p>
                                     )}
-                                </div>
-                            )}
-
-                            {/* Full passage (freewrite only) */}
-                            {isFreewrite && anchorPassage && (
-                                <div className="mb-6">
-                                    <button
-                                        onClick={() => setShowFullPassage(!showFullPassage)}
-                                        className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors mb-2 min-h-[44px]"
-                                    >
-                                        <BookOpen className="w-3.5 h-3.5" />
-                                        Read full passage
-                                        <ChevronDown className={`w-3 h-3 transition-transform ${showFullPassage ? 'rotate-180' : ''}`} />
-                                    </button>
-                                    <AnimatePresence>
-                                        {showFullPassage && (
-                                            <motion.div
-                                                initial={{ height: 0, opacity: 0 }}
-                                                animate={{ height: 'auto', opacity: 1 }}
-                                                exit={{ height: 0, opacity: 0 }}
-                                                transition={{ duration: 0.35, ease: [0.25, 1, 0.5, 1] }}
-                                                className="overflow-hidden"
-                                            >
-                                                <div className="bg-[color-mix(in_oklch,var(--background),var(--foreground)_3%)] border border-[var(--border)] px-6 py-5 mb-6">
-                                                    <p className="text-xs text-[var(--muted-foreground)] italic mb-3">
-                                                        {anchorPassage.topic} — {anchorPassage.centralClaim}
-                                                    </p>
-                                                    <div
-                                                        className="text-[15px] leading-[1.9] text-[var(--foreground)] opacity-75 whitespace-pre-wrap"
-                                                        style={{ fontFamily: 'var(--font-serif, Georgia, serif)' }}
-                                                    >
-                                                        {anchorPassage.text}
-                                                    </div>
-                                                </div>
-                                            </motion.div>
-                                        )}
-                                    </AnimatePresence>
                                 </div>
                             )}
 
@@ -672,13 +558,11 @@ function CompletionScreen({
     accuracy,
     totalCorrect,
     results,
-    questions,
     onDone,
 }: {
     accuracy: number;
     totalCorrect: number;
     results: SessionQuestionResult[];
-    questions: SessionQuestion[];
     onDone: () => void;
 }) {
     const skillBreakdown = useMemo(() => {

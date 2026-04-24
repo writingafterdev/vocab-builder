@@ -4,6 +4,7 @@ import { getNextApiKey } from '@/lib/api-key-rotation';
 import { uploadToAppwriteStorage } from '@/lib/appwrite/storage';
 import { getDocument, updateDocument } from '@/lib/appwrite/database';
 import type { SpeakingChunk } from '@/types';
+import { requireRequestUser } from '@/lib/request-auth';
 
 /**
  * Speaking Chunks API - Manages shared TTS cache for Read & Speak mode
@@ -97,10 +98,7 @@ function pcmToWav(pcmData: Uint8Array, sampleRate = 24000): Uint8Array {
 // GET: Fetch or generate chunks for article
 export async function GET(request: NextRequest) {
     try {
-        const userId = request.headers.get('x-user-id');
-        if (!userId) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
+        await requireRequestUser(request, { allowHeaderFallback: true });
 
         const { searchParams } = new URL(request.url);
         const articleId = searchParams.get('articleId');
@@ -159,10 +157,7 @@ export async function GET(request: NextRequest) {
 // POST: Generate TTS for a specific chunk
 export async function POST(request: NextRequest) {
     try {
-        const userId = request.headers.get('x-user-id');
-        if (!userId) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
+        await requireRequestUser(request, { allowHeaderFallback: true });
 
         const body = await request.json();
         const { articleId, chunkIndex } = body;

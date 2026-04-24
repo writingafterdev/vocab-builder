@@ -2,20 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSourceDefinition } from '@/lib/source-catalog';
 import { createPostWithComments } from '@/lib/db/admin';
 import { logTokenUsage } from '@/lib/db/token-tracking';
-
-const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase());
-function isAdmin(email: string | null): boolean {
-    if (!email) return false;
-    return ADMIN_EMAILS.includes(email.toLowerCase()) || email === 'ducanhcontactonfb@gmail.com';
-}
+import { getAdminRequestContext } from '@/lib/admin-auth';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.AISTUDIO_API_KEY;
 const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 export async function POST(request: NextRequest) {
     try {
-        const email = request.headers.get('x-user-email')?.toLowerCase() || null;
-        if (!isAdmin(email)) {
+        const admin = await getAdminRequestContext(request);
+        if (!admin) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
         }
 

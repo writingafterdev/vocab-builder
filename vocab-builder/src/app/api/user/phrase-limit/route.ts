@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { queryCollection } from '@/lib/appwrite/database';
+import { getRequestUser } from '@/lib/request-auth';
 
 const DAILY_PHRASE_LIMIT = 15;
 
 export async function GET(request: NextRequest) {
     try {
-        const userId = request.headers.get('x-user-id');
+        const authUser = await getRequestUser(request, { allowHeaderFallback: true });
+        const userId = authUser?.userId;
 
         if (!userId) {
             return NextResponse.json({ error: 'User ID required' }, { status: 401 });

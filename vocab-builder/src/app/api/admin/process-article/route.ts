@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logTokenUsage } from '@/lib/db/token-tracking';
+import { getAdminRequestContext } from '@/lib/admin-auth';
 
 /**
  * Process article content using Gemini 3 Flash
@@ -12,23 +13,16 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 // Base URL for native API
 const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 
-const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase());
-
-function isAdmin(email: string | null): boolean {
-    if (!email) return false;
-    return ADMIN_EMAILS.includes(email.toLowerCase());
-}
-
 export async function POST(request: NextRequest) {
     try {
-        const email = request.headers.get('x-user-email')?.toLowerCase() || null;
-
-        if (!isAdmin(email)) {
+        const admin = await getAdminRequestContext(request);
+        if (!admin) {
             return NextResponse.json(
                 { error: 'Unauthorized. Admin access required.' },
                 { status: 403 }
             );
         }
+        const email = admin.userEmail;
 
         if (!GEMINI_API_KEY) {
             return NextResponse.json(

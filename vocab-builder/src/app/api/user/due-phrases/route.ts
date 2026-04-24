@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { runQuery } from '@/lib/appwrite/database';
+import { getRequestUser } from '@/lib/request-auth';
 
 // Force dynamic since we check SRS dates relative to "now"
 export const dynamic = 'force-dynamic';
@@ -135,12 +136,8 @@ function sortClustersForVariety(clusters: PhraseCluster[]): PhraseCluster[] {
 
 export async function GET(request: NextRequest) {
     try {
-        // Secure authentication - verify Firebase ID token (edge-compatible)
-        const { getAuthFromRequest } = await import('@/lib/appwrite/auth-admin');
-        const authUser = await getAuthFromRequest(request);
-
-        // Fallback for backward compatibility or when testing
-        const userId = authUser?.userId || request.headers.get('x-user-id');
+        const authUser = await getRequestUser(request, { allowHeaderFallback: true });
+        const userId = authUser?.userId;
 
         if (!userId) {
             return NextResponse.json({ error: 'Authentication required' }, { status: 401 });

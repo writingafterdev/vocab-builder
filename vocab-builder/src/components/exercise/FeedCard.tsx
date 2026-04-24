@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { FeedCard as FeedCardType } from '@/lib/db/types';
-import { SOURCE_PLATFORM_CONFIG, FEED_CARD_COLORS, SKILL_AXIS_COLORS } from '@/lib/exercise/config';
+import { SOURCE_PLATFORM_CONFIG, QUESTION_TYPE_LABELS, SKILL_AXIS_COLORS } from '@/lib/exercise/config';
 
 interface FeedCardProps {
     card: FeedCardType;
@@ -17,8 +17,55 @@ export default function FeedCardComponent({ card, onAnswer, onFixIt }: FeedCardP
     const [isCorrect, setIsCorrect] = useState(false);
 
     const platformConfig = SOURCE_PLATFORM_CONFIG[card.sourcePlatform] || { emoji: '📄', label: 'Post' };
-    const accentClass = FEED_CARD_COLORS[card.cardType] || 'border-l-neutral-400';
     const skillColors = SKILL_AXIS_COLORS[card.skillAxis];
+    const questionLabel = card.questionType
+        ? QUESTION_TYPE_LABELS[card.questionType]
+        : card.prompt;
+
+    const renderHighlightedContext = (text: string, phrase?: string) => {
+        if (!phrase) return text;
+
+        const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(`(${escaped})`, 'ig');
+        const parts = text.split(regex);
+
+        if (parts.length === 1) return text;
+
+        return parts.map((part, index) => {
+            const isMatch = part.toLowerCase() === phrase.toLowerCase();
+            if (!isMatch) {
+                return <span key={`${part}-${index}`}>{part}</span>;
+            }
+
+            return (
+                <span
+                    key={`${part}-${index}`}
+                    className="rounded-[0.3rem] bg-indigo-50 px-1 py-0.5 text-indigo-900 shadow-[inset_0_-1px_0_rgba(79,70,229,0.25)]"
+                >
+                    {part}
+                </span>
+            );
+        });
+    };
+
+    const getOptionStateClass = (index: number) => {
+        const isSelected = selectedIndex === index;
+        const isCorrectOption = index === card.correctIndex;
+
+        if (!answered) {
+            return 'border-neutral-200 text-neutral-800 hover:border-neutral-400 hover:bg-neutral-50';
+        }
+
+        if (isCorrectOption) {
+            return 'border-emerald-200 bg-emerald-50/70 text-emerald-950';
+        }
+
+        if (isSelected) {
+            return 'border-rose-200 bg-rose-50/80 text-rose-900';
+        }
+
+        return 'border-neutral-100 text-neutral-400 bg-neutral-50/60';
+    };
 
     const handleSelect = (index: number) => {
         if (answered) return;
@@ -33,41 +80,50 @@ export default function FeedCardComponent({ card, onAnswer, onFixIt }: FeedCardP
     // "Fix It" card → redirect to pre-generated session
     if (card.cardType === 'fix_it' && card.linkedSessionId) {
         return (
-            <div className={`w-full h-[280px] bg-white border border-neutral-200 border-l-4 ${accentClass} flex flex-col overflow-hidden`}>
-                <div className="flex-1 flex flex-col justify-center px-6 py-5">
-                    {/* Platform badge */}
-                    <div className="flex items-center gap-2 mb-3">
-                        <span className="text-sm">{platformConfig.emoji}</span>
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">
-                            {platformConfig.label}
-                        </span>
-                        {card.isRetry && (
-                            <span className="text-[10px] font-bold uppercase tracking-widest text-red-400 ml-auto">
-                                ↻ Retry
-                            </span>
-                        )}
+            <div className="w-full h-[500px] md:h-[280px] bg-white border border-neutral-200 flex flex-col overflow-hidden">
+                <div className="flex items-center justify-between px-5 pt-5 text-[10px] font-bold uppercase tracking-[0.24em] text-neutral-400 md:px-6 md:pt-4">
+                    <div className="flex items-center gap-2">
+                        <span className="text-xs">{platformConfig.emoji}</span>
+                        <span>{platformConfig.label}</span>
                     </div>
-
-                    {/* Source content preview */}
-                    <p className="text-sm text-neutral-700 leading-relaxed line-clamp-3 mb-4 italic"
-                        style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
-                    >
-                        "{card.sourceContent.slice(0, 150)}..."
-                    </p>
-
-                    {/* CTA */}
-                    <button
-                        onClick={() => onFixIt?.(card.linkedSessionId!)}
-                        className="w-full py-3 bg-neutral-900 text-white text-[10px] font-bold uppercase tracking-widest hover:bg-neutral-800 transition-colors"
-                    >
-                        ✦ Fix this argument
-                    </button>
+                    {card.isRetry && <span className="text-amber-700">Retry</span>}
                 </div>
 
-                {/* Time estimate */}
-                <div className="px-6 py-2 border-t border-neutral-100 flex items-center justify-between">
-                    <span className="text-[10px] text-neutral-400">~{Math.ceil(card.estimatedSeconds / 60)} min</span>
-                    <span className={`text-[10px] font-bold uppercase tracking-widest ${skillColors.accent}`}>
+                <div className="flex-1 px-5 pb-4 pt-4 md:px-6 md:pb-3 md:pt-3">
+                    <div className="flex h-full flex-col justify-between border-y border-neutral-100 py-5 md:py-4">
+                        <div className="space-y-4">
+                            <p
+                                className="text-center text-[1.7rem] leading-[1.55] text-neutral-900 md:text-[1.25rem] md:leading-[1.5]"
+                                style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
+                            >
+                                {renderHighlightedContext(card.sourceContent, card.vocabPhrase)}
+                            </p>
+
+                            <div className="space-y-2 text-center">
+                                <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-neutral-400">
+                                    Guided Practice
+                                </p>
+                                <p className="mx-auto max-w-[34rem] text-sm leading-relaxed text-neutral-700 md:text-[0.9rem]">
+                                    {card.prompt}
+                                </p>
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={() => onFixIt?.(card.linkedSessionId!)}
+                            className="mt-6 flex min-h-12 w-full items-center justify-between border border-neutral-200 px-4 py-3 text-left transition-colors hover:border-neutral-400 hover:bg-neutral-50 md:min-h-11"
+                        >
+                            <span className="text-[11px] font-bold uppercase tracking-[0.24em] text-neutral-500">
+                                Open full repair
+                            </span>
+                            <span className="text-lg leading-none text-neutral-400">↗</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div className="flex items-center justify-between border-t border-neutral-100 px-5 py-3 text-[10px] uppercase tracking-[0.24em] md:px-6 md:py-2.5">
+                    <span className="text-neutral-400">~{Math.ceil(card.estimatedSeconds / 60)} min</span>
+                    <span className={skillColors.accent}>
                         {card.skillAxis.replace('_', ' ')}
                     </span>
                 </div>
@@ -77,81 +133,90 @@ export default function FeedCardComponent({ card, onAnswer, onFixIt }: FeedCardP
 
     // Standard interactive card (ab_natural, spot_flaw, spot_intruder, retry)
     return (
-        <div className={`w-full h-[280px] bg-white border border-neutral-200 border-l-4 ${accentClass} flex flex-col overflow-hidden`}>
-            <div className="flex-1 flex flex-col px-6 py-5 overflow-hidden">
-                {/* Header row */}
-                <div className="flex items-center gap-2 mb-3">
-                    <span className="text-sm">{platformConfig.emoji}</span>
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">
-                        {platformConfig.label}
-                    </span>
-                    {card.isRetry && (
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-red-400 ml-auto">
-                            ↻ Retry
+        <div className="w-full h-[500px] md:h-[280px] bg-white border border-neutral-200 flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between px-5 pt-5 text-[10px] font-bold uppercase tracking-[0.24em] text-neutral-400 md:px-6 md:pt-4">
+                <div className="flex items-center gap-2">
+                    <span className="text-xs">{platformConfig.emoji}</span>
+                    <span>{platformConfig.label}</span>
+                </div>
+                <div className="flex items-center gap-3">
+                    {card.learningBand && (
+                        <span className="text-neutral-400">
+                            {card.learningBand.replace('_', ' ')}
                         </span>
                     )}
-                </div>
-
-                {/* Question */}
-                <p className="text-sm font-semibold text-neutral-900 mb-3 line-clamp-2">
-                    {card.prompt}
-                </p>
-
-                {/* Options */}
-                <div className="space-y-1.5 flex-1 overflow-y-auto">
-                    {(card.options || []).map((option, i) => {
-                        const isSelected = selectedIndex === i;
-                        const isCorrectOption = i === card.correctIndex;
-                        
-                        let optionClass = 'bg-white border-neutral-200 hover:border-neutral-400';
-                        if (answered) {
-                            if (isCorrectOption) {
-                                optionClass = 'bg-emerald-50 border-emerald-300 text-emerald-900';
-                            } else if (isSelected && !isCorrectOption) {
-                                optionClass = 'bg-red-50 border-red-300 text-red-700';
-                            } else {
-                                optionClass = 'bg-neutral-50 border-neutral-200 text-neutral-400';
-                            }
-                        }
-
-                        return (
-                            <button
-                                key={i}
-                                onClick={() => handleSelect(i)}
-                                disabled={answered}
-                                className={`w-full px-3 py-2 text-left text-sm border transition-all ${optionClass}`}
-                            >
-                                {option}
-                            </button>
-                        );
-                    })}
+                    {card.isRetry && <span className="text-amber-700">Retry</span>}
                 </div>
             </div>
 
-            {/* Result footer */}
-            <AnimatePresence>
-                {answered && (
-                    <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        className="px-6 py-2.5 border-t border-neutral-100 bg-neutral-50"
-                    >
-                        <p className="text-xs text-neutral-600 line-clamp-2">
-                            {isCorrect ? '✓ ' : '✗ '}{card.explanation}
+            <div className="flex min-h-0 flex-1 flex-col px-5 pb-4 pt-4 md:px-6 md:pb-3 md:pt-3">
+                <div className="flex min-h-0 flex-1 flex-col border-y border-neutral-100 py-5 md:py-4">
+                    <div className="space-y-3">
+                        <p
+                            className="text-center text-[1.55rem] leading-[1.55] text-neutral-900 md:text-[1.15rem] md:leading-[1.5]"
+                            style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
+                        >
+                            {renderHighlightedContext(card.sourceContent, card.vocabPhrase)}
                         </p>
-                    </motion.div>
-                )}
-            </AnimatePresence>
 
-            {/* Skill axis label */}
-            {!answered && (
-                <div className="px-6 py-2 border-t border-neutral-100 flex items-center justify-between">
-                    <span className="text-[10px] text-neutral-400">~{card.estimatedSeconds}s</span>
-                    <span className={`text-[10px] font-bold uppercase tracking-widest ${skillColors.accent}`}>
-                        {card.skillAxis.replace('_', ' ')}
-                    </span>
+                        <div className="space-y-1 text-center">
+                            <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-neutral-400">
+                                {questionLabel}
+                            </p>
+                            <p className="mx-auto max-w-[34rem] text-sm leading-relaxed text-neutral-700 md:text-[0.9rem]">
+                                {card.prompt}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="mt-5 min-h-0 flex-1 overflow-y-auto">
+                        <div className="border-y border-neutral-100">
+                            {(card.options || []).map((option, i) => (
+                                <button
+                                    key={i}
+                                    onClick={() => handleSelect(i)}
+                                    disabled={answered}
+                                    className={`flex min-h-14 w-full items-start gap-4 border-b border-neutral-100 px-4 py-3 text-left transition-colors last:border-b-0 md:min-h-12 ${getOptionStateClass(i)}`}
+                                >
+                                    <span className="w-4 pt-0.5 text-[11px] font-bold uppercase tracking-[0.24em] text-neutral-400">
+                                        {String.fromCharCode(65 + i)}
+                                    </span>
+                                    <span className="flex-1 text-[1rem] leading-relaxed md:text-[0.95rem]">
+                                        {option}
+                                    </span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
                 </div>
-            )}
+
+                <AnimatePresence>
+                    {answered ? (
+                        <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            className="border-t border-neutral-100 px-1 pt-3"
+                        >
+                            <p className="text-xs leading-relaxed text-neutral-600 md:text-[0.78rem]">
+                                <span className={isCorrect ? 'text-emerald-700' : 'text-rose-700'}>
+                                    {isCorrect ? 'Correct.' : 'Not quite.'}
+                                </span>{' '}
+                                {card.explanation}
+                            </p>
+                        </motion.div>
+                    ) : (
+                        <motion.div
+                            initial={false}
+                            className="flex items-center justify-between border-t border-neutral-100 px-1 pt-3 text-[10px] uppercase tracking-[0.24em]"
+                        >
+                            <span className="text-neutral-400">~{card.estimatedSeconds}s</span>
+                            <span className={skillColors.accent}>
+                                {card.skillAxis.replace('_', ' ')}
+                            </span>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </div>
         </div>
     );
 }

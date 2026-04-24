@@ -1,32 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyIdToken } from '@/lib/appwrite/auth-admin';
 import { getSkillProgress, getSkillSummary } from '@/lib/db/skill-progress';
+import { getRequestUser } from '@/lib/request-auth';
 
 /**
  * Get user's skill progress for dashboard display
  */
 export async function GET(request: NextRequest) {
     try {
-        const authHeader = request.headers.get('authorization');
-        const userIdHeader = request.headers.get('x-user-id');
-
-        let userId: string | null = null;
-
-        if (authHeader?.startsWith('Bearer ')) {
-            try {
-                const token = authHeader.split(' ')[1];
-                const decoded = await verifyIdToken(token);
-                if (decoded) {
-                    userId = decoded.$id;
-                }
-            } catch {
-                console.log('[Get Skills] Token verification failed');
-            }
-        }
-
-        if (!userId && userIdHeader) {
-            userId = userIdHeader;
-        }
+        const authUser = await getRequestUser(request, { allowHeaderFallback: true });
+        const userId = authUser?.userId || null;
 
         if (!userId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

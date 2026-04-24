@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { queryCollection } from '@/lib/appwrite/database';
+import { getRequestUser } from '@/lib/request-auth';
+
+type SessionDoc = Record<string, unknown>;
 
 /**
  * GET /api/practice/list-sessions
@@ -8,23 +11,8 @@ import { queryCollection } from '@/lib/appwrite/database';
  */
 export async function GET(request: NextRequest) {
     try {
-        // Auth: accept either Bearer token or x-user-id header
-        let userId: string | null = null;
-
-        const authHeader = request.headers.get('Authorization');
-        if (authHeader?.startsWith('Bearer ')) {
-            try {
-                const { verifyIdToken } = await import('@/lib/appwrite/auth-admin');
-                const verified = await verifyIdToken(authHeader);
-                userId = verified?.$id || null;
-            } catch {
-                // ignore — fall through to x-user-id
-            }
-        }
-
-        if (!userId) {
-            userId = request.headers.get('x-user-id');
-        }
+        const authUser = await getRequestUser(request, { allowHeaderFallback: true });
+        const userId = authUser?.userId || null;
 
         if (!userId) {
             return NextResponse.json({ sessions: [] });
@@ -37,36 +25,47 @@ export async function GET(request: NextRequest) {
             limit: 20,
         });
 
-        const sessions = docs.map((doc: any) => {
+        const sessions = docs.map((doc) => {
+            const sessionDoc = doc as SessionDoc;
             // Parse JSON fields
             let questionCount = 0;
             let topic = '';
             let centralClaim = '';
+            let isV3Batch = false;
 
             try {
-                const questions = typeof doc.questions === 'string' ? JSON.parse(doc.questions) : (doc.questions || []);
+                const questions = typeof sessionDoc.questions === 'string'
+                    ? JSON.parse(sessionDoc.questions)
+                    : (sessionDoc.questions || []);
                 questionCount = Array.isArray(questions) ? questions.length : 0;
             } catch { /* ignore */ }
 
-            // Try to extract topic from anchorPassage (new format) or title (legacy)
+            // Extract the display topic from the stored V3 batch metadata.
             try {
-                const passage = typeof doc.content === 'string' ? JSON.parse(doc.content) : doc.content;
+                const passage = typeof sessionDoc.content === 'string'
+                    ? JSON.parse(sessionDoc.content)
+                    : sessionDoc.content;
+                isV3Batch = passage?.mode === 'practice_batch_v3';
                 if (passage && typeof passage === 'object' && passage.topic) {
                     topic = passage.topic;
                     centralClaim = passage.centralClaim || '';
+                } else if (isV3Batch) {
+                    topic = typeof sessionDoc.title === 'string' ? sessionDoc.title : 'Practice Batch';
+                    centralClaim = passage.summary || (typeof sessionDoc.subtopic === 'string' ? sessionDoc.subtopic : '');
                 }
             } catch { /* ignore */ }
 
             return {
-                id: doc.id,
-                topic: topic || doc.title || 'Untitled Session',
-                centralClaim: centralClaim || doc.subtopic || '',
-                totalPhrases: doc.totalPhrases || 0,
-                status: doc.status || 'generated',
+                id: sessionDoc.id,
+                topic: topic || (typeof sessionDoc.title === 'string' ? sessionDoc.title : 'Untitled Session'),
+                centralClaim: centralClaim || (typeof sessionDoc.subtopic === 'string' ? sessionDoc.subtopic : ''),
+                totalPhrases: typeof sessionDoc.totalPhrases === 'number' ? sessionDoc.totalPhrases : 0,
+                status: typeof sessionDoc.status === 'string' ? sessionDoc.status : 'generated',
                 questionCount,
-                createdAt: doc.createdAt || '',
+                createdAt: typeof sessionDoc.createdAt === 'string' ? sessionDoc.createdAt : '',
+                isV3Batch,
             };
-        });
+        }).filter((session) => session.isV3Batch);
 
         return NextResponse.json({ sessions });
 

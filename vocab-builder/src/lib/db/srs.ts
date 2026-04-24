@@ -2,28 +2,29 @@
  * Spaced Repetition System (SRS) domain module
  */
 import {
-    collection,
-    doc,
-    addDoc,
-    getDoc,
-    getDocs,
-    updateDoc,
-    deleteDoc,
-    query,
-    where,
-    orderBy,
-    limit,
-    increment,
+    addDocument,
+    deleteDocument,
+    getDocument,
+    incrementBy,
+    queryCollection,
     serverTimestamp,
-    Timestamp,
-} from '@/lib/appwrite/firestore';
-import { getDbAsync } from './core';
-import type { SavedPhrase, Post } from './types';
+    updateDocument,
+} from '@/lib/appwrite/client-db';
+import { Timestamp } from '@/lib/appwrite/timestamp';
+import type { SavedPhrase } from './types';
+import type { Register } from './types';
 import { DEFAULT_LEARNING_CYCLE } from './types';
 // ExerciseQuestionType, LearningPhase, ExerciseSurface removed — now handled by exercise/config.ts
 
 // Daily limit for phrase saving (optimal learning)
 export const DAILY_PHRASE_LIMIT = 15;
+
+type DateLike = Timestamp | Date | { toMillis?: () => number; getTime?: () => number } | number | null | undefined;
+type PracticeConfig = {
+    register: Register | unknown;
+    relationship: unknown;
+    topic: string;
+};
 
 /**
  * Calculate next SRS values after a review
@@ -81,18 +82,16 @@ export function advanceSRS(
  * Accepts either userEmail or userId (Firestore doc ID)
  */
 export async function getTodaySaveCount(userIdentifier: string): Promise<number> {
-    const firestore = await getDbAsync();
-    const phrasesRef = collection(firestore, 'savedPhrases');
-
     // If it looks like an email, lookup the user doc ID first
     let resolvedUserId = userIdentifier;
     if (userIdentifier.includes('@')) {
         try {
-            const usersRef = collection(firestore, 'users');
-            const userQuery = query(usersRef, where('email', '==', userIdentifier));
-            const userSnapshot = await getDocs(userQuery);
-            if (!userSnapshot.empty) {
-                resolvedUserId = userSnapshot.docs[0].id;
+            const users = await queryCollection('users', {
+                where: [{ field: 'email', op: '==', value: userIdentifier }],
+                limit: 1,
+            });
+            if (users.length > 0) {
+                resolvedUserId = users[0].id;
             } else {
                 console.warn('User not found for email:', userIdentifier);
                 return 0;
@@ -108,14 +107,14 @@ export async function getTodaySaveCount(userIdentifier: string): Promise<number>
     today.setHours(0, 0, 0, 0);
     const todayTimestamp = Timestamp.fromDate(today);
 
-    const q = query(
-        phrasesRef,
-        where('userId', '==', resolvedUserId),
-        where('createdAt', '>=', todayTimestamp)
-    );
+    const phrases = await queryCollection<SavedPhrase>('savedPhrases', {
+        where: [
+            { field: 'userId', op: '==', value: resolvedUserId },
+            { field: 'createdAt', op: '>=', value: todayTimestamp },
+        ],
+    });
 
-    const snapshot = await getDocs(q);
-    return snapshot.size;
+    return phrases.length;
 }
 
 /**
@@ -148,15 +147,12 @@ export async function savePhrase(
         throw new Error(`Daily limit reached (${DAILY_PHRASE_LIMIT} phrases/day). Come back tomorrow!`);
     }
 
-    const firestore = await getDbAsync();
-    const phrasesRef = collection(firestore, 'savedPhrases');
-
     const now = Timestamp.now();
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     tomorrow.setHours(0, 0, 0, 0); // Reset to midnight
 
-    const docRef = await addDoc(phrasesRef, {
+    const savedPhrase = await addDocument<SavedPhrase>('savedPhrases', {
         userId,
         phrase,
         meaning,
@@ -177,16 +173,17 @@ export async function savePhrase(
         topics: topics || [],
     });
 
-    const totalQuery = query(phrasesRef, where('userId', '==', userId));
-    const totalSnapshot = await getDocs(totalQuery);
+    const totalPhrases = await queryCollection<SavedPhrase>('savedPhrases', {
+        where: [{ field: 'userId', op: '==', value: userId }],
+    });
 
     // Update user's learning streak
     const { updateUserStreak } = await import('./users');
     await updateUserStreak(userId);
 
     return {
-        phraseId: docRef.id,
-        totalPhrases: totalSnapshot.size,
+        phraseId: savedPhrase.id,
+        totalPhrases: totalPhrases.length,
         todayCount: saved + 1,
     };
 }
@@ -199,16 +196,12 @@ export async function updateContextMastery(
     contextId: string,
     newMasteryLevel: number
 ): Promise<void> {
-    const firestore = await getDbAsync();
-    const docRef = doc(firestore, 'savedPhrases', phraseId);
-
-    const docSnap = await getDoc(docRef);
-    if (!docSnap.exists()) {
+    const phrase = await getDocument<SavedPhrase>('savedPhrases', phraseId);
+    if (!phrase) {
         throw new Error('Phrase not found');
     }
 
-    const data = docSnap.data() as SavedPhrase;
-    const contexts = data.contexts || [];
+    const contexts = phrase.contexts || [];
 
     // Find and update the specific context
     const updatedContexts = contexts.map(ctx => {
@@ -223,7 +216,7 @@ export async function updateContextMastery(
     });
 
     // Check if next context should be unlocked (current context mastered)
-    const currentIndex = data.currentContextIndex || 0;
+    const currentIndex = phrase.currentContextIndex || 0;
     let newContextIndex = currentIndex;
 
     if (newMasteryLevel >= 3 && currentIndex < updatedContexts.length - 1) {
@@ -235,7 +228,7 @@ export async function updateContextMastery(
         newContextIndex = currentIndex + 1;
     }
 
-    await updateDoc(docRef, {
+    await updateDocument('savedPhrases', phraseId, {
         contexts: updatedContexts,
         currentContextIndex: newContextIndex,
     });
@@ -282,51 +275,35 @@ export function getReviewType(step: number): 'passive' | 'active' {
  * Overdue phrases are auto-advanced to the next interval date.
  */
 export async function getDuePhrases(userId: string, limitCount: number = 20): Promise<SavedPhrase[]> {
-    const firestore = await getDbAsync();
-    const phrasesRef = collection(firestore, 'savedPhrases');
-
     // Get today's date boundaries (start and end of day)
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
     const todayEnd = new Date();
     todayEnd.setHours(23, 59, 59, 999);
 
-    const startOfToday = Timestamp.fromDate(todayStart);
     const endOfToday = Timestamp.fromDate(todayEnd);
 
     // Helper function to get time in milliseconds
-    const getTimeMillis = (d: any): number => {
+    const getTimeMillis = (d: DateLike): number => {
         if (!d) return 0;
-        if (typeof d.toMillis === 'function') return d.toMillis();
-        if (typeof d.getTime === 'function') return d.getTime();
         if (d instanceof Date) return d.getTime();
         if (typeof d === 'number') return d;
+        const candidate = d as { toMillis?: () => number; getTime?: () => number };
+        if (typeof candidate.toMillis === 'function') return candidate.toMillis();
+        if (typeof candidate.getTime === 'function') return candidate.getTime();
         return 0;
-    };
-
-    // Calculate next review date based on learning step
-    const getNextReviewDate = (currentStep: number): Date => {
-        const { intervals } = DEFAULT_LEARNING_CYCLE;
-        // Get the interval for the next step (keep same step if missed, just delay)
-        const intervalDays = intervals[Math.min(currentStep, intervals.length - 1)] || 1;
-        const nextDate = new Date();
-        nextDate.setDate(nextDate.getDate() + intervalDays);
-        nextDate.setHours(0, 0, 0, 0);
-        return nextDate;
     };
 
     try {
         // Get all phrases that might be due (including overdue for auto-advance)
         // REMOVED orderBy('nextReviewDate') to avoid Composite Index requirement
-        const q = query(
-            phrasesRef,
-            where('userId', '==', userId),
-            where('nextReviewDate', '<=', endOfToday),
-            limit(100)
-        );
-
-        const snapshot = await getDocs(q);
-        const allDue = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as SavedPhrase[];
+        const allDue = await queryCollection<SavedPhrase>('savedPhrases', {
+            where: [
+                { field: 'userId', op: '==', value: userId },
+                { field: 'nextReviewDate', op: '<=', value: endOfToday },
+            ],
+            limit: 100,
+        });
 
         // Sort in memory instead of DB
         allDue.sort((a, b) => {
@@ -336,7 +313,6 @@ export async function getDuePhrases(userId: string, limitCount: number = 20): Pr
         });
 
         const todayPhrases: SavedPhrase[] = [];
-        const overdueUpdates: Promise<void>[] = [];
 
         for (const phrase of allDue) {
             const reviewDateMs = getTimeMillis(phrase.nextReviewDate);
@@ -356,13 +332,10 @@ export async function getDuePhrases(userId: string, limitCount: number = 20): Pr
 
         // Fallback: get all phrases and filter client-side
         // REMOVED orderBy('createdAt') to avoid Composite Index requirement
-        const fallbackQ = query(
-            phrasesRef,
-            where('userId', '==', userId),
-            limit(100)
-        );
-        const snapshot = await getDocs(fallbackQ);
-        const all = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as SavedPhrase[];
+        const all = await queryCollection<SavedPhrase>('savedPhrases', {
+            where: [{ field: 'userId', op: '==', value: userId }],
+            limit: 100,
+        });
 
         const endMs = todayEnd.getTime();
 
@@ -406,16 +379,12 @@ export async function getDuePhrasesbyType(userId: string): Promise<{
  * @param phraseIds - IDs of overdue phrases to penalize
  */
 export async function applyOverduePenalty(phraseIds: string[]): Promise<void> {
-    const firestore = await getDbAsync();
     const learningCycle = DEFAULT_LEARNING_CYCLE;
 
     for (const id of phraseIds) {
-        const docRef = doc(firestore, 'savedPhrases', id);
-        const docSnap = await getDoc(docRef);
-
-        if (docSnap.exists()) {
-            const data = docSnap.data() as SavedPhrase;
-            const currentStep = data.learningStep || 0;
+        const phrase = await getDocument<SavedPhrase>('savedPhrases', id);
+        if (phrase) {
+            const currentStep = phrase.learningStep || 0;
 
             // Decrement by 1 (min 0)
             const newStep = Math.max(0, currentStep - 1);
@@ -426,7 +395,7 @@ export async function applyOverduePenalty(phraseIds: string[]): Promise<void> {
             nextDate.setDate(nextDate.getDate() + intervalDays);
             nextDate.setHours(0, 0, 0, 0);
 
-            await updateDoc(docRef, {
+            await updateDocument('savedPhrases', id, {
                 learningStep: newStep,
                 nextReviewDate: Timestamp.fromDate(nextDate),
                 // Mark that this was penalized
@@ -441,26 +410,22 @@ export async function applyOverduePenalty(phraseIds: string[]): Promise<void> {
  */
 // Mark phrases as reviewed - implements SRS interval logic
 export async function reviewPhrases(phraseIds: string[]): Promise<void> {
-    const firestore = await getDbAsync();
     const learningCycle = DEFAULT_LEARNING_CYCLE;
     const now = Timestamp.now();
 
     for (const id of phraseIds) {
-        const docRef = doc(firestore, 'savedPhrases', id);
-        const docSnap = await getDoc(docRef);
-
-        if (docSnap.exists()) {
-            const data = docSnap.data() as SavedPhrase;
-            const currentStep = data.learningStep || 0;
+        const phrase = await getDocument<SavedPhrase>('savedPhrases', id);
+        if (phrase) {
+            const currentStep = phrase.learningStep || 0;
             const nextStep = Math.min(currentStep + 1, learningCycle.intervals.length - 1);
             const daysToAdd = learningCycle.intervals[nextStep];
             const nextDate = new Date();
             nextDate.setDate(nextDate.getDate() + daysToAdd);
             nextDate.setHours(0, 0, 0, 0); // Reset to midnight
 
-            await updateDoc(docRef, {
+            await updateDocument('savedPhrases', id, {
                 usedForGeneration: true,
-                usageCount: increment(1),
+                usageCount: incrementBy(1),
                 learningStep: nextStep,
                 lastReviewDate: now,
                 nextReviewDate: Timestamp.fromDate(nextDate)
@@ -473,18 +438,11 @@ export async function reviewPhrases(phraseIds: string[]): Promise<void> {
  * Get all user's saved phrases
  */
 export async function getUserPhrases(userId: string, count: number = 50): Promise<SavedPhrase[]> {
-    const firestore = await getDbAsync();
-    const phrasesRef = collection(firestore, 'savedPhrases');
-
-    const q = query(
-        phrasesRef,
-        where('userId', '==', userId),
-        orderBy('createdAt', 'desc'),
-        limit(count)
-    );
-
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as SavedPhrase[];
+    return queryCollection<SavedPhrase>('savedPhrases', {
+        where: [{ field: 'userId', op: '==', value: userId }],
+        orderBy: [{ field: 'createdAt', direction: 'desc' }],
+        limit: count,
+    });
 }
 
 /**
@@ -500,18 +458,14 @@ export async function updateSavedPhrase(
         topics?: string[];
     }
 ): Promise<void> {
-    const firestore = await getDbAsync();
-    const phraseRef = doc(firestore, 'savedPhrases', phraseId);
-    await updateDoc(phraseRef, updates);
+    await updateDocument('savedPhrases', phraseId, updates);
 }
 
 /**
  * Delete a saved phrase (root word) and all its children
  */
 export async function deleteSavedPhrase(phraseId: string): Promise<void> {
-    const firestore = await getDbAsync();
-    const phraseRef = doc(firestore, 'savedPhrases', phraseId);
-    await deleteDoc(phraseRef);
+    await deleteDocument('savedPhrases', phraseId);
 }
 
 /**
@@ -521,21 +475,17 @@ export async function removeChildExpression(
     phraseId: string,
     childPhrase: string
 ): Promise<void> {
-    const firestore = await getDbAsync();
-    const phraseRef = doc(firestore, 'savedPhrases', phraseId);
-    const phraseDoc = await getDoc(phraseRef);
-
-    if (!phraseDoc.exists()) {
+    const phrase = await getDocument<SavedPhrase>('savedPhrases', phraseId);
+    if (!phrase) {
         throw new Error('Phrase not found');
     }
 
-    const data = phraseDoc.data();
-    const children = data.children || [];
+    const children = phrase.children || [];
     const updatedChildren = children.filter(
         (child: { phrase: string }) => child.phrase !== childPhrase
     );
 
-    await updateDoc(phraseRef, { children: updatedChildren });
+    await updateDocument('savedPhrases', phraseId, { children: updatedChildren });
 }
 
 // ============================================================================
@@ -553,9 +503,6 @@ export async function getDueChildren(userId: string, limitCount: number = 20): P
     parentPhrase: string;
     child: ChildExpression;
 }>> {
-    const firestore = await getDbAsync();
-    const phrasesRef = collection(firestore, 'savedPhrases');
-
     // Get today's boundaries
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
@@ -563,31 +510,28 @@ export async function getDueChildren(userId: string, limitCount: number = 20): P
     todayEnd.setHours(23, 59, 59, 999);
 
     // Helper to get time in milliseconds
-    const getTimeMillis = (d: any): number => {
+    const getTimeMillis = (d: DateLike): number => {
         if (!d) return 0;
-        if (typeof d.toMillis === 'function') return d.toMillis();
-        if (typeof d.getTime === 'function') return d.getTime();
         if (d instanceof Date) return d.getTime();
+        if (typeof d === 'number') return d;
+        const candidate = d as { toMillis?: () => number; getTime?: () => number };
+        if (typeof candidate.toMillis === 'function') return candidate.toMillis();
+        if (typeof candidate.getTime === 'function') return candidate.getTime();
         return 0;
     };
 
     try {
         // Get all phrases with children
-        const q = query(
-            phrasesRef,
-            where('userId', '==', userId)
-        );
-
-        const snapshot = await getDocs(q);
+        const phrases = await queryCollection<SavedPhrase>('savedPhrases', {
+            where: [{ field: 'userId', op: '==', value: userId }],
+        });
         const dueChildren: Array<{ parentId: string; parentPhrase: string; child: ChildExpression }> = [];
 
-        for (const docSnap of snapshot.docs) {
-            const data = docSnap.data();
-            const children = data.children || [];
+        for (const phrase of phrases) {
+            const children = phrase.children || [];
 
             for (const child of children) {
                 const reviewMs = getTimeMillis(child.nextReviewDate);
-                const startMs = todayStart.getTime();
                 const endMs = todayEnd.getTime();
 
                 // Check triggers:
@@ -595,8 +539,8 @@ export async function getDueChildren(userId: string, limitCount: number = 20): P
                 // 2. Must be <= end of today (Includes Today AND Overdue)
                 if (reviewMs > 0 && reviewMs <= endMs) {
                     dueChildren.push({
-                        parentId: docSnap.id,
-                        parentPhrase: data.phrase,
+                        parentId: phrase.id,
+                        parentPhrase: phrase.phrase,
                         child: child as ChildExpression,
                     });
                 }
@@ -617,22 +561,14 @@ export async function updateChildSRS(
     phraseId: string,
     childId: string,
     rating: 'good' | 'again',
-    practiceConfig?: {
-        register: any;
-        relationship: any;
-        topic: string;
-    }
+    practiceConfig?: PracticeConfig
 ): Promise<void> {
-    const firestore = await getDbAsync();
-    const phraseRef = doc(firestore, 'savedPhrases', phraseId);
-    const phraseDoc = await getDoc(phraseRef);
-
-    if (!phraseDoc.exists()) {
+    const phrase = await getDocument<SavedPhrase>('savedPhrases', phraseId);
+    if (!phrase) {
         throw new Error('Phrase not found');
     }
 
-    const data = phraseDoc.data();
-    const children = data.children || [];
+    const children = phrase.children || [];
     const learningCycle = DEFAULT_LEARNING_CYCLE;
 
     const updatedChildren = children.map((child: ChildExpression) => {
@@ -661,7 +597,7 @@ export async function updateChildSRS(
         return child;
     });
 
-    await updateDoc(phraseRef, { children: updatedChildren });
+    await updateDocument('savedPhrases', phraseId, { children: updatedChildren });
 }
 
 /**
@@ -681,16 +617,12 @@ export async function addChildToPhrase(
         nuance: 'positive' | 'slightly_positive' | 'neutral' | 'slightly_negative' | 'negative';
     }
 ): Promise<{ childId: string }> {
-    const firestore = await getDbAsync();
-    const phraseRef = doc(firestore, 'savedPhrases', phraseId);
-    const phraseDoc = await getDoc(phraseRef);
-
-    if (!phraseDoc.exists()) {
+    const phrase = await getDocument<SavedPhrase>('savedPhrases', phraseId);
+    if (!phrase) {
         throw new Error('Parent phrase not found');
     }
 
-    const data = phraseDoc.data();
-    const existingChildren = data.children || [];
+    const existingChildren = phrase.children || [];
 
     // Check for duplicate by baseForm
     const isDuplicate = existingChildren.some(
@@ -731,7 +663,7 @@ export async function addChildToPhrase(
 
     const updatedChildren = [...existingChildren, newChild];
 
-    await updateDoc(phraseRef, { children: updatedChildren });
+    await updateDocument('savedPhrases', phraseId, { children: updatedChildren });
 
     return { childId };
 }
@@ -747,21 +679,13 @@ export async function updatePracticeResult(
     phraseId: string,
     result: 'correct' | 'wrong' | 'partial' | 'skipped' | 'revealed',
     isFast: boolean = false,
-    practiceConfig?: {
-        register: any;
-        relationship: any;
-        topic: string;
-    }
+    practiceConfig?: PracticeConfig
 ): Promise<void> {
-    const firestore = await getDbAsync();
-    const phraseRef = doc(firestore, 'savedPhrases', phraseId);
-    const phraseDoc = await getDoc(phraseRef);
-
-    if (!phraseDoc.exists()) {
+    const phrase = await getDocument<SavedPhrase>('savedPhrases', phraseId);
+    if (!phrase) {
         throw new Error('Phrase not found');
     }
 
-    const phrase = phraseDoc.data() as SavedPhrase;
     const currentStep = phrase.learningStep || 0;
     const { intervals } = DEFAULT_LEARNING_CYCLE;
 
@@ -800,11 +724,11 @@ export async function updatePracticeResult(
     nextReviewDate.setHours(0, 0, 0, 0);
 
     // Build update payload
-    const updatePayload: any = {
+    const updatePayload: Record<string, unknown> = {
         learningStep: newStep,
         nextReviewDate: Timestamp.fromDate(nextReviewDate),
         lastReviewDate: Timestamp.now(),
-        practiceCount: increment(1),
+        practiceCount: incrementBy(1),
         hasAppearedInExercise: true,
     };
 
@@ -813,7 +737,7 @@ export async function updatePracticeResult(
         updatePayload.lastPracticeConfig = practiceConfig;
     }
 
-    await updateDoc(phraseRef, updatePayload);
+    await updateDocument('savedPhrases', phraseId, updatePayload);
 
     // CONTEXT ROTATION: Append used context to practiceHistory
     if (practiceConfig?.topic) {
@@ -824,7 +748,7 @@ export async function updatePracticeResult(
                 register: practiceConfig.register || 'neutral',
                 timestamp: new Date().toISOString()
             };
-            await updateDoc(phraseRef, {
+            await updateDocument('savedPhrases', phraseId, {
                 'practiceHistory.usedContexts': [...existingHistory, newEntry]
             });
         } catch (historyErr) {
@@ -850,13 +774,8 @@ export async function updatePracticeResult(
  * Unlock X children for a parent phrase (Layer 0 -> Layer 1)
  */
 export async function unlockChildren(phraseId: string, count: number = 2): Promise<number> {
-    const firestore = await getDbAsync();
-    const phraseRef = doc(firestore, 'savedPhrases', phraseId);
-    const phraseDoc = await getDoc(phraseRef);
-
-    if (!phraseDoc.exists()) return 0;
-
-    const data = phraseDoc.data() as SavedPhrase;
+    const data = await getDocument<SavedPhrase>('savedPhrases', phraseId);
+    if (!data) return 0;
     
     // In V2, silent metadata is stored in potentialUsages. (Fallback to children for legacy phrases).
     const usages = data.potentialUsages || [];
@@ -886,10 +805,9 @@ export async function unlockChildren(phraseId: string, count: number = 2): Promi
     });
 
     // 1. Update the parent phrase to mark children as unlocked/promoted
-    await updateDoc(phraseRef, { potentialUsages: updatedUsages });
+    await updateDocument('savedPhrases', phraseId, { potentialUsages: updatedUsages });
 
     // 2. Insert each unlocked child as a standalone document to enter the global SRS loop
-    const newRef = collection(firestore, 'savedPhrases');
     for (const child of toUnlock) {
         try {
             const newDoc = {
@@ -929,7 +847,7 @@ export async function unlockChildren(phraseId: string, count: number = 2): Promi
                 hasAppearedInExercise: false,
             };
             
-            await addDoc(newRef, newDoc);
+            await addDocument('savedPhrases', newDoc);
             console.log(`Promoted child '${child.phrase}' to standalone document.`);
         } catch (err) {
             console.error(`Failed to promote child '${child.phrase}':`, err);

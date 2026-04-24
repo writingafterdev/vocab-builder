@@ -30,6 +30,8 @@ async function setupSchema() {
         { id: 'savedPhrases', name: 'Saved Phrases' },
         { id: 'posts', name: 'Articles / Posts' },
         { id: 'feedQuizzes', name: 'Feed Quizzes' },
+        { id: 'exerciseQuestionPool', name: 'Exercise Question Pool' },
+        { id: 'exerciseQuestionAttempts', name: 'Exercise Question Attempts' },
         { id: 'batchJobs', name: 'Batch Jobs' },
         { id: 'userWeaknesses', name: 'User Weaknesses' },
         { id: 'quotes', name: 'Extracted Quotes' },
@@ -85,6 +87,31 @@ async function setupSchema() {
         { collectionId: 'feedQuizzes', attr: () => databases.createStringAttribute(DB_ID, 'feedQuizzes', 'userId', 255, true) },
         { collectionId: 'feedQuizzes', attr: () => databases.createStringAttribute(DB_ID, 'feedQuizzes', 'date', 255, true) },
         { collectionId: 'feedQuizzes', attr: () => databases.createStringAttribute(DB_ID, 'feedQuizzes', 'questions', 500000, true) }, // Very large JSON
+
+        // ---------- EXERCISE V3 POOL ----------
+        { collectionId: 'exerciseQuestionPool', attr: () => databases.createStringAttribute(DB_ID, 'exerciseQuestionPool', 'phraseKey', 255, true) },
+        { collectionId: 'exerciseQuestionPool', attr: () => databases.createStringAttribute(DB_ID, 'exerciseQuestionPool', 'phrase', 500, true) },
+        { collectionId: 'exerciseQuestionPool', attr: () => databases.createStringAttribute(DB_ID, 'exerciseQuestionPool', 'learningBand', 50, true) },
+        { collectionId: 'exerciseQuestionPool', attr: () => databases.createStringAttribute(DB_ID, 'exerciseQuestionPool', 'difficultyBand', 50, false) },
+        { collectionId: 'exerciseQuestionPool', attr: () => databases.createStringAttribute(DB_ID, 'exerciseQuestionPool', 'questions', 50000, true) },
+        { collectionId: 'exerciseQuestionPool', attr: () => databases.createStringAttribute(DB_ID, 'exerciseQuestionPool', 'status', 50, true) },
+        { collectionId: 'exerciseQuestionPool', attr: () => databases.createStringAttribute(DB_ID, 'exerciseQuestionPool', 'generationMode', 50, false) },
+        { collectionId: 'exerciseQuestionPool', attr: () => databases.createStringAttribute(DB_ID, 'exerciseQuestionPool', 'lexilePolicy', 1000, false) },
+        { collectionId: 'exerciseQuestionPool', attr: () => databases.createStringAttribute(DB_ID, 'exerciseQuestionPool', 'generatedAt', 100, false) },
+        { collectionId: 'exerciseQuestionPool', attr: () => databases.createStringAttribute(DB_ID, 'exerciseQuestionPool', 'updatedAt', 100, false) },
+        { collectionId: 'exerciseQuestionPool', attr: () => databases.createIntegerAttribute(DB_ID, 'exerciseQuestionPool', 'reuseCount', false, 0, 1000000, 0) },
+        { collectionId: 'exerciseQuestionPool', attr: () => databases.createFloatAttribute(DB_ID, 'exerciseQuestionPool', 'qualityScore', false, 0, 1, 0) },
+
+        // ---------- EXERCISE V3 ATTEMPTS ----------
+        { collectionId: 'exerciseQuestionAttempts', attr: () => databases.createStringAttribute(DB_ID, 'exerciseQuestionAttempts', 'userId', 255, true) },
+        { collectionId: 'exerciseQuestionAttempts', attr: () => databases.createStringAttribute(DB_ID, 'exerciseQuestionAttempts', 'questionId', 255, true) },
+        { collectionId: 'exerciseQuestionAttempts', attr: () => databases.createStringAttribute(DB_ID, 'exerciseQuestionAttempts', 'questionType', 100, false) },
+        { collectionId: 'exerciseQuestionAttempts', attr: () => databases.createStringAttribute(DB_ID, 'exerciseQuestionAttempts', 'learningBand', 50, false) },
+        { collectionId: 'exerciseQuestionAttempts', attr: () => databases.createStringAttribute(DB_ID, 'exerciseQuestionAttempts', 'testedPhraseIds', 5000, false) },
+        { collectionId: 'exerciseQuestionAttempts', attr: () => databases.createStringAttribute(DB_ID, 'exerciseQuestionAttempts', 'surface', 50, true) },
+        { collectionId: 'exerciseQuestionAttempts', attr: () => databases.createBooleanAttribute(DB_ID, 'exerciseQuestionAttempts', 'correct', true) },
+        { collectionId: 'exerciseQuestionAttempts', attr: () => databases.createStringAttribute(DB_ID, 'exerciseQuestionAttempts', 'userAnswer', 5000, false) },
+        { collectionId: 'exerciseQuestionAttempts', attr: () => databases.createStringAttribute(DB_ID, 'exerciseQuestionAttempts', 'completedAt', 100, true) },
         
         // ---------- BATCH JOBS ----------
         { collectionId: 'batchJobs', attr: () => databases.createStringAttribute(DB_ID, 'batchJobs', 'batchId', 255, true) },

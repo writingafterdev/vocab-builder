@@ -13,6 +13,7 @@ import { FloatingDock, DockItem } from '@/components/ui/floating-dock';
 import { useDictionaryStore } from '@/stores/dictionary-store';
 import { ArrowLeft, Volume2, Bookmark, ArrowLeftRight, Loader2, Sparkles, MessageSquare } from 'lucide-react';
 import { BookOpen, BookmarkSimple, PencilSimple, SquaresFour, User, Gear } from '@phosphor-icons/react';
+import { authFromUserId, clientApiFetch } from '@/lib/client-api';
 
 type ReadingMode = 'immersed' | 'swipe';
 
@@ -273,24 +274,16 @@ export function ArticleReadingMode({
         setIsExtractingPhrases(true);
 
         try {
-            const { account } = await import('@/lib/appwrite/client');
-            let token = null;
-            try {
-                const jwtRes = await account.createJWT();
-                token = jwtRes.jwt;
-            } catch(e) {}
-
-            const extractRes = await fetch('/api/admin/extract-phrases', {
+            const extractRes = await clientApiFetch('/api/admin/extract-phrases', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
                     'x-user-email': userEmail,
-                    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
                 },
-                body: JSON.stringify({
+                auth: authFromUserId(userId, true),
+                json: {
                     content: currentContent,
                     title: post.title,
-                }),
+                },
             });
 
             if (!extractRes.ok) throw new Error('Extract failed');

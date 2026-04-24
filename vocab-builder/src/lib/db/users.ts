@@ -2,17 +2,24 @@
  * User profile domain module
  */
 import {
-    collection,
-    doc,
-    getDoc,
-    getDocs,
-    updateDoc,
-    query,
-    where,
+    getDocument,
+    queryCollection,
     serverTimestamp,
-} from '@/lib/appwrite/firestore';
-import { getDbAsync } from './core';
+    updateDocument,
+} from '@/lib/appwrite/client-db';
 import type { UserSettings } from '@/types';
+
+type UserStats = {
+    currentStreak?: number;
+    longestStreak?: number;
+    lastStudyDate?: { toDate?: () => Date } | Date | null;
+    reviewDayCount?: number;
+    lastReviewDate?: { toDate?: () => Date } | Date | null;
+};
+
+type UserWithStats = {
+    stats?: UserStats;
+};
 
 export async function updateUserProfile(
     userId: string,
@@ -23,9 +30,6 @@ export async function updateUserProfile(
         settings?: Partial<UserSettings>;
     }
 ): Promise<void> {
-    const firestore = await getDbAsync();
-    const userRef = doc(firestore, 'users', userId);
-
     const updateData: Record<string, unknown> = { ...data };
     if (data.settings) {
         delete updateData.settings;
@@ -34,27 +38,26 @@ export async function updateUserProfile(
         });
     }
 
-    await updateDoc(userRef, updateData);
+    await updateDocument('users', userId, updateData);
 }
 
 export async function checkUsernameAvailable(username: string, currentUserId: string): Promise<boolean> {
-    const firestore = await getDbAsync();
-    const usersRef = collection(firestore, 'users');
-    const q = query(usersRef, where('username', '==', username.toLowerCase()));
-    const snapshot = await getDocs(q);
+    const users = await queryCollection('users', {
+        where: [{ field: 'username', op: '==', value: username.toLowerCase() }],
+        limit: 1,
+    });
 
-    if (snapshot.empty) return true;
-    return snapshot.docs[0].id === currentUserId;
+    if (users.length === 0) return true;
+    return users[0].id === currentUserId;
 }
 
 export async function updateCommentsUsername(authorId: string, newUsername: string): Promise<void> {
-    const firestore = await getDbAsync();
-    const commentsRef = collection(firestore, 'comments');
-    const q = query(commentsRef, where('authorId', '==', authorId));
-    const snapshot = await getDocs(q);
+    const comments = await queryCollection('comments', {
+        where: [{ field: 'authorId', op: '==', value: authorId }],
+    });
 
-    const updatePromises = snapshot.docs.map((docSnapshot) =>
-        updateDoc(doc(firestore, 'comments', docSnapshot.id), {
+    const updatePromises = comments.map((comment) =>
+        updateDocument('comments', comment.id, {
             authorUsername: newUsername
         })
     );
@@ -67,15 +70,13 @@ export async function updateCommentsUsername(authorId: string, newUsername: stri
  * Call this when user saves a phrase or completes a practice session
  */
 export async function updateUserStreak(userId: string): Promise<void> {
-    const firestore = await getDbAsync();
-    const userRef = doc(firestore, 'users', userId);
-    const userSnap = await getDoc(userRef);
+    const userData = await getDocument<UserWithStats>('users', userId);
+    if (!userData) return;
 
-    if (!userSnap.exists()) return;
-
-    const userData = userSnap.data();
     const stats = userData.stats || {};
-    const lastStudyDate = stats.lastStudyDate?.toDate?.() || null;
+    const lastStudyDate = stats.lastStudyDate instanceof Date
+        ? stats.lastStudyDate
+        : stats.lastStudyDate?.toDate?.() || null;
     const currentStreak = stats.currentStreak || 0;
     const longestStreak = stats.longestStreak || 0;
 
@@ -98,21 +99,21 @@ export async function updateUserStreak(userId: string): Promise<void> {
         if (lastDate.getTime() === yesterday.getTime()) {
             // Studied yesterday - increment streak
             const newStreak = currentStreak + 1;
-            await updateDoc(userRef, {
+            await updateDocument('users', userId, {
                 'stats.currentStreak': newStreak,
                 'stats.longestStreak': Math.max(newStreak, longestStreak),
                 'stats.lastStudyDate': serverTimestamp(),
             });
         } else {
             // Missed day(s) - reset streak to 1
-            await updateDoc(userRef, {
+            await updateDocument('users', userId, {
                 'stats.currentStreak': 1,
                 'stats.lastStudyDate': serverTimestamp(),
             });
         }
     } else {
         // First time studying - start streak at 1
-        await updateDoc(userRef, {
+        await updateDocument('users', userId, {
             'stats.currentStreak': 1,
             'stats.lastStudyDate': serverTimestamp(),
         });
@@ -127,13 +128,9 @@ export async function updateUserStreak(userId: string): Promise<void> {
  * Odd (1, 3, 5...) = Listening day
  */
 export async function getReviewDayCount(userId: string): Promise<number> {
-    const firestore = await getDbAsync();
-    const userRef = doc(firestore, 'users', userId);
-    const userSnap = await getDoc(userRef);
+    const userData = await getDocument<UserWithStats>('users', userId);
+    if (!userData) return 0;
 
-    if (!userSnap.exists()) return 0;
-
-    const userData = userSnap.data();
     const stats = userData.stats || {};
     return stats.reviewDayCount || 0;
 }
@@ -143,15 +140,13 @@ export async function getReviewDayCount(userId: string): Promise<number> {
  * Call this once per day when user opens practice
  */
 export async function incrementReviewDayCount(userId: string): Promise<number> {
-    const firestore = await getDbAsync();
-    const userRef = doc(firestore, 'users', userId);
-    const userSnap = await getDoc(userRef);
+    const userData = await getDocument<UserWithStats>('users', userId);
+    if (!userData) return 0;
 
-    if (!userSnap.exists()) return 0;
-
-    const userData = userSnap.data();
     const stats = userData.stats || {};
-    const lastReviewDate = stats.lastReviewDate?.toDate?.() || null;
+    const lastReviewDate = stats.lastReviewDate instanceof Date
+        ? stats.lastReviewDate
+        : stats.lastReviewDate?.toDate?.() || null;
     const currentCount = stats.reviewDayCount || 0;
 
     const today = new Date();
@@ -170,7 +165,7 @@ export async function incrementReviewDayCount(userId: string): Promise<number> {
 
     // Increment for new day
     const newCount = currentCount + 1;
-    await updateDoc(userRef, {
+    await updateDocument('users', userId, {
         'stats.reviewDayCount': newCount,
         'stats.lastReviewDate': serverTimestamp(),
     });
@@ -185,4 +180,3 @@ export async function isListeningDay(userId: string): Promise<boolean> {
     const count = await getReviewDayCount(userId);
     return count % 2 === 1;
 }
-

@@ -4,20 +4,14 @@ import { getUserReposts } from '@/lib/db/social';
 import { getSavedArticles } from '@/lib/db/bookmarks';
 import { getPost } from '@/lib/db/posts';
 import { getRecentReadingSessions } from '@/lib/db/reading-cache';
+import { getRequestUser } from '@/lib/request-auth';
 
 export async function GET(request: NextRequest) {
     try {
-        // Authenticate request using user token or x-user-id header
-        const userId = request.headers.get('x-user-id');
-        const authHeader = request.headers.get('Authorization');
-
-        if (!userId || !authHeader) {
+        const authUser = await getRequestUser(request, { allowHeaderFallback: true });
+        if (!authUser) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
-
-        // We assume token validation is handled mostly by the client 
-        // since read policies on these collections are generally safe, 
-        // but we ensure the userId is passed legitimately.
         
         const { searchParams } = new URL(request.url);
         const targetUserId = searchParams.get('userId');

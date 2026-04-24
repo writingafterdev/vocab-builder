@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDocument, updateDocument, serverTimestamp } from '@/lib/appwrite/database';
+import { getRequestUser } from '@/lib/request-auth';
 
 const COLLECTION_NAME = 'userReadingLists';
 
@@ -9,7 +10,8 @@ export async function POST(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const userId = request.headers.get('x-user-id');
+        const authUser = await getRequestUser(request, { allowHeaderFallback: true });
+        const userId = authUser?.userId;
         const { id: listId } = await params;
 
         if (!userId) {
@@ -77,7 +79,8 @@ export async function DELETE(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const userId = request.headers.get('x-user-id');
+        const authUser = await getRequestUser(request, { allowHeaderFallback: true });
+        const userId = authUser?.userId;
         const { id: listId } = await params;
 
         if (!userId) {

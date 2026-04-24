@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDocument, updateDocument, addDocument, serverTimestamp } from '@/lib/appwrite/database';
 import { SavedPhrase } from '@/lib/db/types';
+import { getRequestUser } from '@/lib/request-auth';
 
 interface TrackEncounterRequest {
     rootPhraseId: string;      // The parent saved phrase ID
@@ -17,7 +18,8 @@ interface TrackEncounterRequest {
  */
 export async function POST(request: NextRequest) {
     try {
-        const userId = request.headers.get('x-user-id');
+        const authUser = await getRequestUser(request, { allowHeaderFallback: true });
+        const userId = authUser?.userId;
         if (!userId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
@@ -129,7 +131,8 @@ export async function POST(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
     try {
-        const userId = request.headers.get('x-user-id');
+        const authUser = await getRequestUser(request, { allowHeaderFallback: true });
+        const userId = authUser?.userId;
         if (!userId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }

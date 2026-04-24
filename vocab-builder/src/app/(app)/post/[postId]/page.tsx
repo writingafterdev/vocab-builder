@@ -589,6 +589,7 @@ function ExpandedSidebar({
 export default function PostPage() {
     const params = useParams();
     const postId = params.postId as string;
+    const isInvalidPostRoute = !postId || postId === 'null' || postId === 'undefined';
     const { user, profile } = useAuth();
     const [post, setPost] = useState<Post | null>(null);
     const [comments, setComments] = useState<Comment[]>([]);
@@ -769,12 +770,17 @@ export default function PostPage() {
     useEffect(() => {
         const loadData = async () => {
             if (!postId) return;
+            if (isInvalidPostRoute) {
+                setPost(null);
+                setComments([]);
+                setLoading(false);
+                return;
+            }
             try {
-                const [fetchedPost, fetchedComments] = await Promise.all([
-                    getPost(postId),
-                    getComments(postId)
-                ]);
+                const fetchedPost = await getPost(postId);
                 setPost(fetchedPost);
+                const resolvedPostId = fetchedPost?.id;
+                const fetchedComments = resolvedPostId ? await getComments(resolvedPostId) : [];
                 const commentsWithReplies = await Promise.all(
                     fetchedComments.map(async (c) => {
                         const replies = await getReplies(c.id);
@@ -789,7 +795,7 @@ export default function PostPage() {
             }
         };
         loadData();
-    }, [postId]);
+    }, [postId, isInvalidPostRoute]);
 
     // Check repost & bookmark status
     useEffect(() => {
@@ -1006,8 +1012,8 @@ export default function PostPage() {
                 
                 toast.dismiss('audio-upload');
 
-                // Save URL to Firestore
-                const { Timestamp } = await import('@/lib/appwrite/firestore');
+                // Save URL to Appwrite
+                const { Timestamp } = await import('@/lib/appwrite/timestamp');
                 await updatePost(post.id, {
                     audioUrl,
                     audioGeneratedAt: Timestamp.now()

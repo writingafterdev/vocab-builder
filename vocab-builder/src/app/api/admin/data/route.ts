@@ -15,20 +15,15 @@ import {
     updatePost,
 } from '@/lib/db/admin';
 import { getTokenUsageStats, getDetailedTokenUsage } from '@/lib/db/token-tracking';
-
-const ADMIN_EMAIL = 'ducanhcontactonfb@gmail.com';
-
-function isAdmin(request: NextRequest): boolean {
-    const email = request.headers.get('x-user-email') || '';
-    return email === ADMIN_EMAIL;
-}
+import { getAdminRequestContext } from '@/lib/admin-auth';
 
 /**
  * GET: Fetch admin data (stats, users, user details, learning settings)
  * POST: Admin mutations (delete post, bulk delete, update settings, create post)
  */
 export async function GET(request: NextRequest) {
-    if (!isAdmin(request)) {
+    const admin = await getAdminRequestContext(request);
+    if (!admin) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
@@ -90,7 +85,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-    if (!isAdmin(request)) {
+    const admin = await getAdminRequestContext(request);
+    if (!admin) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 

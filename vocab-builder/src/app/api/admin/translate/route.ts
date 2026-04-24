@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logTokenUsage } from '@/lib/db/token-tracking';
+import { getAdminRequestContext } from '@/lib/admin-auth';
 
 /**
  * Admin translation API using Gemini 2.0 Flash
@@ -8,22 +9,16 @@ import { logTokenUsage } from '@/lib/db/token-tracking';
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
 
-const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase());
-
-function isAdmin(email: string | null): boolean {
-    if (!email) return false;
-    return ADMIN_EMAILS.includes(email.toLowerCase());
-}
-
 export async function POST(request: NextRequest) {
     try {
-        const email = request.headers.get('x-user-email')?.toLowerCase() || null;
-        if (!isAdmin(email)) {
+        const admin = await getAdminRequestContext(request);
+        if (!admin) {
             return NextResponse.json(
                 { error: 'Unauthorized. Admin access required.' },
                 { status: 403 }
             );
         }
+        const email = admin.userEmail;
 
         if (!GEMINI_API_KEY) {
             return NextResponse.json(
@@ -81,7 +76,7 @@ ${text}
         if (data.usage) {
             logTokenUsage({
                 userId: 'admin',
-                userEmail: email || 'admin',
+                userEmail: email,
                 endpoint: 'admin-translate',
                 model: 'gemini-3-flash',
                 promptTokens: data.usage.prompt_tokens || 0,

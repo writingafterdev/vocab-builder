@@ -1,25 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthFromRequest } from '@/lib/appwrite/auth-admin';
-import { addDocument, updateDocument, serverTimestamp } from '@/lib/appwrite/database';
-import { SavedPhrase, ChildExpression } from '@/lib/db/types';
+import { addDocument, updateDocument } from '@/lib/appwrite/database';
+import { ChildExpression } from '@/lib/db/types';
+import { isProductionEnv } from '@/lib/env/server';
+import { getRequestUser } from '@/lib/request-auth';
 
 export async function POST(request: NextRequest) {
     try {
-        const authUser = await getAuthFromRequest(request);
-        if (!authUser) {
-            // Check for debug header fallback if needed (useful for curl testing)
-            const userIdHeader = request.headers.get('x-user-id');
-            if (!userIdHeader) {
-                return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-            }
-            // Mock auth object for manual override
-            console.log('Using debug x-user-id:', userIdHeader);
+        if (isProductionEnv()) {
+            return NextResponse.json({ error: 'Not found' }, { status: 404 });
         }
 
-        // Prefer authUser if available, else header
-        const userId = authUser?.userId || request.headers.get('x-user-id');
+        const authUser = await getRequestUser(request, { allowHeaderFallback: true });
+        const userId = authUser?.userId;
         if (!userId) {
-            return NextResponse.json({ error: 'No User ID provided' }, { status: 400 });
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
         // Force a "Yesterday" date to ensure items are due
@@ -34,7 +28,7 @@ export async function POST(request: NextRequest) {
 
         // 1. Root Phrase: "strategic alignment" (Business/Formal)
         // We use addDocument to let ID be auto-generated, then we can use it if needed
-        const phrase1Data: any = { // Use 'any' or Partial<SavedPhrase> but omit ID
+        const phrase1Data: Record<string, unknown> = {
             userId,
             phrase: "strategic alignment",
             meaning: "agreement between a company's strategy and its structure/culture",
@@ -68,11 +62,10 @@ export async function POST(request: NextRequest) {
             }
         };
 
-        const id1 = await addDocument('savedPhrases', phrase1Data);
-        // Note: id1 is returned from addDocument
+        await addDocument('savedPhrases', phrase1Data);
 
         // 2. Root Phrase: "mitigate risk" (Business/Formal)
-        const phrase2Data: any = {
+        const phrase2Data: Record<string, unknown> = {
             userId,
             phrase: "mitigate risk",
             meaning: "to reduce the severity or likelihood of a risk",
@@ -126,7 +119,7 @@ export async function POST(request: NextRequest) {
         });
 
         // 4. Root Phrase: "leverage assets" (Business/Formal)
-        const phrase3Data: any = {
+        const phrase3Data: Record<string, unknown> = {
             userId,
             phrase: "leverage assets",
             meaning: "use resources to maximum advantage",
@@ -152,7 +145,7 @@ export async function POST(request: NextRequest) {
         await addDocument('savedPhrases', phrase3Data);
 
         // 5. Root Phrase: "hit the road" (Travel/Casual) - Should Cluster Separately
-        const phrase4Data: any = {
+        const phrase4Data: Record<string, unknown> = {
             userId,
             phrase: "hit the road",
             meaning: "to start a journey",
@@ -178,7 +171,7 @@ export async function POST(request: NextRequest) {
         await addDocument('savedPhrases', phrase4Data);
 
         // 6. Root Phrase: "deploy to production" (Tech/Neutral) - Should Cluster Separately
-        const phrase5Data: any = {
+        const phrase5Data: Record<string, unknown> = {
             userId,
             phrase: "deploy to production",
             meaning: "release software to live users",

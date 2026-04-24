@@ -2,17 +2,12 @@
  * Saved Articles / Bookmarks module
  */
 import {
-    collection,
-    doc,
-    addDoc,
-    deleteDoc,
-    getDocs,
-    query,
-    where,
-    orderBy,
-    Timestamp,
-} from '@/lib/appwrite/firestore';
-import { getDbAsync } from './core';
+    addDocument,
+    deleteDocument,
+    queryCollection,
+    serverTimestamp,
+} from '@/lib/appwrite/client-db';
+import { Timestamp } from '@/lib/appwrite/timestamp';
 
 export interface SavedArticle {
     id: string;
@@ -25,45 +20,40 @@ export interface SavedArticle {
  * Save article for later reading
  */
 export async function saveArticle(userId: string, postId: string): Promise<string> {
-    const firestore = await getDbAsync();
-    const savedRef = collection(firestore, 'savedArticles');
-
-    // Check if already saved
-    const existingQuery = query(
-        savedRef,
-        where('userId', '==', userId),
-        where('postId', '==', postId)
-    );
-    const existing = await getDocs(existingQuery);
-    if (!existing.empty) {
-        return existing.docs[0].id; // Already saved
-    }
-
-    const docRef = await addDoc(savedRef, {
-        userId,
-        postId,
-        savedAt: Timestamp.now(),
+    const existing = await queryCollection<SavedArticle>('savedArticles', {
+        where: [
+            { field: 'userId', op: '==', value: userId },
+            { field: 'postId', op: '==', value: postId },
+        ],
+        limit: 1,
     });
 
-    return docRef.id;
+    if (existing.length > 0) {
+        return existing[0].id;
+    }
+
+    const savedArticle = await addDocument<SavedArticle>('savedArticles', {
+        userId,
+        postId,
+        savedAt: serverTimestamp(),
+    });
+
+    return savedArticle.id;
 }
 
 /**
  * Remove saved article
  */
 export async function unsaveArticle(userId: string, postId: string): Promise<void> {
-    const firestore = await getDbAsync();
-    const savedRef = collection(firestore, 'savedArticles');
+    const savedArticles = await queryCollection<SavedArticle>('savedArticles', {
+        where: [
+            { field: 'userId', op: '==', value: userId },
+            { field: 'postId', op: '==', value: postId },
+        ],
+    });
 
-    const q = query(
-        savedRef,
-        where('userId', '==', userId),
-        where('postId', '==', postId)
-    );
-    const snapshot = await getDocs(q);
-
-    for (const docSnap of snapshot.docs) {
-        await deleteDoc(docSnap.ref);
+    for (const article of savedArticles) {
+        await deleteDocument('savedArticles', article.id);
     }
 }
 
@@ -71,48 +61,34 @@ export async function unsaveArticle(userId: string, postId: string): Promise<voi
  * Check if article is saved by user
  */
 export async function isArticleSaved(userId: string, postId: string): Promise<boolean> {
-    const firestore = await getDbAsync();
-    const savedRef = collection(firestore, 'savedArticles');
+    const savedArticles = await queryCollection<SavedArticle>('savedArticles', {
+        where: [
+            { field: 'userId', op: '==', value: userId },
+            { field: 'postId', op: '==', value: postId },
+        ],
+        limit: 1,
+    });
 
-    const q = query(
-        savedRef,
-        where('userId', '==', userId),
-        where('postId', '==', postId)
-    );
-    const snapshot = await getDocs(q);
-
-    return !snapshot.empty;
+    return savedArticles.length > 0;
 }
 
 /**
  * Get all saved articles for a user
  */
 export async function getSavedArticles(userId: string): Promise<SavedArticle[]> {
-    const firestore = await getDbAsync();
-    const savedRef = collection(firestore, 'savedArticles');
-
-    const q = query(
-        savedRef,
-        where('userId', '==', userId),
-        orderBy('savedAt', 'desc')
-    );
-    const snapshot = await getDocs(q);
-
-    return snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-    } as SavedArticle));
+    return queryCollection<SavedArticle>('savedArticles', {
+        where: [{ field: 'userId', op: '==', value: userId }],
+        orderBy: [{ field: 'savedAt', direction: 'desc' }],
+    });
 }
 
 /**
  * Get count of saved articles for a user
  */
 export async function getSavedArticleCount(userId: string): Promise<number> {
-    const firestore = await getDbAsync();
-    const savedRef = collection(firestore, 'savedArticles');
+    const savedArticles = await queryCollection<SavedArticle>('savedArticles', {
+        where: [{ field: 'userId', op: '==', value: userId }],
+    });
 
-    const q = query(savedRef, where('userId', '==', userId));
-    const snapshot = await getDocs(q);
-
-    return snapshot.size;
+    return savedArticles.length;
 }

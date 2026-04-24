@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthFromRequest } from '@/lib/appwrite/auth-admin';
 import { queryCollection, deleteDocument } from '@/lib/appwrite/database';
+import { getRequestUser } from '@/lib/request-auth';
 
 /**
  * DELETE /api/user/delete-all-phrases
@@ -8,8 +8,8 @@ import { queryCollection, deleteDocument } from '@/lib/appwrite/database';
  */
 export async function DELETE(request: NextRequest) {
     try {
-        const authUser = await getAuthFromRequest(request);
-        const userId = authUser?.userId || request.headers.get('x-user-id');
+        const authUser = await getRequestUser(request, { allowHeaderFallback: true });
+        const userId = authUser?.userId;
 
         if (!userId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

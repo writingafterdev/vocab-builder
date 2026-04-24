@@ -2,16 +2,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logTokenUsage } from '@/lib/db/token-tracking';
 import { safeParseAIJson } from '@/lib/ai-utils';
+import { getRequestUser } from '@/lib/request-auth';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 export async function POST(request: NextRequest) {
     try {
-        const { getAuthFromRequest } = await import('@/lib/appwrite/auth-admin');
-        const authUser = await getAuthFromRequest(request);
-        const userId = authUser?.userId || request.headers.get('x-user-id');
-        const userEmail = authUser?.userEmail || request.headers.get('x-user-email');
+        const authUser = await getRequestUser(request, { allowHeaderFallback: true });
+        const userId = authUser?.userId;
+        const userEmail = authUser?.userEmail;
 
         if (!userId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

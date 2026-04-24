@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { logTokenUsage } from '@/lib/db/token-tracking';
 import { safeParseAIJson } from '@/lib/ai-utils';
 import { getGrokKey } from '@/lib/grok-client';
+import { getRequestUser } from '@/lib/request-auth';
 
 /**
  * Layered vocabulary generation - generates immediate children only (1 layer)
@@ -28,11 +29,8 @@ interface SuggestCollocationsRequest {
 
 export async function POST(request: NextRequest) {
     try {
-        // Secure authentication
-        const { getAuthFromRequest } = await import('@/lib/appwrite/auth-admin');
-        const authUser = await getAuthFromRequest(request);
-
-        const userEmail = authUser?.userEmail || request.headers.get('x-user-email');
+        const authUser = await getRequestUser(request, { allowHeaderFallback: true });
+        const userEmail = authUser?.userEmail;
         if (!userEmail) {
             return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
         }
@@ -128,7 +126,7 @@ Return JSON:
         let text = data.choices?.[0]?.message?.content || '';
 
         // Log token usage
-        const userId = request.headers.get('x-user-id') || 'anonymous';
+        const userId = authUser?.userId || 'anonymous';
         if (data.usage) {
             logTokenUsage({
                 userId,

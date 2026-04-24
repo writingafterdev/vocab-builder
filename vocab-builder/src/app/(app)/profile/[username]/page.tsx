@@ -42,12 +42,13 @@ import { getPost } from '@/lib/db/posts';
 import { getSavedArticles, unsaveArticle, SavedArticle } from '@/lib/db/bookmarks';
 import { getLearningStats } from '@/lib/db/learning-stats';
 import { Repost } from '@/lib/db/types';
-import { Timestamp } from '@/lib/appwrite/firestore';
+import { Timestamp } from '@/lib/appwrite/timestamp';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { sanitizeHtml } from '@/lib/sanitize';
 import { useConfirm } from '@/components/confirm-dialog';
 import { EditorialLoader } from '@/components/ui/editorial-loader';
+import { authFromUser, clientApiJson } from '@/lib/client-api';
 
 // Replaced CommentsData with FavoriteQuote directly from shared types
 
@@ -109,17 +110,11 @@ export default function ProfilePage() {
                     masteredPhrases: stats.masteredPhrases
                 }));
 
-                const token = await user.getJwt();
-                const favRes = await fetch('/api/user/favorite-quotes', {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'x-user-id': user.$id
-                    }
+                const auth = authFromUser(user);
+                const favData = await clientApiJson<{ quotes?: FavoriteQuote[] }>('/api/user/favorite-quotes', {
+                    auth,
                 });
-                if (favRes.ok) {
-                    const favData = await favRes.json();
-                    setFavQuotes(favData.quotes || []);
-                }
+                setFavQuotes(favData.quotes || []);
 
                 const userReposts = await getUserReposts(user.$id);
                 const repostsWithPosts = await Promise.all(
@@ -155,13 +150,12 @@ export default function ProfilePage() {
                 setSavedArticles(savedWithPosts);
 
                 // Fetch reading lists
-                const listsResponse = await fetch('/api/user/reading-lists', {
-                    headers: { 'x-user-id': user.$id },
+                const listsData = await clientApiJson<{
+                    lists?: Array<{ id: string; name: string; postIds: string[]; coverColor?: string }>;
+                }>('/api/user/reading-lists', {
+                    auth,
                 });
-                if (listsResponse.ok) {
-                    const listsData = await listsResponse.json();
-                    setReadingLists(listsData.lists || []);
-                }
+                setReadingLists(listsData.lists || []);
             } catch (error) {
                 console.error('Error loading profile data:', error);
             }

@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { toggleFavoriteQuote } from '@/lib/db/favorite-quotes';
+import { getRequestUser } from '@/lib/request-auth';
 
 export async function POST(request: NextRequest) {
     try {
-        // Simple auth check via header (matching other user routes)
-        const userId = request.headers.get('x-user-id');
+        const authUser = await getRequestUser(request, { allowHeaderFallback: true });
+        const userId = authUser?.userId;
         if (!userId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }

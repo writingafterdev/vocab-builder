@@ -14,6 +14,7 @@ import { TopicPicker } from '@/components/quotes/TopicPicker';
 import { cn } from '@/lib/utils';
 import { useTTS } from '@/hooks/use-tts';
 import type { FeedCard } from '@/lib/db/types';
+import { authFromUserId, clientApiFetch } from '@/lib/client-api';
 
 interface DeckItem {
     id: string;
@@ -166,25 +167,15 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
         dwellSignalBufferRef.current = [];
 
         try {
-            const { account } = await import('@/lib/appwrite/client');
-            let token = null;
-            try {
-                const jwtRes = await account.createJWT();
-                token = jwtRes.jwt;
-            } catch(e) {}
-            await fetch('/api/quotes/mark-viewed', {
+            await clientApiFetch('/api/quotes/mark-viewed', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-                    'x-user-id': userId,
-                },
-                body: JSON.stringify({
+                auth: authFromUserId(userId, true),
+                json: {
                     quoteIds: ids,
                     boostTopicName: topicBoost,
                     boostTags: tagsBoost,
                     dwellSignals: dwellSignals.length > 0 ? dwellSignals : undefined,
-                }),
+                },
             });
         } catch (err) {
             console.error('[ViewTracking] Flush failed:', err);
@@ -206,8 +197,6 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
     const fetchMoreQuotes = useCallback(async () => {
         if (!userId || loading) return;
         try {
-            const headers: HeadersInit = { 'x-user-id': userId };
-
             const url = new URL('/api/quotes/get-mixed-quotes', window.location.origin);
             if (deckId) {
                 url.searchParams.set('deckId', deckId);
@@ -215,8 +204,8 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
                 url.searchParams.set('explicitTopics', selectedTopics.join(','));
             }
 
-            const quotesRes = await fetch(url.toString(), { 
-                headers,
+            const quotesRes = await clientApiFetch(url.toString(), {
+                auth: authFromUserId(userId),
                 cache: 'no-store'
             });
 
@@ -255,8 +244,7 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
         let cancelled = false;
         async function fetchQuotesAndSaved() {
             try {
-                // Use userId header only — no JWT needed for read-only quote fetching
-                const headers: HeadersInit = { 'x-user-id': userId };
+                const auth = authFromUserId(userId);
 
                 const url = new URL('/api/quotes/get-mixed-quotes', window.location.origin);
                 if (deckId) {
@@ -266,11 +254,11 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
                 }
 
                 const [quotesRes, savedRes] = await Promise.all([
-                    fetch(url.toString(), { 
-                        headers,
+                    clientApiFetch(url.toString(), {
+                        auth,
                         cache: 'no-store'
                     }),
-                    fetch('/api/user/saved-quote-ids', { headers })
+                    clientApiFetch('/api/user/saved-quote-ids', { auth })
                 ]);
 
                 if (!cancelled) {
@@ -524,10 +512,10 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
                 author: quote.author
             };
 
-            const res = await fetch('/api/user/save-quote', {
+            const res = await clientApiFetch('/api/user/save-quote', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'x-user-id': userId },
-                body: JSON.stringify({ quote: quoteToSave }),
+                auth: authFromUserId(userId),
+                json: { quote: quoteToSave },
             });
 
             if (res.ok) {
@@ -586,54 +574,11 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
         } else if ((quote as any).sourceType === 'generated_fact') {
             // No article for generated facts
             return;
+        } else if (!quote.postId || quote.postId === 'null') {
+            import('sonner').then(({ toast }) => toast.error('This quote does not have a linked article'));
         } else {
             router.push(`/post/${quote.postId}`);
         }
-    };
-
-    // Handle Quiz Answer inside QuoteSwiper
-    const handleQuizAnswer = async (answerIndex: number) => {
-        const currentItem = deck[activeIndex];
-        if (!currentItem || currentItem.type !== 'quiz' || currentItem.quizState?.hasAnswered) return;
-
-        const question = currentItem.data as any;
-        const isCorrect = answerIndex === question.correctIndex;
-        const resultStatus = isCorrect ? 'correct' : 'wrong';
-
-        // Optimistically update deck state
-        setDeck(prev => {
-            const next = [...prev];
-            next[activeIndex] = {
-                ...next[activeIndex],
-                quizState: {
-                    hasAnswered: true,
-                    result: resultStatus,
-                }
-            };
-            return next;
-        });
-
-        // Submit to backend
-        try {
-            await fetch('/api/exercise/submit', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'x-user-id': userId },
-                body: JSON.stringify({
-                    phraseId: question.phraseId,
-                    questionType: question.questionType,
-                    answer: answerIndex,
-                    surface: 'quote_swiper',
-                    responseTimeMs: 0,
-                }),
-            });
-        } catch (error) {
-            console.error('Failed to submit inline exercise:', error);
-        }
-
-        // Auto-advance after answering correctly (or let the user read the explanation)
-        setTimeout(() => {
-            sendToBack();
-        }, isCorrect ? 1500 : 3000);
     };
 
     // Handle lookup from TapToSelect — pipe to global dictionary store
@@ -813,7 +758,8 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
                             {item.type === 'quiz' ? (
                                 <FeedCardComponent
                                     card={item.data as FeedCard}
-                                    onAnswer={(cardId, correct) => {
+                                    onAnswer={async (cardId, correct) => {
+                                        const card = item.data as FeedCard;
                                         setDeck(prev => {
                                             const next = [...prev];
                                             const idx = prev.indexOf(item);
@@ -825,6 +771,21 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
                                             }
                                             return next;
                                         });
+                                        try {
+                                            await clientApiFetch('/api/exercise/submit', {
+                                                method: 'POST',
+                                                auth: authFromUserId(userId),
+                                                json: {
+                                                    questionId: card.questionId || cardId,
+                                                    questionType: card.questionType,
+                                                    learningBand: card.learningBand,
+                                                    testedPhraseIds: card.testedPhraseIds || [],
+                                                    correct,
+                                                },
+                                            });
+                                        } catch (error) {
+                                            console.error('Failed to submit feed exercise:', error);
+                                        }
                                         // Auto-advance after answer
                                         setTimeout(() => sendToBack(), 2000);
                                     }}

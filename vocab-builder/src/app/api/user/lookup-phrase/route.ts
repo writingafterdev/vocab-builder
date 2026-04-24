@@ -4,6 +4,7 @@ import { GlobalPhraseData, CommonUsage, PhraseVariant, Register, Nuance, SocialD
 import { safeParseAIJson } from '@/lib/ai-utils';
 import { getGrokKey } from '@/lib/grok-client';
 import nlp from 'compromise';
+import { getRequestUser } from '@/lib/request-auth';
 
 /** Normalize a phrase into a deterministic key for dictionary lookups */
 function normalizePhraseKey(phrase: string): string {
@@ -35,7 +36,8 @@ export async function POST(request: NextRequest) {
         }
 
         const phraseKey = normalizePhraseKey(phrase.trim());
-        const userId = request.headers.get('x-user-id') || '';
+        const authUser = await getRequestUser(request, { allowHeaderFallback: true });
+        const userId = authUser?.userId || '';
 
         // 1. Check global dictionary first (cache hit - literal)
         let existing = null;

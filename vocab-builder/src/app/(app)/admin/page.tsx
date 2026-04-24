@@ -358,7 +358,7 @@ export default function AdminPage() {
         } catch (error: any) {
             console.error('Error loading learning settings:', error);
             if (error.code === 'permission-denied' || error.message?.includes('permissions')) {
-                alert('Permission denied. Please run "firebase deploy --only firestore:rules" to update permissions.');
+                alert('Permission denied. Check the Appwrite collection permissions for this environment.');
             }
         }
         setLoadingData(false);
@@ -1772,4 +1772,3 @@ export default function AdminPage() {
         </div>
     );
 }
-

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logTokenUsage } from '@/lib/db/token-tracking';
 import { getGrokKey } from '@/lib/grok-client';
+import { getAdminRequestContext } from '@/lib/admin-auth';
 
 /**
  * Extract phrases from content using DeepSeek
@@ -10,23 +11,16 @@ import { getGrokKey } from '@/lib/grok-client';
 const XAI_API_KEY = getGrokKey('articles');
 const XAI_URL = 'https://api.x.ai/v1/chat/completions';
 
-const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase());
-
-function isAdmin(email: string | null): boolean {
-    if (!email) return false;
-    return ADMIN_EMAILS.includes(email.toLowerCase());
-}
-
 export async function POST(request: NextRequest) {
     try {
-        const email = request.headers.get('x-user-email')?.toLowerCase() || null;
-
-        if (!isAdmin(email)) {
+        const admin = await getAdminRequestContext(request);
+        if (!admin) {
             return NextResponse.json(
                 { error: 'Unauthorized. Admin access required.' },
                 { status: 403 }
             );
         }
+        const email = admin.userEmail;
 
         if (!XAI_API_KEY) {
             return NextResponse.json(
@@ -117,7 +111,7 @@ Example: ["break the ice", "get one's act together", "it goes without saying", "
         if (data.usage) {
             logTokenUsage({
                 userId: 'admin',
-                userEmail: email || 'admin',
+                userEmail: email,
                 endpoint: 'admin-extract-phrases',
                 model: 'grok-4-1-fast-non-reasoning',
                 promptTokens: data.usage.prompt_tokens || 0,

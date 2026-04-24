@@ -2,20 +2,13 @@
  * Reading Session Cache
  * Stores generated reading articles to avoid regeneration on re-visits
  */
-import { getDbAsync } from './core';
 import {
-    collection,
-    doc,
-    getDoc,
-    setDoc,
-    query,
-    where,
-    orderBy,
-    limit,
-    getDocs,
-    updateDoc,
-    Timestamp,
-} from '@/lib/appwrite/firestore';
+    addDocument,
+    getDocument,
+    queryCollection,
+    updateDocument,
+} from '@/lib/appwrite/client-db';
+import { Timestamp } from '@/lib/appwrite/timestamp';
 
 interface ComprehensionQuestion {
     question: string;
@@ -57,8 +50,6 @@ export async function getExistingSession(
     userId: string,
     phraseIds: string[]
 ): Promise<ReadingSession | null> {
-    const firestore = await getDbAsync();
-    const sessionsRef = collection(firestore, 'readingSessions');
     const phrasesHash = createPhrasesHash(phraseIds);
 
     // Look for an uncompleted session with matching phrases from today
@@ -66,27 +57,23 @@ export async function getExistingSession(
     today.setHours(0, 0, 0, 0);
     const todayTimestamp = Timestamp.fromDate(today);
 
-    const q = query(
-        sessionsRef,
-        where('userId', '==', userId),
-        where('phrasesHash', '==', phrasesHash),
-        where('completedAt', '==', null),
-        where('createdAt', '>=', todayTimestamp),
-        orderBy('createdAt', 'desc'),
-        limit(1)
-    );
-
     try {
-        const snapshot = await getDocs(q);
-        if (snapshot.empty) {
+        const sessions = await queryCollection<ReadingSession>('readingSessions', {
+            where: [
+                { field: 'userId', op: '==', value: userId },
+                { field: 'phrasesHash', op: '==', value: phrasesHash },
+                { field: 'completedAt', op: '==', value: null },
+                { field: 'createdAt', op: '>=', value: todayTimestamp },
+            ],
+            orderBy: [{ field: 'createdAt', direction: 'desc' }],
+            limit: 1,
+        });
+
+        if (sessions.length === 0) {
             return null;
         }
 
-        const doc = snapshot.docs[0];
-        return {
-            id: doc.id,
-            ...doc.data(),
-        } as ReadingSession;
+        return sessions[0];
     } catch (error) {
         console.error('Error getting existing session:', error);
         return null;
@@ -101,10 +88,6 @@ export async function createReadingSession(
     phraseIds: string[],
     article: GeneratedArticle
 ): Promise<ReadingSession> {
-    const firestore = await getDbAsync();
-    const sessionsRef = collection(firestore, 'readingSessions');
-    const sessionDoc = doc(sessionsRef);
-
     const session: Omit<ReadingSession, 'id'> = {
         userId,
         phraseIds,
@@ -116,12 +99,7 @@ export async function createReadingSession(
         correctAnswers: 0,
     };
 
-    await setDoc(sessionDoc, session);
-
-    return {
-        id: sessionDoc.id,
-        ...session,
-    };
+    return addDocument<ReadingSession>('readingSessions', session);
 }
 
 /**
@@ -132,10 +110,7 @@ export async function updateSessionProgress(
     currentQuestionIndex: number,
     correctAnswers: number
 ): Promise<void> {
-    const firestore = await getDbAsync();
-    const sessionRef = doc(firestore, 'readingSessions', sessionId);
-
-    await updateDoc(sessionRef, {
+    await updateDocument('readingSessions', sessionId, {
         currentQuestionIndex,
         correctAnswers,
     });
@@ -148,10 +123,7 @@ export async function completeReadingSession(
     sessionId: string,
     correctAnswers: number
 ): Promise<void> {
-    const firestore = await getDbAsync();
-    const sessionRef = doc(firestore, 'readingSessions', sessionId);
-
-    await updateDoc(sessionRef, {
+    await updateDocument('readingSessions', sessionId, {
         completedAt: Timestamp.now(),
         correctAnswers,
     });
@@ -163,19 +135,8 @@ export async function completeReadingSession(
 export async function getSessionById(
     sessionId: string
 ): Promise<ReadingSession | null> {
-    const firestore = await getDbAsync();
-    const sessionRef = doc(firestore, 'readingSessions', sessionId);
-
     try {
-        const snapshot = await getDoc(sessionRef);
-        if (!snapshot.exists()) {
-            return null;
-        }
-
-        return {
-            id: snapshot.id,
-            ...snapshot.data(),
-        } as ReadingSession;
+        return getDocument<ReadingSession>('readingSessions', sessionId);
     } catch (error) {
         console.error('Error getting session:', error);
         return null;
@@ -189,24 +150,12 @@ export async function getRecentReadingSessions(
     userId: string,
     limitCount: number = 5
 ): Promise<ReadingSession[]> {
-    const firestore = await getDbAsync();
-    const sessionsRef = collection(firestore, 'readingSessions');
-
-    const q = query(
-        sessionsRef,
-        where('userId', '==', userId),
-        orderBy('createdAt', 'desc'),
-        limit(limitCount)
-    );
-
     try {
-        const snapshot = await getDocs(q);
-        if (snapshot.empty) return [];
-
-        return snapshot.docs.map((doc: any) => ({
-            id: doc.id,
-            ...doc.data(),
-        })) as ReadingSession[];
+        return queryCollection<ReadingSession>('readingSessions', {
+            where: [{ field: 'userId', op: '==', value: userId }],
+            orderBy: [{ field: 'createdAt', direction: 'desc' }],
+            limit: limitCount,
+        });
     } catch (error) {
         console.error('Error getting recent sessions:', error);
         return [];

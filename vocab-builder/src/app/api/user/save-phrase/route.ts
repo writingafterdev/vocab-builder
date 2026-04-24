@@ -253,19 +253,10 @@ function flattenToStringArray(value: unknown): string[] {
 
 export async function POST(request: NextRequest) {
     try {
-        // Secure authentication - verify Firebase ID token
-        const { getAuthFromRequest } = await import('@/lib/appwrite/auth-admin');
-        const authUser = await getAuthFromRequest(request);
-
-        // Fallback to header-based auth for backward compatibility (deprecate later)
-        let userId = authUser?.userId;
-        let userEmail = authUser?.userEmail;
-
-        if (!userId) {
-            // Legacy fallback - will be removed after migration
-            userEmail = request.headers.get('x-user-email') || undefined;
-            userId = request.headers.get('x-user-id') || undefined;
-        }
+        const { getRequestUser } = await import('@/lib/request-auth');
+        const authUser = await getRequestUser(request, { allowHeaderFallback: true });
+        const userId = authUser?.userId;
+        const userEmail = authUser?.userEmail;
 
         if (!userEmail && !userId) {
             return NextResponse.json({ error: 'Authentication required' }, { status: 401 });

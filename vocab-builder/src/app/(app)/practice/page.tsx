@@ -3,11 +3,12 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { ArrowRight, BookOpen, PenLine, Zap, Check } from 'lucide-react';
 import { EditorialLoader } from '@/components/ui/editorial-loader';
 import { toast } from 'sonner';
 import { ErrorBoundary } from '@/components/error-boundary';
+import { authFromUser, clientApiJson } from '@/lib/client-api';
 
 // ─── Module definitions for the progress path ──────────
 
@@ -39,6 +40,7 @@ function PracticePageContent() {
     const { user, loading: authLoading } = useAuth();
 
     const [generating, setGenerating] = useState(false);
+    const [redirecting, setRedirecting] = useState(false);
     const [pastSessions, setPastSessions] = useState<Array<{
         id: string; title: string; status: string; totalPhrases: number; questionCount: number;
     }>>([]);
@@ -58,16 +60,58 @@ function PracticePageContent() {
     useEffect(() => {
         if (!userId) return;
 
-        fetch('/api/practice/list-sessions', { headers: { 'x-user-id': userId } })
-            .then(res => res.ok ? res.json() : { sessions: [] })
+        const auth = authFromUser(user);
+
+        clientApiJson<{ sessions?: Array<{ id: string; title: string; status: string; totalPhrases: number; questionCount: number }> }>('/api/practice/list-sessions', { auth })
             .then(data => setPastSessions((data.sessions || []).slice(0, 5)))
             .catch(() => {});
 
-        fetch('/api/user/due-phrases', { headers: { 'x-user-id': userId } })
-            .then(res => res.ok ? res.json() : { count: 0 })
+        clientApiJson<{ phrases?: unknown[]; count?: number }>('/api/user/due-phrases', { auth })
             .then(data => setDuePhraseCount(data.phrases?.length || data.count || 0))
             .catch(() => {});
-    }, [userId]);
+    }, [user, userId]);
+
+    useEffect(() => {
+        if (!user || authLoading || duePhraseCount === null || redirecting) return;
+
+        const inProgressSession = pastSessions.find(s => s.status === 'generated' || s.status === 'in_progress');
+        if (inProgressSession) {
+            setRedirecting(true);
+            router.replace(`/practice/session/${inProgressSession.id}`);
+            return;
+        }
+
+        if (duePhraseCount === 0) {
+            return;
+        }
+
+        let cancelled = false;
+        async function prepareBatch() {
+            setGenerating(true);
+            try {
+                const data = await clientApiJson<{ sessionId: string }>('/api/practice/next-batch', {
+                    method: 'POST',
+                    auth: authFromUser(user),
+                    json: {},
+                });
+                if (!cancelled) {
+                    setRedirecting(true);
+                    router.replace(`/practice/session/${data.sessionId}`);
+                }
+            } catch (err: unknown) {
+                const message = err instanceof Error ? err.message : 'Failed to prepare practice session';
+                console.error('Auto-start practice failed:', err);
+                toast.error(message);
+            } finally {
+                if (!cancelled) {
+                    setGenerating(false);
+                }
+            }
+        }
+
+        prepareBatch();
+        return () => { cancelled = true; };
+    }, [user, authLoading, duePhraseCount, pastSessions, redirecting, router]);
 
     if (authLoading) {
         return (
@@ -80,39 +124,20 @@ function PracticePageContent() {
     if (!user) return null;
 
     const completedSessions = pastSessions.filter(s => s.status?.startsWith('completed'));
-    const inProgressSession = pastSessions.find(s => s.status === 'generated' || s.status === 'in_progress');
-
     const handleGenerate = async () => {
         if (!userId || generating) return;
         setGenerating(true);
         try {
-            const { account } = await import('@/lib/appwrite/client');
-            let token = null;
-            try {
-                const jwtRes = await account.createJWT();
-                token = jwtRes.jwt;
-            } catch(e) {}
-
-            const res = await fetch('/api/practice/generate-session-article', {
+            const data = await clientApiJson<{ sessionId: string }>('/api/practice/next-batch', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-                    'x-user-id': userId,
-                },
-                body: JSON.stringify({}),
+                auth: authFromUser(user),
+                json: {},
             });
-
-            if (!res.ok) {
-                const data = await res.json();
-                throw new Error(data.error || 'Failed to generate');
-            }
-
-            const data = await res.json();
-            router.push(`/practice/session/${data.sessionId}`);
-        } catch (err: any) {
+            router.replace(`/practice/session/${data.sessionId}`);
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Failed to generate session';
             console.error('Generate failed:', err);
-            toast.error(err.message || 'Failed to generate session');
+            toast.error(message);
         } finally {
             setGenerating(false);
         }
@@ -141,28 +166,23 @@ function PracticePageContent() {
                 </p>
             </motion.div>
 
-            {/* ── Continue or Start ── */}
-            {inProgressSession && (
-                <motion.button
+            {(redirecting || generating) && duePhraseCount !== 0 && (
+                <motion.div
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.1, duration: 0.3 }}
-                    onClick={() => router.push(`/practice/session/${inProgressSession.id}`)}
-                    className="
-                        w-full flex items-center justify-between
-                        px-5 py-4 mb-6
-                        bg-[var(--foreground)] text-[var(--background)]
-                        hover:opacity-90 transition-opacity
-                    "
+                    className="w-full px-5 py-4 mb-6 bg-[var(--foreground)] text-[var(--background)]"
                 >
-                    <div className="text-left">
-                        <p className="text-[11px] font-bold uppercase tracking-[0.15em] opacity-60 mb-1">
-                            Continue session
-                        </p>
-                        <p className="text-sm font-medium">{inProgressSession.title}</p>
+                    <div className="flex items-center justify-between gap-3">
+                        <div className="text-left">
+                            <p className="text-[11px] font-bold uppercase tracking-[0.15em] opacity-60 mb-1">
+                                Preparing practice batch
+                            </p>
+                            <p className="text-sm font-medium">Loading questions from the shared pool...</p>
+                        </div>
+                        <span className="w-4 h-4 border-2 border-[var(--background)]/30 border-t-[var(--background)] rounded-full animate-spin" />
                     </div>
-                    <ArrowRight className="w-4 h-4 opacity-60" />
-                </motion.button>
+                </motion.div>
             )}
 
             {/* ── Vertical Progress Path (Elevate-style) ── */}
@@ -173,7 +193,7 @@ function PracticePageContent() {
                 className="mb-10"
             >
                 <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--muted-foreground)] mb-6">
-                    Today's session
+                    Today&apos;s session
                 </p>
 
                 <div className="relative">
@@ -235,7 +255,7 @@ function PracticePageContent() {
                 </div>
             </motion.div>
 
-            {/* ── Generate Button ── */}
+            {/* ── Manual retry fallback ── */}
             {duePhraseCount !== null && duePhraseCount === 0 ? (
                 <motion.div
                     initial={{ opacity: 0, y: 8 }}
@@ -245,7 +265,7 @@ function PracticePageContent() {
                 >
                     <p className="text-sm text-[var(--muted-foreground)] mb-1">No phrases due for review</p>
                     <p className="text-[11px] text-[var(--muted-foreground)] opacity-60">
-                        Keep reading articles and saving new phrases — they'll appear here when due
+                        Keep reading articles and saving new phrases — they&apos;ll appear here when due
                     </p>
                 </motion.div>
             ) : (
@@ -254,7 +274,7 @@ function PracticePageContent() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.5, duration: 0.3 }}
                     onClick={handleGenerate}
-                    disabled={generating}
+                    disabled={generating || redirecting}
                     className="
                         w-full py-4
                         bg-[var(--foreground)] text-[var(--background)]
@@ -270,7 +290,7 @@ function PracticePageContent() {
                             Generating...
                         </>
                     ) : (
-                        <>Start Session <ArrowRight className="w-3.5 h-3.5" /></>
+                        <>Retry Loading <ArrowRight className="w-3.5 h-3.5" /></>
                     )}
                 </motion.button>
             )}

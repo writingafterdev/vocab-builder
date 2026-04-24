@@ -1,15 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthFromRequest } from '@/lib/appwrite/auth-admin';
 import { boostTopic } from '@/lib/db/quote-feed';
+import { getRequestUser } from '@/lib/request-auth';
 
 export async function POST(request: NextRequest) {
     try {
-        const authUser = await getAuthFromRequest(request);
-        let userId = authUser?.userId;
-
-        if (!userId) {
-            userId = request.headers.get('x-user-id') || undefined;
-        }
+        const authUser = await getRequestUser(request, { allowHeaderFallback: true });
+        const userId = authUser?.userId;
 
         if (!userId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

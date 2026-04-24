@@ -1,7 +1,7 @@
 /**
  * Shared types for database modules
  */
-import { Timestamp } from '@/lib/appwrite/firestore';
+import { Timestamp } from '@/lib/appwrite/timestamp';
 
 // ============================================================================
 // REDDIT CONTENT TYPES
@@ -801,6 +801,10 @@ export interface ConversationExercise {
 
 // ── Skill Axes ──
 export type SkillAxis = 'cohesion' | 'task_achievement' | 'naturalness';
+export type LearningBand = 'recognition' | 'active_recall' | 'production';
+export type ContextType = 'micro_passage' | 'dialogue' | 'message' | 'social_post';
+export type DifficultyBand = 'simple' | 'moderate' | 'rich';
+export type TargetVisibility = 'natural_only' | 'soft_hint' | 'explicit';
 
 // ── Question Types (12-type MVP) ──
 export type PassiveQuestionType =
@@ -852,31 +856,22 @@ export type SourcePlatform =
     | 'linkedin' | 'whatsapp' | 'twitter' | 'reddit'
     | 'email' | 'cover_letter' | 'yelp_review' | 'news_oped';
 
-// ── Anchor Passage (core of every session) ──
-export interface AnchorPassage {
-    text: string;                    // 600-900 word generated passage
-    topic: string;                   // e.g. "AI ethics in hiring"
-    centralClaim: string;            // The passage's arguable position
-    deliberateFlaws: {
-        logicalGap: string;          // Description of embedded logical gap
-        weakTransition: string;      // Which transition is weak
-        registerBreak: string;       // Which sentence has register inconsistency
-    };
-    embeddedVocab: string[];         // Vocab words naturally embedded
-    sourcePlatform?: SourcePlatform; // What real-world format it mimics
-}
-
 // ── Session Question ──
 export interface SessionQuestion {
     id: string;
     type: QuestionType;
     skillAxis: SkillAxis;
-    // Excerpt grouping: questions sharing an excerptId are shown under the same passage block
-    excerptId?: string;              // e.g. "ex_1" — groups questions under same excerpt
-    excerptText?: string;            // The shared excerpt text (set on first question of group)
+    context?: string;                 // Shared phrase-centric context for this question
+    contextType?: ContextType;
+    learningBand?: LearningBand;      // v3 canonical field
+    difficultyBand?: DifficultyBand;
+    targetVisibility?: TargetVisibility;
+    testedPhraseIds?: string[];       // Phrase keys in global pool, user phrase IDs in materialized batches
+    contextPhraseIds?: string[];      // Additional phrases embedded but not necessarily tested
+    productionTargetPhraseIds?: string[];
+    isFeedEligible?: boolean;
     // Content
     prompt: string;                  // The question text
-    passageReference?: string;       // Specific excerpt from anchor passage (legacy / fallback)
     // For passive (MCQ-based)
     options?: string[];
     correctIndex?: number;
@@ -904,8 +899,6 @@ export interface SessionQuestion {
     correctSegmentIndex?: number;    // Which segment is the correct answer
     // Feedback
     explanation: string;
-    // Phase-based session: which learning phase this question targets
-    learningPhase?: 'recognition' | 'active_recall' | 'production';
     // Production tracking: phrases the user should use in freewrite
     expectedPhrases?: string[];          // Phrase text to use
     expectedPhraseIds?: string[];        // Corresponding phrase doc IDs
@@ -944,7 +937,7 @@ export interface SessionQuestion {
     }>;
     // Listening mode: audio-first presentation of the question
     isListening?: boolean;               // If true, passage/options are heard, not read
-    listeningText?: string;              // Text to synthesize (defaults to passageReference)
+    listeningText?: string;              // Optional text to synthesize instead of the visible context
     // Chaining: references a previous question this builds on
     chainedFrom?: string;            // ID of the Phase 2 question this extends
 }
@@ -953,7 +946,6 @@ export interface SessionQuestion {
 export interface ExerciseSession {
     id: string;
     userId: string;
-    anchorPassage: AnchorPassage;
     questions: SessionQuestion[];
     vocabWordIds: string[];          // SavedPhrase IDs embedded in passage
     status: 'generated' | 'in_progress' | 'completed';
@@ -986,6 +978,12 @@ export interface FeedCard {
     userId: string;
     cardType: FeedCardType;
     skillAxis: SkillAxis;
+    questionId?: string;
+    questionType?: QuestionType;
+    learningBand?: LearningBand;
+    difficultyBand?: DifficultyBand;
+    testedPhraseIds?: string[];
+    contextPhraseIds?: string[];
     // Source content block (real-world format)
     sourceContent: string;           // The LinkedIn post / WhatsApp message / etc.
     sourcePlatform: SourcePlatform;

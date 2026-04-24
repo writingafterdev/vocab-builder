@@ -5,12 +5,14 @@ import {
     queryCollection,
     serverTimestamp
 } from '@/lib/appwrite/database';
+import { getRequestUser } from '@/lib/request-auth';
 
 const COLLECTION_NAME = 'userReadingLists';
 
 export async function GET(request: NextRequest) {
     try {
-        const userId = request.headers.get('x-user-id');
+        const authUser = await getRequestUser(request, { allowHeaderFallback: true });
+        const userId = authUser?.userId;
 
         if (!userId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -30,7 +32,8 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
     try {
-        const userId = request.headers.get('x-user-id');
+        const authUser = await getRequestUser(request, { allowHeaderFallback: true });
+        const userId = authUser?.userId;
 
         if (!userId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

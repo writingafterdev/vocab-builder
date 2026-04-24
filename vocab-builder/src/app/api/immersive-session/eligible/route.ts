@@ -1,20 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getRequestUser } from '@/lib/request-auth';
+import { queryCollection } from '@/lib/appwrite/database';
+
+const IMMERSIVE_PHRASE_THRESHOLD = 10;
 
 export async function GET(request: NextRequest) {
     try {
-        const userId = request.headers.get('x-user-id');
+        const authUser = await getRequestUser(request, { allowHeaderFallback: true });
+        const userId = authUser?.userId;
 
         if (!userId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        // TODO: Check if user has enough phrases for immersive mode (threshold: 10+ phrases)
-        // For now, return not eligible
+        const phrases = await queryCollection('savedPhrases', {
+            where: [{ field: 'userId', op: '==', value: userId }],
+            limit: IMMERSIVE_PHRASE_THRESHOLD,
+        });
+        const currentPhrases = phrases.length;
+        const eligible = currentPhrases >= IMMERSIVE_PHRASE_THRESHOLD;
+
         return NextResponse.json({
-            eligible: false,
-            reason: 'Save at least 10 phrases to unlock Immersive Mode.',
-            requiredPhrases: 10,
-            currentPhrases: 0,
+            eligible,
+            reason: eligible
+                ? 'Immersive Mode unlocked.'
+                : `Save at least ${IMMERSIVE_PHRASE_THRESHOLD} phrases to unlock Immersive Mode.`,
+            requiredPhrases: IMMERSIVE_PHRASE_THRESHOLD,
+            currentPhrases,
         });
     } catch (error) {
         console.error('Immersive session eligibility error:', error);

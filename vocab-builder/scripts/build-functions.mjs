@@ -27,7 +27,8 @@ async function buildFunctions() {
             ],
             // We need to resolve TS path aliases like @/lib
             alias: {
-                '@': path.join(__dirname, '../src')
+                '@': path.join(__dirname, '../src'),
+                'server-only': path.join(__dirname, 'esbuild-server-only-shim.js')
             }
         });
 

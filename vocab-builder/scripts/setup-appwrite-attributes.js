@@ -223,6 +223,21 @@ const SCHEMAS = {
         { key: 'createdAt', type: 'string', size: 100 },
     ],
 
+    exerciseQuestionPool: [
+        { key: 'phraseKey', type: 'string', size: 255 },
+        { key: 'phrase', type: 'string', size: 500 },
+        { key: 'learningBand', type: 'string', size: 50 },
+        { key: 'difficultyBand', type: 'string', size: 50 },
+        { key: 'questions', type: 'string', size: 50000 },
+        { key: 'status', type: 'string', size: 50 },
+        { key: 'generationMode', type: 'string', size: 50 },
+        { key: 'lexilePolicy', type: 'string', size: 1000 },
+        { key: 'generatedAt', type: 'string', size: 100 },
+        { key: 'updatedAt', type: 'string', size: 100 },
+        { key: 'reuseCount', type: 'integer' },
+        { key: 'qualityScore', type: 'float' },
+    ],
+
     feedQuizzes: [
         { key: 'postId', type: 'string', size: 255 },
         { key: 'quoteId', type: 'string', size: 255 },
@@ -343,6 +358,18 @@ const SCHEMAS = {
         { key: 'type', type: 'string', size: 50 },
         { key: 'score', type: 'float' },
         { key: 'data', type: 'string', size: 5000 },            // JSON blob
+        { key: 'completedAt', type: 'string', size: 100 },
+    ],
+
+    exerciseQuestionAttempts: [
+        { key: 'userId', type: 'string', size: 255 },
+        { key: 'questionId', type: 'string', size: 255 },
+        { key: 'questionType', type: 'string', size: 100 },
+        { key: 'learningBand', type: 'string', size: 50 },
+        { key: 'testedPhraseIds', type: 'string', size: 5000 },
+        { key: 'surface', type: 'string', size: 50 },
+        { key: 'correct', type: 'boolean' },
+        { key: 'userAnswer', type: 'string', size: 5000 },
         { key: 'completedAt', type: 'string', size: 100 },
     ],
 

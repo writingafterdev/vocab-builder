@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { getDbAsync } from '@/lib/db/core';
-import { collection, query, where, getDocs } from '@/lib/appwrite/firestore';
+import { queryCollection } from '@/lib/appwrite/database';
 import { createArticle } from '@/lib/db/posts';
+import { getAdminRequestContext } from '@/lib/admin-auth';
 
 const SUBREDDITS = [
     'todayilearned', 'technology', 'worldnews', 'news', 'politics',
@@ -9,18 +9,21 @@ const SUBREDDITS = [
     'unpopularopinion', 'Advice'
 ];
 
+interface RedditCommentChild {
+    kind?: string;
+    data?: {
+        body?: string;
+    };
+}
+
 export async function POST(req: Request) {
     try {
-        const email = req.headers.get('x-user-email');
-        const ALLOWED_ADMINS = (process.env.ADMIN_EMAILS || 'ducanhcontactonfb@gmail.com').split(',').map(e => e.trim());
-        if (!email || !ALLOWED_ADMINS.includes(email)) {
+        const admin = await getAdminRequestContext(req);
+        if (!admin) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
         const results = [];
-        const db = await getDbAsync();
-        const postsRef = collection(db, 'posts');
-
         for (const sub of SUBREDDITS) {
             console.log(`[Reddit Sync] Fetching r/${sub}...`);
             const res = await fetch(`https://www.reddit.com/r/${sub}/hot.json?limit=3`, {
@@ -40,9 +43,11 @@ export async function POST(req: Request) {
                 const url = `https://www.reddit.com${post.permalink}`;
                 
                 // Deduplication check
-                const q = query(postsRef, where('originalUrl', '==', url));
-                const snap = await getDocs(q);
-                if (!snap.empty) {
+                const existingPosts = await queryCollection('posts', {
+                    where: [{ field: 'originalUrl', op: '==', value: url }],
+                    limit: 1,
+                });
+                if (existingPosts.length > 0) {
                     console.log(`[Reddit Sync] Skipping duplicate: ${url}`);
                     continue;
                 }
@@ -54,14 +59,14 @@ export async function POST(req: Request) {
                 
                 if (!commentsRes.ok) continue;
                 const commentsData = await commentsRes.json();
-                const commentsListing = commentsData?.[1]?.data?.children || [];
+                const commentsListing: RedditCommentChild[] = commentsData?.[1]?.data?.children || [];
 
                 const topComments = commentsListing
-                    .filter((c: any) => c.kind === 't1' && c.data?.body)
+                    .filter((comment) => comment.kind === 't1' && comment.data?.body)
                     .slice(0, 10)
-                    .map((c: any) => {
+                    .map((comment) => {
                         // Very basic sanitization
-                        const cleanBody = c.data.body.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                        const cleanBody = comment.data?.body?.replace(/</g, '&lt;').replace(/>/g, '&gt;') || '';
                         return `<li class="mb-2 pb-2 border-b border-neutral-100">${cleanBody}</li>`;
                     });
 

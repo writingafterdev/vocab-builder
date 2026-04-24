@@ -1,4 +1,4 @@
-import { account } from '@/lib/appwrite/client';
+import { clientApiFetch, clientApiJson, getClientJwt } from '@/lib/client-api';
 
 /**
  * Make an authenticated API request
@@ -8,23 +8,9 @@ export async function authFetch(
     url: string,
     options: RequestInit = {}
 ): Promise<Response> {
-    let token = '';
-    try {
-        const jwtResponse = await account.createJWT();
-        token = jwtResponse.jwt;
-    } catch (error) {
-        console.warn('Could not generate JWT. User may not be logged in.');
-    }
-
-    const headers = new Headers(options.headers);
-    if (token) {
-        headers.set('Authorization', `Bearer ${token}`);
-    }
-    headers.set('Content-Type', 'application/json');
-
-    return fetch(url, {
+    return clientApiFetch(url, {
         ...options,
-        headers,
+        auth: { getToken: getClientJwt },
     });
 }
 
@@ -35,31 +21,19 @@ export async function authPost<T = unknown>(
     url: string,
     body: unknown
 ): Promise<T> {
-    const response = await authFetch(url, {
+    return clientApiJson<T>(url, {
         method: 'POST',
-        body: JSON.stringify(body),
+        auth: { getToken: getClientJwt },
+        json: body,
     });
-
-    if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: 'Request failed' }));
-        throw new Error(error.error || `Request failed: ${response.status}`);
-    }
-
-    return response.json();
 }
 
 /**
  * Make an authenticated GET request
  */
 export async function authGet<T = unknown>(url: string): Promise<T> {
-    const response = await authFetch(url, {
+    return clientApiJson<T>(url, {
         method: 'GET',
+        auth: { getToken: getClientJwt },
     });
-
-    if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: 'Request failed' }));
-        throw new Error(error.error || `Request failed: ${response.status}`);
-    }
-
-    return response.json();
 }

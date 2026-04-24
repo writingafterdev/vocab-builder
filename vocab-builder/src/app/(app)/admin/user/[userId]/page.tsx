@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import type { UserProfile } from '@/types';
+import { toDateSafe } from '@/lib/utils';
 
 const ADMIN_EMAIL = 'ducanhcontactonfb@gmail.com';
 
@@ -60,6 +61,39 @@ interface UserPhrase {
     usageCount: number;
 }
 
+interface AdminPhraseDoc {
+    id: string;
+    phrase?: string;
+    meaning?: string;
+    createdAt?: unknown;
+    usageCount?: number;
+}
+
+interface AdminScenarioDoc {
+    id: string;
+    scenario?: string;
+    userRole?: string;
+    createdAt?: unknown;
+    status?: string;
+    phrases?: Array<{ used?: boolean; status?: string }>;
+    turns?: unknown[];
+}
+
+interface AdminPostDoc {
+    id: string;
+    title?: string;
+    content?: string;
+    isArticle?: boolean;
+    createdAt?: unknown;
+    commentCount?: number;
+    repostCount?: number;
+}
+
+interface TokenUsageDoc {
+    endpoint?: string;
+    totalTokens?: number;
+}
+
 export default function AdminUserPage() {
     const params = useParams();
     const router = useRouter();
@@ -90,32 +124,26 @@ export default function AdminUserPage() {
         const loadUserData = async () => {
             setLoading(true);
             try {
-                // Dynamic import of Appwrite firestore adapter
-                const { doc, getDoc, collection, query, where, limit, getDocs } = await import('@/lib/appwrite/firestore');
-                const db = {}; // no-op handle — Appwrite adapter manages its own connection
+                const { getDocument, queryCollection } = await import('@/lib/appwrite/client-db');
 
                 // Load user profile
-                const userDoc = await getDoc(doc(db, 'users', userId));
-                if (userDoc.exists()) {
-                    setUserProfile({ uid: userDoc.id, ...userDoc.data() } as UserProfile);
+                const userDoc = await getDocument<UserProfile>('users', userId);
+                if (userDoc) {
+                    setUserProfile({ ...(userDoc as unknown as UserProfile), uid: userDoc.id });
                 }
 
                 // Load saved phrases (simple query without orderBy to avoid index issues)
                 try {
-                    const phrasesRef = collection(db, 'savedPhrases');
-                    const phrasesQuery = query(
-                        phrasesRef,
-                        where('userId', '==', userId),
-                        limit(100)
-                    );
-                    const phrasesSnapshot = await getDocs(phrasesQuery);
-                    const phrasesData = phrasesSnapshot.docs.map(docSnap => {
-                        const data = docSnap.data();
+                    const savedPhrases = await queryCollection<AdminPhraseDoc>('savedPhrases', {
+                        where: [{ field: 'userId', op: '==', value: userId }],
+                        limit: 100,
+                    });
+                    const phrasesData = savedPhrases.map((data) => {
                         return {
-                            id: docSnap.id,
+                            id: data.id,
                             phrase: data.phrase || '',
                             meaning: data.meaning || '',
-                            createdAt: data.createdAt?.toDate?.() || new Date(),
+                            createdAt: toDateSafe(data.createdAt) || new Date(),
                             usageCount: data.usageCount || 0,
                         };
                     });
@@ -128,21 +156,17 @@ export default function AdminUserPage() {
 
                 // Load scenarios (simple query without orderBy)
                 try {
-                    const scenariosRef = collection(db, 'scenarios');
-                    const scenariosQuery = query(
-                        scenariosRef,
-                        where('userId', '==', userId),
-                        limit(50)
-                    );
-                    const scenariosSnapshot = await getDocs(scenariosQuery);
-                    const scenariosData = scenariosSnapshot.docs.map(docSnap => {
-                        const data = docSnap.data();
+                    const scenarios = await queryCollection<AdminScenarioDoc>('scenarios', {
+                        where: [{ field: 'userId', op: '==', value: userId }],
+                        limit: 50,
+                    });
+                    const scenariosData = scenarios.map((data) => {
                         const phrasesList = data.phrases || [];
                         return {
-                            id: docSnap.id,
+                            id: data.id,
                             scenario: data.scenario || 'Untitled',
                             userRole: data.userRole || '',
-                            createdAt: data.createdAt?.toDate?.() || new Date(),
+                            createdAt: toDateSafe(data.createdAt) || new Date(),
                             status: data.status || 'unknown',
                             phrasesTotal: phrasesList.length,
                             phrasesUsed: phrasesList.filter((p: { used?: boolean }) => p.used).length,
@@ -159,21 +183,17 @@ export default function AdminUserPage() {
 
                 // Load posts (simple query without orderBy)
                 try {
-                    const postsRef = collection(db, 'posts');
-                    const postsQuery = query(
-                        postsRef,
-                        where('authorId', '==', userId),
-                        limit(50)
-                    );
-                    const postsSnapshot = await getDocs(postsQuery);
-                    const postsData = postsSnapshot.docs.map(docSnap => {
-                        const data = docSnap.data();
+                    const userPosts = await queryCollection<AdminPostDoc>('posts', {
+                        where: [{ field: 'authorId', op: '==', value: userId }],
+                        limit: 50,
+                    });
+                    const postsData = userPosts.map((data) => {
                         return {
-                            id: docSnap.id,
+                            id: data.id,
                             title: data.title,
                             content: data.content || '',
                             isArticle: data.isArticle || false,
-                            createdAt: data.createdAt?.toDate?.() || new Date(),
+                            createdAt: toDateSafe(data.createdAt) || new Date(),
                             commentCount: data.commentCount || 0,
                             repostCount: data.repostCount || 0,
                         };
@@ -187,19 +207,18 @@ export default function AdminUserPage() {
 
                 // Load token usage if we have email
                 try {
-                    if (userDoc.exists()) {
-                        const email = userDoc.data().email;
+                    if (userDoc) {
+                        const email = userDoc.email;
                         if (email) {
-                            const usageRef = collection(db, 'tokenUsage');
-                            const usageQuery = query(usageRef, where('userEmail', '==', email));
-                            const usageSnapshot = await getDocs(usageQuery);
+                            const usageEntries = await queryCollection<TokenUsageDoc>('tokenUsage', {
+                                where: [{ field: 'userEmail', op: '==', value: email }],
+                            });
 
                             const byEndpoint: Record<string, { tokens: number; calls: number }> = {};
                             let total = 0;
                             let calls = 0;
 
-                            usageSnapshot.docs.forEach(docSnap => {
-                                const data = docSnap.data();
+                            usageEntries.forEach((data) => {
                                 const endpoint = data.endpoint || 'unknown';
                                 const tokenCount = data.totalTokens || 0;
                                 total += tokenCount;

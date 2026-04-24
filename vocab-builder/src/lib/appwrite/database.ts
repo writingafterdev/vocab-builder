@@ -1,15 +1,21 @@
 import 'server-only';
 import { Client, Databases, Query, ID } from 'node-appwrite';
+import { serverEnv } from '@/lib/env/server';
+import {
+    SYSTEM_FIELDS,
+    sanitizeDocument,
+    serializeValue,
+} from './codec';
 
 const client = new Client()
-    .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1')
-    .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!)
-    .setKey(process.env.APPWRITE_API_KEY!);
+    .setEndpoint(serverEnv.appwriteEndpoint)
+    .setProject(serverEnv.appwriteProjectId)
+    .setKey(serverEnv.appwriteApiKey);
 
 const databases = new Databases(client);
 
 // Default to main unless specified in env
-const DB_ID = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || 'main';
+const DB_ID = serverEnv.appwriteDatabaseId;
 
 // ─── Schema Cache ────────────────────────────────────────────────────
 // Appwrite requires strict schemas — every field must be a defined attribute.
@@ -23,9 +29,6 @@ interface AttrInfo {
 
 const schemaCache = new Map<string, Map<string, AttrInfo>>();
 const schemaFetchPromises = new Map<string, Promise<Map<string, AttrInfo>>>();
-
-// Fields that Appwrite manages internally — never write these
-const SYSTEM_FIELDS = new Set(['id', '$id', '$createdAt', '$updatedAt', '$permissions', '$databaseId', '$collectionId']);
 
 async function getCollectionSchema(collectionId: string): Promise<Map<string, AttrInfo>> {
     if (schemaCache.has(collectionId)) {
@@ -84,11 +87,7 @@ async function prepareWriteData(collectionId: string, data: Record<string, any>)
 
         // If schema is empty (fetch failed), pass all non-system fields with basic serialization
         if (schema.size === 0) {
-            if (value !== null && value !== undefined && typeof value === 'object' && !(value instanceof Date) && !Array.isArray(value)) {
-                result[key] = JSON.stringify(value);
-            } else {
-                result[key] = value;
-            }
+            result[key] = serializeValue(value);
             continue;
         }
 
@@ -103,14 +102,12 @@ async function prepareWriteData(collectionId: string, data: Record<string, any>)
             result[key] = value;
         } else if (attrInfo.array) {
             // Appwrite array attribute — must be a real JS array
-            result[key] = Array.isArray(value) ? value : [value];
+            result[key] = Array.isArray(value)
+                ? value.map((item) => serializeValue(item))
+                : [serializeValue(value)];
         } else if (attrInfo.type === 'string') {
             // String attribute — stringify objects/arrays, pass strings through
-            if (typeof value === 'object' && !(value instanceof Date)) {
-                result[key] = JSON.stringify(value);
-            } else {
-                result[key] = String(value);
-            }
+            result[key] = String(serializeValue(value));
         } else if (attrInfo.type === 'integer') {
             result[key] = typeof value === 'number' ? Math.round(value) : parseInt(String(value), 10) || 0;
         } else if (attrInfo.type === 'float' || attrInfo.type === 'double') {
@@ -134,31 +131,6 @@ async function prepareWriteData(collectionId: string, data: Record<string, any>)
     return result;
 }
 
-// ─── Auto-deserialize: parse JSON strings back to objects on read ─────────────
-function sanitizeDocument(doc: any): Record<string, unknown> & { id: string } {
-    if (!doc) return null as any;
-
-    const { $id, $createdAt, $updatedAt, $permissions, $databaseId, $collectionId, ...data } = doc;
-
-    // Auto-parse any string value that looks like JSON (starts with { or [)
-    for (const key of Object.keys(data)) {
-        const val = data[key];
-        if (typeof val === 'string' && val.length > 1) {
-            const trimmed = val.trim();
-            if ((trimmed[0] === '{' && trimmed[trimmed.length - 1] === '}') ||
-                (trimmed[0] === '[' && trimmed[trimmed.length - 1] === ']')) {
-                try {
-                    data[key] = JSON.parse(trimmed);
-                } catch {
-                    // Not valid JSON, keep as string
-                }
-            }
-        }
-    }
-
-    return { ...data, id: $id } as any;
-}
-
 // Polyfill serverTimestamp since Appwrite handles ISO strings naturally
 export function serverTimestamp() {
     return new Date().toISOString();
@@ -180,24 +152,24 @@ export function safeDocId(raw: string): string {
 }
 
 
-export async function addDocument(collection: string, data: Record<string, any>, idToken?: string): Promise<string> {
+export async function addDocument(collection: string, data: Record<string, any>, _idToken?: string): Promise<string> {
     const id = ID.unique();
     const safe = await prepareWriteData(collection, data);
     await databases.createDocument(DB_ID, collection, id, safe);
     return id;
 }
 
-export async function getDocument(collection: string, documentId: string, idToken?: string): Promise<(Record<string, unknown> & { id: string }) | null> {
+export async function getDocument(collection: string, documentId: string, _idToken?: string): Promise<(Record<string, unknown> & { id: string }) | null> {
     try {
         const doc = await databases.getDocument(DB_ID, collection, documentId);
-        return sanitizeDocument(doc);
+        return sanitizeDocument<Record<string, unknown> & { id: string }>(doc as Record<string, unknown> & { $id?: string });
     } catch (e: any) {
         if (e.code === 404) return null;
         throw e;
     }
 }
 
-export async function updateDocument(collection: string, documentId: string, data: Record<string, any>, idToken?: string): Promise<void> {
+export async function updateDocument(collection: string, documentId: string, data: Record<string, any>, _idToken?: string): Promise<void> {
     try {
         const safe = await prepareWriteData(collection, data);
         // If all fields were stripped by prepareWriteData, skip the update
@@ -209,7 +181,7 @@ export async function updateDocument(collection: string, documentId: string, dat
     }
 }
 
-export async function setDocument(collection: string, documentId: string, data: Record<string, any>, idToken?: string): Promise<void> {
+export async function setDocument(collection: string, documentId: string, data: Record<string, any>, _idToken?: string): Promise<void> {
     const safe = await prepareWriteData(collection, data);
     try {
         await databases.getDocument(DB_ID, collection, documentId);
@@ -223,7 +195,7 @@ export async function setDocument(collection: string, documentId: string, data: 
     }
 }
 
-export async function deleteDocument(collection: string, documentId: string, idToken?: string): Promise<void> {
+export async function deleteDocument(collection: string, documentId: string, _idToken?: string): Promise<void> {
     try {
         await databases.deleteDocument(DB_ID, collection, documentId);
     } catch (e: any) {
@@ -239,7 +211,7 @@ export async function queryCollection(
         orderBy?: { field: string; direction?: 'asc' | 'desc' }[];
         limit?: number;
     },
-    idToken?: string
+    _idToken?: string
 ): Promise<Array<Record<string, unknown> & { id: string }>> {
     let queries: string[] = [];
 
@@ -272,7 +244,9 @@ export async function queryCollection(
 
     try {
         const response = await databases.listDocuments(DB_ID, collection, queries);
-        return response.documents.map(sanitizeDocument);
+        return response.documents.map((doc) =>
+            sanitizeDocument<Record<string, unknown> & { id: string }>(doc as Record<string, unknown> & { $id?: string })
+        ).filter(Boolean) as Array<Record<string, unknown> & { id: string }>;
     } catch (e: any) {
         throw new Error(`Failed to query ${collection}: ${e.message}`);
     }
@@ -283,7 +257,7 @@ export async function runQuery(
     collectionPath: string,
     filters: { field: string; op: 'EQUAL' | 'ARRAY_CONTAINS' | 'LESS_THAN' | 'LESS_THAN_OR_EQUAL' | 'GREATER_THAN' | 'GREATER_THAN_OR_EQUAL' | 'NOT_EQUAL'; value: unknown }[],
     limit?: number,
-    idToken?: string
+    _idToken?: string
 ): Promise<Array<Record<string, unknown> & { id: string }>> {
     const pathParts = collectionPath.split('/');
     const collectionId = pathParts[pathParts.length - 1];
@@ -303,7 +277,9 @@ export async function runQuery(
 
     try {
         const response = await databases.listDocuments(DB_ID, collectionId, queries);
-        return response.documents.map(sanitizeDocument);
+        return response.documents.map((doc) =>
+            sanitizeDocument<Record<string, unknown> & { id: string }>(doc as Record<string, unknown> & { $id?: string })
+        ).filter(Boolean) as Array<Record<string, unknown> & { id: string }>;
     } catch(e: any) {
         throw new Error(`runQuery failed on ${collectionId}: ${e.message}`);
     }

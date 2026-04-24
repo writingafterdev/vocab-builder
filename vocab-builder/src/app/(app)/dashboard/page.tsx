@@ -16,6 +16,7 @@ import { getUserPhrases } from '@/lib/db/srs';
 import { getArticlesReadToday } from '@/lib/article-tracking';
 import { SKILL_AXIS_META } from '@/lib/exercise/config';
 import type { SkillAxis } from '@/lib/db/types';
+import { authFromUser, clientApiJson } from '@/lib/client-api';
 
 // ─── Types ────────────────────────────────────────────
 interface DashPhrase {
@@ -139,40 +140,35 @@ export default function DashboardPage() {
 
                 // Fetch quote of the day
                 try {
-                    const qRes = await fetch('/api/quotes/get-mixed-quotes', {
-                        headers: { 'x-user-id': user.$id },
+                    const qData = await clientApiJson<{ quotes?: Array<{ text: string; postTitle: string; author: string; postId: string }> }>('/api/quotes/get-mixed-quotes', {
+                        auth: authFromUser(user),
                     });
-                    if (qRes.ok) {
-                        const qData = await qRes.json();
-                        if (qData.quotes?.length > 0) {
-                            // Pick a deterministic quote based on date
-                            const dayIdx = new Date().getDate() % qData.quotes.length;
-                            setDailyQuote(qData.quotes[dayIdx]);
-                        }
+                    const quotes = qData.quotes ?? [];
+                    if (quotes.length > 0) {
+                        // Pick a deterministic quote based on date
+                        const dayIdx = new Date().getDate() % quotes.length;
+                        setDailyQuote(quotes[dayIdx]);
                     }
                 } catch { /* optional, don't block */ }
                 // Check real exercise data
                 try {
-                    const token = await user.getJwt();
+                    const auth = authFromUser(user);
 
-                    fetch('/api/immersive-session/eligible', {
-                        headers: { 'x-user-id': user.$id }
+                    clientApiJson<{ eligible: boolean }>('/api/immersive-session/eligible', {
+                        auth,
                     })
-                        .then(res => res.ok ? res.json() : null)
                         .then(data => data && setImmersiveEligible(data.eligible))
                         .catch(() => { });
 
-                    fetch('/api/daily-drill/weaknesses', {
-                        headers: { Authorization: `Bearer ${token}` }
+                    clientApiJson<{ hasDrills: boolean }>('/api/daily-drill/weaknesses', {
+                        auth,
                     })
-                        .then(res => res.ok ? res.json() : null)
                         .then(data => data && setHasDrills(data.hasDrills))
                         .catch(() => { });
 
-                    fetch('/api/user/get-skill-axes', {
-                        headers: { Authorization: `Bearer ${token}`, 'x-user-id': user.$id }
+                    clientApiJson<{ axes?: { axis: string; accuracy: number; total: number }[] }>('/api/user/get-skill-axes', {
+                        auth,
                     })
-                        .then(res => res.ok ? res.json() : null)
                         .then(data => data && setSkillAxes(data.axes || []))
                         .catch(() => { });
                 } catch (e) {

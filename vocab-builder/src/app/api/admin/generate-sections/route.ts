@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logTokenUsage } from '@/lib/db/token-tracking';
 import { updateDocument } from '@/lib/appwrite/database';
+import { getAdminRequestContext } from '@/lib/admin-auth';
 
 /**
  * Generate reading sections for an article using Gemini
@@ -11,23 +12,16 @@ import { updateDocument } from '@/lib/appwrite/database';
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 
-const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase());
-
-function isAdmin(email: string | null): boolean {
-    if (!email) return false;
-    return ADMIN_EMAILS.includes(email.toLowerCase());
-}
-
 export async function POST(request: NextRequest) {
     try {
-        const email = request.headers.get('x-user-email')?.toLowerCase() || null;
-
-        if (!isAdmin(email)) {
+        const admin = await getAdminRequestContext(request);
+        if (!admin) {
             return NextResponse.json(
                 { error: 'Unauthorized. Admin access required.' },
                 { status: 403 }
             );
         }
+        const email = admin.userEmail;
 
         if (!GEMINI_API_KEY) {
             return NextResponse.json(
@@ -111,7 +105,7 @@ Return JSON:
         if (data.usageMetadata) {
             logTokenUsage({
                 userId: 'admin',
-                userEmail: email || 'admin',
+                userEmail: email,
                 endpoint: 'admin-generate-sections',
                 model: 'gemini-3-flash-preview',
                 promptTokens: data.usageMetadata.promptTokenCount || 0,

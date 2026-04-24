@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getWeaknesses } from '@/lib/db/question-weaknesses';
 import type { SkillAxis } from '@/lib/db/types';
+import { getRequestUser } from '@/lib/request-auth';
 
 /**
  * GET /api/user/get-skill-axes
@@ -9,9 +10,8 @@ import type { SkillAxis } from '@/lib/db/types';
  */
 export async function GET(request: NextRequest) {
     try {
-        const { getAuthFromRequest } = await import('@/lib/appwrite/auth-admin');
-        const authUser = await getAuthFromRequest(request);
-        const userId = authUser?.userId || request.headers.get('x-user-id');
+        const authUser = await getRequestUser(request, { allowHeaderFallback: true });
+        const userId = authUser?.userId;
 
         if (!userId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

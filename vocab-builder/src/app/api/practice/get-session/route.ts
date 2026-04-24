@@ -1,16 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDocument } from '@/lib/appwrite/database';
+import { getRequestUser } from '@/lib/request-auth';
+
+function safeParse<T>(value: unknown, fallback: T): T {
+    if (Array.isArray(value) || (typeof value === 'object' && value !== null)) {
+        return value as T;
+    }
+    if (typeof value === 'string') {
+        try {
+            return JSON.parse(value) as T;
+        } catch {
+            return fallback;
+        }
+    }
+    return fallback;
+}
 
 /**
  * GET /api/practice/get-session?sessionId=xxx
- * Fetches a generated session by ID and deserializes stored JSON fields
- * back into the ExerciseSession shape the frontend expects.
+ * Fetches a generated Exercise V3 practice batch and deserializes stored JSON fields
+ * back into the question-centric shape the frontend expects.
  */
 export async function GET(request: NextRequest) {
     try {
-        const { getAuthFromRequest } = await import('@/lib/appwrite/auth-admin');
-        const authUser = await getAuthFromRequest(request);
-        const userId = authUser?.userId || request.headers.get('x-user-id');
+        const authUser = await getRequestUser(request);
+        const userId = authUser?.userId;
 
         if (!userId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -21,57 +35,40 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: 'Missing sessionId' }, { status: 400 });
         }
 
-        const raw = await getDocument('generatedSessions', sessionId) as any;
+        const raw = await getDocument('generatedSessions', sessionId) as Record<string, unknown> | null;
 
         if (!raw) {
             return NextResponse.json({ error: 'Session not found' }, { status: 404 });
         }
 
-        // Deserialize JSON string fields back to ExerciseSession shape
-        // Appwrite schema mapping:
-        //   content   → anchorPassage  (JSON string → AnchorPassage)
-        //   questions → questions      (JSON string → SessionQuestion[])
-        //   phrases   → vocabWordIds   (JSON string → string[])
-        //   title     → topic
-        //   subtopic  → centralClaim
+        const parsedContent = safeParse<Record<string, unknown> | null>(raw.content, null);
+        const questions = safeParse<unknown[]>(raw.questions, []);
+        const vocabWordIds = safeParse<string[]>(raw.phrases || raw.vocabWordIds, []);
 
-        const safeParse = (val: any, fallback: any = []) => {
-            if (typeof val === 'object' && val !== null && !Array.isArray(val)) return val;
-            if (Array.isArray(val)) return val;
-            if (typeof val === 'string') {
-                try { return JSON.parse(val); } catch { return fallback; }
-            }
-            return fallback;
-        };
+        const isV3Batch = parsedContent?.mode === 'practice_batch_v3';
+        if (!isV3Batch) {
+            return NextResponse.json(
+                {
+                    error: 'Legacy passage-based sessions are no longer supported.',
+                    message: 'This session predates Exercise V3 and can no longer be opened.',
+                },
+                { status: 410 }
+            );
+        }
 
-        const anchorPassage = safeParse(raw.content, null);
-        const questions = safeParse(raw.questions, []);
-        const vocabWordIds = safeParse(raw.phrases || raw.vocabWordIds, []);
-
-        // Handle both new and legacy session formats
         const session = {
             id: raw.id,
             userId: raw.userId,
-            anchorPassage: anchorPassage && anchorPassage.text
-                ? anchorPassage
-                : {
-                    // Legacy fallback: construct from old fields
-                    text: typeof anchorPassage === 'string' ? anchorPassage : (raw.title || ''),
-                    topic: raw.title || 'Untitled Session',
-                    centralClaim: raw.subtopic || '',
-                    deliberateFlaws: { logicalGap: '', weakTransition: '', registerBreak: '' },
-                    embeddedVocab: [],
-                    sourcePlatform: undefined,
-                },
             questions: Array.isArray(questions) ? questions : [],
             vocabWordIds,
-            totalPhrases: raw.totalPhrases || 0,
-            status: raw.status || 'generated',
-            createdAt: raw.createdAt || '',
-            results: safeParse(raw.results, []),
+            totalPhrases: typeof raw.totalPhrases === 'number' ? raw.totalPhrases : 0,
+            status: typeof raw.status === 'string' ? raw.status : 'generated',
+            createdAt: typeof raw.createdAt === 'string' ? raw.createdAt : '',
+            results: safeParse<unknown[]>(raw.results, []),
+            batchMeta: parsedContent,
             // Resume support: partial progress
-            partialResults: safeParse(raw.partialResults, []),
-            currentIndex: raw.currentIndex ?? 0,
+            partialResults: safeParse<unknown[]>(raw.partialResults, []),
+            currentIndex: typeof raw.currentIndex === 'number' ? raw.currentIndex : 0,
         };
 
         return NextResponse.json({ session });

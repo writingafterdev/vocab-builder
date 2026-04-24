@@ -1,21 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getRequestUser } from '@/lib/request-auth';
+import { getWeaknesses } from '@/lib/db/question-weaknesses';
 
 export async function GET(request: NextRequest) {
     try {
-        const { getAuthFromRequest } = await import('@/lib/appwrite/auth-admin');
-        const authUser = await getAuthFromRequest(request);
-        const userId = authUser?.userId || request.headers.get('x-user-id');
+        const authUser = await getRequestUser(request, { allowHeaderFallback: true });
+        const userId = authUser?.userId;
 
         if (!userId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        // TODO: Implement weakness detection based on SRS performance
-        // For now, return no drills available
+        const weaknesses = await getWeaknesses(userId);
+        const drillCandidates = weaknesses
+            .filter(item => item.weight > 0)
+            .sort((a, b) => b.weight - a.weight)
+            .slice(0, 3)
+            .map(item => ({
+                questionType: item.questionType,
+                skillAxis: item.skillAxis,
+                weight: item.weight,
+                wrongCount: item.wrongCount,
+                correctCount: item.correctCount,
+            }));
+
         return NextResponse.json({
-            hasDrills: false,
-            weaknesses: [],
-            message: 'No weaknesses detected yet. Keep practicing!',
+            hasDrills: drillCandidates.length > 0,
+            weaknesses: drillCandidates,
+            message: drillCandidates.length > 0
+                ? 'Weak areas detected from recent exercise attempts.'
+                : 'No clear weak question patterns detected yet.',
         });
     } catch (error) {
         console.error('Daily drill weaknesses error:', error);

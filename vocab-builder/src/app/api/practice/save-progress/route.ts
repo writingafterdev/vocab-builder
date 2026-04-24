@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { updateDocument } from '@/lib/appwrite/database';
+import { getRequestUser } from '@/lib/request-auth';
 
 /**
  * POST /api/practice/save-progress
@@ -8,9 +9,8 @@ import { updateDocument } from '@/lib/appwrite/database';
  */
 export async function POST(request: NextRequest) {
     try {
-        const { getAuthFromRequest } = await import('@/lib/appwrite/auth-admin');
-        const authUser = await getAuthFromRequest(request);
-        const userId = authUser?.userId || request.headers.get('x-user-id');
+        const authUser = await getRequestUser(request);
+        const userId = authUser?.userId;
 
         if (!userId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

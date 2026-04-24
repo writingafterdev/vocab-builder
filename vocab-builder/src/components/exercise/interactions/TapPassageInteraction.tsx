@@ -15,14 +15,13 @@ export default function TapPassageInteraction({ question, onAnswer, disabled }: 
     const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
 
     const segments = useMemo(() => {
-        // Use tappableSegments if provided, otherwise split passageReference by sentence
+        // Use tappableSegments if provided, otherwise split the shared context by sentence.
         if (question.tappableSegments && question.tappableSegments.length > 0) {
             return question.tappableSegments;
         }
-        // Fallback: split passage by sentence
-        const text = question.passageReference || '';
+        const text = question.context || '';
         return text.split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 0);
-    }, [question.tappableSegments, question.passageReference]);
+    }, [question.tappableSegments, question.context]);
 
     const correctIdx = question.correctSegmentIndex ?? -1;
 

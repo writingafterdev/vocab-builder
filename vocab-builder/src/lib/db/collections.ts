@@ -2,42 +2,29 @@
  * Collections module - CRUD operations for admin-managed post collections
  */
 import {
-    collection,
-    doc,
-    addDoc,
-    getDoc,
-    getDocs,
-    updateDoc,
-    deleteDoc,
-    query,
-    orderBy,
+    addDocument,
+    deleteDocument,
+    getDocument,
+    queryCollection,
     serverTimestamp,
-    arrayUnion,
-    arrayRemove,
-} from '@/lib/appwrite/firestore';
-import { getDbAsync } from './core';
+    updateDocument,
+} from '@/lib/appwrite/client-db';
 import type { Collection, Post } from './types';
 
 /**
  * Get all collections
  */
 export async function getCollections(): Promise<Collection[]> {
-    const firestore = await getDbAsync();
-    const collectionsRef = collection(firestore, 'collections');
-    const q = query(collectionsRef, orderBy('createdAt', 'desc'));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Collection[];
+    return queryCollection<Collection>('collections', {
+        orderBy: [{ field: 'createdAt', direction: 'desc' }],
+    });
 }
 
 /**
  * Get a single collection by ID
  */
 export async function getCollection(id: string): Promise<Collection | null> {
-    const firestore = await getDbAsync();
-    const collectionRef = doc(firestore, 'collections', id);
-    const snapshot = await getDoc(collectionRef);
-    if (!snapshot.exists()) return null;
-    return { id: snapshot.id, ...snapshot.data() } as Collection;
+    return getDocument<Collection>('collections', id);
 }
 
 /**
@@ -48,9 +35,7 @@ export async function createCollection(
     description?: string,
     coverColor?: string
 ): Promise<string> {
-    const firestore = await getDbAsync();
-    const collectionsRef = collection(firestore, 'collections');
-    const docRef = await addDoc(collectionsRef, {
+    const createdCollection = await addDocument<Collection>('collections', {
         name,
         description: description || '',
         coverColor: coverColor || 'blue',
@@ -58,7 +43,7 @@ export async function createCollection(
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
     });
-    return docRef.id;
+    return createdCollection.id;
 }
 
 /**
@@ -72,9 +57,7 @@ export async function updateCollection(
         coverColor?: string;
     }
 ): Promise<void> {
-    const firestore = await getDbAsync();
-    const collectionRef = doc(firestore, 'collections', id);
-    await updateDoc(collectionRef, {
+    await updateDocument('collections', id, {
         ...updates,
         updatedAt: serverTimestamp(),
     });
@@ -84,9 +67,7 @@ export async function updateCollection(
  * Delete a collection
  */
 export async function deleteCollection(id: string): Promise<void> {
-    const firestore = await getDbAsync();
-    const collectionRef = doc(firestore, 'collections', id);
-    await deleteDoc(collectionRef);
+    await deleteDocument('collections', id);
 }
 
 /**
@@ -96,10 +77,17 @@ export async function addPostToCollection(
     collectionId: string,
     postId: string
 ): Promise<void> {
-    const firestore = await getDbAsync();
-    const collectionRef = doc(firestore, 'collections', collectionId);
-    await updateDoc(collectionRef, {
-        postIds: arrayUnion(postId),
+    const currentCollection = await getDocument<Collection>('collections', collectionId);
+    if (!currentCollection) {
+        throw new Error('Collection not found');
+    }
+
+    const nextPostIds = currentCollection.postIds.includes(postId)
+        ? currentCollection.postIds
+        : [...currentCollection.postIds, postId];
+
+    await updateDocument('collections', collectionId, {
+        postIds: nextPostIds,
         updatedAt: serverTimestamp(),
     });
 }
@@ -111,10 +99,13 @@ export async function removePostFromCollection(
     collectionId: string,
     postId: string
 ): Promise<void> {
-    const firestore = await getDbAsync();
-    const collectionRef = doc(firestore, 'collections', collectionId);
-    await updateDoc(collectionRef, {
-        postIds: arrayRemove(postId),
+    const currentCollection = await getDocument<Collection>('collections', collectionId);
+    if (!currentCollection) {
+        throw new Error('Collection not found');
+    }
+
+    await updateDocument('collections', collectionId, {
+        postIds: currentCollection.postIds.filter((id) => id !== postId),
         updatedAt: serverTimestamp(),
     });
 }
@@ -126,21 +117,15 @@ export async function getCollectionWithPosts(id: string): Promise<{
     collection: Collection;
     posts: Post[];
 } | null> {
-    const firestore = await getDbAsync();
-    const collectionRef = doc(firestore, 'collections', id);
-    const collectionSnap = await getDoc(collectionRef);
-
-    if (!collectionSnap.exists()) return null;
-
-    const collectionData = { id: collectionSnap.id, ...collectionSnap.data() } as Collection;
+    const collectionData = await getDocument<Collection>('collections', id);
+    if (!collectionData) return null;
 
     // Fetch all posts in the collection
     const posts: Post[] = [];
     for (const postId of collectionData.postIds) {
-        const postRef = doc(firestore, 'posts', postId);
-        const postSnap = await getDoc(postRef);
-        if (postSnap.exists()) {
-            posts.push({ id: postSnap.id, ...postSnap.data() } as Post);
+        const post = await getDocument<Post>('posts', postId);
+        if (post) {
+            posts.push(post);
         }
     }
 

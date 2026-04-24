@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { addChildToPhrase } from '@/lib/db/srs';
+import { getRequestUser } from '@/lib/request-auth';
 
 /**
  * POST /api/user/save-child-expression
@@ -42,9 +43,9 @@ interface SaveChildRequest {
 
 export async function POST(request: NextRequest) {
     try {
-        // Get user from headers
-        const userId = request.headers.get('x-user-id');
-        const userEmail = request.headers.get('x-user-email');
+        const authUser = await getRequestUser(request, { allowHeaderFallback: true });
+        const userId = authUser?.userId;
+        const userEmail = authUser?.userEmail;
 
         if (!userId && !userEmail) {
             return NextResponse.json(
