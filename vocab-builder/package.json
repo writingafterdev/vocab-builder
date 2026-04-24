@@ -12,7 +12,8 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "relay": "npx tsx relay-server.ts",
-    "build:functions": "node scripts/build-functions.mjs"
+    "build:functions": "node scripts/build-functions.mjs",
+    "setup:exercise-v3-appwrite": "node scripts/setup-exercise-v3-appwrite.js"
   },
   "dependencies": {
     "@google/genai": "^1.38.0",

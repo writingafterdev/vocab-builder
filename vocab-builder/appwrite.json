@@ -10,10 +10,13 @@
       "events": [],
       "schedule": "0 22 * * *",
       "timeout": 900,
+      "deploymentRetention": 0,
       "enabled": true,
       "logging": true,
       "entrypoint": "dist/index.js",
       "commands": "",
+      "buildSpecification": "s-0.5vcpu-512mb",
+      "runtimeSpecification": "s-0.5vcpu-512mb",
       "path": "appwrite-functions/background-jobs",
       "scopes": [
         "databases.read",
