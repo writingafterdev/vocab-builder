@@ -193,11 +193,24 @@ function isCollectionMissing(error: unknown): boolean {
 
 function toDate(value: unknown): Date {
     if (value instanceof Date) return value;
-    if (typeof value === 'string') return new Date(value);
+    if (
+        typeof value === 'object' &&
+        value !== null &&
+        'seconds' in value &&
+        typeof (value as { seconds: unknown }).seconds === 'number'
+    ) {
+        const seconds = (value as { seconds: number }).seconds;
+        const timestampLike = value as { nanoseconds?: unknown };
+        const nanoseconds = typeof timestampLike.nanoseconds === 'number'
+            ? timestampLike.nanoseconds
+            : 0;
+        return new Date((seconds * 1000) + Math.floor(nanoseconds / 1000000));
+    }
     if (value && typeof value === 'object' && 'toDate' in value && typeof (value as { toDate: () => Date }).toDate === 'function') {
         return (value as { toDate: () => Date }).toDate();
     }
-    return new Date(0);
+    const date = new Date(value as string | number);
+    return Number.isNaN(date.getTime()) ? new Date(0) : date;
 }
 
 function difficultyForBand(learningBand: LearningBand): DifficultyBand {
