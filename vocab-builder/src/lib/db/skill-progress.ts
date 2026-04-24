@@ -36,7 +36,7 @@ export interface SkillEvent {
 export interface SkillProgress {
     userId: string;
     skills: Record<SkillType, SkillScore>;
-    history: SkillEvent[];  // Last 100 events
+    history: SkillEvent[];  // Last 20 events
     lastUpdated: any;       // Timestamp
 }
 
@@ -73,6 +73,73 @@ function createEmptyProgress(userId: string): SkillProgress {
         history: [],
         lastUpdated: now,
     };
+}
+
+function normalizeSkillProgress(userId: string, value: SkillProgress | null): SkillProgress {
+    const fallback = createEmptyProgress(userId);
+    if (!value || typeof value !== 'object') return fallback;
+
+    let payload: Partial<SkillProgress> = value;
+    const persistedValue = value as SkillProgress & { data?: unknown; updatedAt?: unknown };
+    if (typeof persistedValue.data === 'string') {
+        try {
+            const parsed = JSON.parse(persistedValue.data) as Partial<SkillProgress>;
+            if (parsed && typeof parsed === 'object') {
+                payload = {
+                    ...parsed,
+                    userId,
+                    lastUpdated: parsed.lastUpdated || persistedValue.updatedAt || fallback.lastUpdated,
+                };
+            }
+        } catch {
+            payload = value;
+        }
+    }
+
+    const rawSkills = payload.skills && typeof payload.skills === 'object' ? payload.skills : {};
+    const skills = { ...fallback.skills };
+    for (const skill of Object.keys(skills) as SkillType[]) {
+        const current = (rawSkills as Partial<Record<SkillType, Partial<SkillScore>>>)[skill];
+        if (!current || typeof current !== 'object') continue;
+        skills[skill] = {
+            ...skills[skill],
+            ...current,
+            level: typeof current.level === 'number' ? current.level : skills[skill].level,
+            weeklyChange: typeof current.weeklyChange === 'number' ? current.weeklyChange : skills[skill].weeklyChange,
+            totalActivities: typeof current.totalActivities === 'number' ? current.totalActivities : skills[skill].totalActivities,
+        };
+    }
+
+    let history: SkillEvent[] = [];
+    if (Array.isArray(payload.history)) {
+        history = payload.history;
+    } else if (typeof payload.history === 'string') {
+        try {
+            const parsed = JSON.parse(payload.history);
+            history = Array.isArray(parsed) ? parsed : [];
+        } catch {
+            history = [];
+        }
+    }
+
+    return {
+        userId,
+        skills,
+        history: history.slice(-20),
+        lastUpdated: payload.lastUpdated || fallback.lastUpdated,
+    };
+}
+
+async function persistSkillProgress(progress: SkillProgress): Promise<void> {
+    await setDocument('skillProgress', progress.userId, {
+        userId: progress.userId,
+        data: JSON.stringify({
+            skills: progress.skills,
+            history: progress.history.slice(-20),
+            lastUpdated: progress.lastUpdated,
+        }),
+        updatedAt: progress.lastUpdated,
+    });
 }
 
 /**
@@ -131,9 +198,7 @@ export async function updateSkillProgress(
     // Get existing progress or create new
     let progress = await getDocument('skillProgress', userId) as SkillProgress | null;
 
-    if (!progress) {
-        progress = createEmptyProgress(userId);
-    }
+    progress = normalizeSkillProgress(userId, progress);
 
     // Get skill weights for this session type
     const weights = SESSION_SKILL_WEIGHTS[sessionType] || { retention: 1 };
@@ -173,25 +238,23 @@ export async function updateSkillProgress(
         progress.skills[skill].trend = calculateTrend(progress.history, skill);
     }
 
-    // Keep only last 100 events
-    progress.history = progress.history.slice(-100);
+    // Keep payload compact enough for the Appwrite string attribute.
+    progress.history = progress.history.slice(-20);
     progress.lastUpdated = now;
 
-    // Save
-    await setDocument('skillProgress', userId, progress as unknown as Record<string, unknown>);
+    await persistSkillProgress(progress);
 }
 
 /**
  * Get user's skill progress
  */
 export async function getSkillProgress(userId: string): Promise<SkillProgress | null> {
-    const progress = await getDocument('skillProgress', userId) as SkillProgress | null;
-
-    if (!progress) {
+    const raw = await getDocument('skillProgress', userId) as SkillProgress | null;
+    if (!raw) {
         return null;
     }
 
-    return progress;
+    return normalizeSkillProgress(userId, raw);
 }
 
 /**
@@ -236,12 +299,15 @@ export function getSkillSummary(progress: SkillProgress): {
  * Reset weekly changes (call via cron job every Monday)
  */
 export async function resetWeeklyProgress(userId: string): Promise<void> {
-    const progress = await getDocument('skillProgress', userId) as SkillProgress | null;
-    if (!progress) return;
+    const raw = await getDocument('skillProgress', userId) as SkillProgress | null;
+    if (!raw) return;
+
+    const progress = normalizeSkillProgress(userId, raw);
 
     for (const skill of Object.keys(progress.skills) as SkillType[]) {
         progress.skills[skill].weeklyChange = 0;
     }
 
-    await setDocument('skillProgress', userId, progress as unknown as Record<string, unknown>);
+    progress.lastUpdated = Timestamp.now();
+    await persistSkillProgress(progress);
 }

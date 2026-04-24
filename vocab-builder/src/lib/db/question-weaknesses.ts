@@ -6,11 +6,21 @@
  * Drives retry card generation and session question weighting.
  */
 
-import { getDocument, setDocument, runQuery } from '@/lib/appwrite/database';
+import crypto from 'crypto';
+import { getDocument, setDocument, runQuery, safeDocId } from '@/lib/appwrite/database';
 import type { QuestionType, QuestionTypeWeakness, SkillAxis } from '@/lib/db/types';
 import { QUESTION_SKILL_MAP, calculateWeight, WEAKNESS_THRESHOLDS } from '@/lib/exercise/config';
 
 const COLLECTION = 'questionWeaknesses';
+
+function weaknessDocId(userId: string, questionType: QuestionType): string {
+    const digest = crypto
+        .createHash('sha1')
+        .update(`${userId}:${questionType}`)
+        .digest('hex')
+        .slice(0, 30);
+    return safeDocId(`qw${digest}`);
+}
 
 /**
  * Record the result of a question attempt.
@@ -27,7 +37,7 @@ export async function recordResult(
         userAnswer?: string;
     }
 ): Promise<void> {
-    const docId = `${userId}_${questionType}`;
+    const docId = weaknessDocId(userId, questionType);
     const skillAxis: SkillAxis = QUESTION_SKILL_MAP[questionType] || 'task_achievement';
 
     try {
@@ -141,7 +151,7 @@ export async function getRetryContext(
     userId: string,
     questionType: QuestionType
 ): Promise<QuestionTypeWeakness['recentErrors']> {
-    const docId = `${userId}_${questionType}`;
+    const docId = weaknessDocId(userId, questionType);
 
     try {
         const doc = await getDocument(COLLECTION, docId) as unknown as QuestionTypeWeakness | null;

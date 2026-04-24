@@ -64,11 +64,15 @@ export async function GET(request: NextRequest) {
             totalPhrases: typeof raw.totalPhrases === 'number' ? raw.totalPhrases : 0,
             status: typeof raw.status === 'string' ? raw.status : 'generated',
             createdAt: typeof raw.createdAt === 'string' ? raw.createdAt : '',
-            results: safeParse<unknown[]>(raw.results, []),
+            results: safeParse<unknown[]>(raw.results ?? parsedContent?.results, []),
             batchMeta: parsedContent,
             // Resume support: partial progress
-            partialResults: safeParse<unknown[]>(raw.partialResults, []),
-            currentIndex: typeof raw.currentIndex === 'number' ? raw.currentIndex : 0,
+            partialResults: safeParse<unknown[]>(raw.partialResults ?? parsedContent?.partialResults, []),
+            currentIndex: typeof raw.currentIndex === 'number'
+                ? raw.currentIndex
+                : typeof parsedContent?.currentIndex === 'number'
+                    ? parsedContent.currentIndex
+                    : 0,
         };
 
         return NextResponse.json({ session });

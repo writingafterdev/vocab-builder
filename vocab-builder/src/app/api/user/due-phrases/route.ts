@@ -27,6 +27,35 @@ interface PhraseCluster {
     phrases: DuePhrase[];
 }
 
+function coerceReviewDate(value: unknown): Date {
+    if (!value) return new Date(0);
+    if (value instanceof Date) return value;
+    if (
+        typeof value === 'object' &&
+        value !== null &&
+        'toDate' in value &&
+        typeof (value as { toDate: () => Date }).toDate === 'function'
+    ) {
+        return (value as { toDate: () => Date }).toDate();
+    }
+    if (
+        typeof value === 'object' &&
+        value !== null &&
+        'seconds' in value &&
+        typeof (value as { seconds: unknown }).seconds === 'number'
+    ) {
+        const seconds = (value as { seconds: number }).seconds;
+        const timestampLike = value as { nanoseconds?: unknown };
+        const nanoseconds = typeof timestampLike.nanoseconds === 'number'
+            ? timestampLike.nanoseconds
+            : 0;
+        return new Date((seconds * 1000) + Math.floor(nanoseconds / 1000000));
+    }
+
+    const date = new Date(value as string | number);
+    return Number.isNaN(date.getTime()) ? new Date(0) : date;
+}
+
 // ============================================================================
 // CLUSTERING HELPERS
 // ============================================================================
@@ -157,14 +186,7 @@ export async function GET(request: NextRequest) {
         // 1. Process Root Phrases - Parse dates
         // ---------------------------------------------------------
         const allPhrases: DuePhrase[] = userPhrases.map(doc => {
-            let reviewDate: Date;
-            const d = doc.nextReviewDate as any;
-            if (!d) reviewDate = new Date(0);
-            else if (d.toDate) reviewDate = d.toDate();
-            else if (d instanceof Date) reviewDate = d;
-            else reviewDate = new Date(d);
-
-            return { ...doc, nextReviewDate: reviewDate } as DuePhrase;
+            return { ...doc, nextReviewDate: coerceReviewDate(doc.nextReviewDate) } as DuePhrase;
         });
 
         // Filter to due phrases only
@@ -200,12 +222,7 @@ export async function GET(request: NextRequest) {
             if (!children.length) continue;
 
             children.forEach(child => {
-                let reviewDate: Date;
-                const d = child.nextReviewDate as any;
-                if (!d) reviewDate = new Date(0);
-                else if (d.toDate) reviewDate = d.toDate();
-                else if (d instanceof Date) reviewDate = d;
-                else reviewDate = new Date(d);
+                const reviewDate = coerceReviewDate(child.nextReviewDate);
 
                 if (reviewDate <= endOfToday) {
                     dueChildren.push({

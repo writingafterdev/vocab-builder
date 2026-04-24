@@ -25,6 +25,23 @@ type SavedPhraseDoc = {
     learningStep?: number;
 };
 
+function safeParseObject(value: unknown): Record<string, unknown> {
+    if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+        return value as Record<string, unknown>;
+    }
+    if (typeof value === 'string') {
+        try {
+            const parsed = JSON.parse(value);
+            return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
+                ? parsed as Record<string, unknown>
+                : {};
+        } catch {
+            return {};
+        }
+    }
+    return {};
+}
+
 function toLearningBand(value: string | undefined): LearningBand | undefined {
     if (value === 'recognition' || value === 'active_recall' || value === 'production') {
         return value;
@@ -80,11 +97,17 @@ export async function POST(request: NextRequest) {
             const sessionQuestions = typeof session.questions === 'string'
                 ? JSON.parse(session.questions) as StoredQuestion[]
                 : (Array.isArray(session.questions) ? session.questions as StoredQuestion[] : []);
+            const content = safeParseObject(session.content);
 
             // 1. Mark session as completed with results
             await updateDocument('generatedSessions', sessionId, {
                 status: `completed_${accuracy}pct`,
-                results: JSON.stringify(questionResults),
+                content: JSON.stringify({
+                    ...content,
+                    results: questionResults,
+                    partialResults: questionResults,
+                    currentIndex: questionResults.length,
+                }),
                 createdAt: serverTimestamp(), // repurpose as last-updated
             });
 
@@ -146,7 +169,6 @@ export async function POST(request: NextRequest) {
                 for (const phraseId of vocabIds) {
                     const updates: Record<string, string | number> = {
                         lastReviewedAt: serverTimestamp(),
-                        lastReviewSource: 'session',
                     };
 
                     // Check if this phrase has production-specific results

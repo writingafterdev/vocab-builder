@@ -757,7 +757,7 @@ function chooseQuestionsForSurface(
                 const materialized = materializeQuestion(question, phraseKeyToUserId);
                 if (chosenIds.has(materialized.id)) continue;
                 if (surface === 'feed' && !shouldUseFeed(materialized)) continue;
-                if (surface === 'feed' && shouldExcludeSeenQuestion(materialized.id, seenIds, surface)) continue;
+                if (shouldExcludeSeenQuestion(materialized.id, seenIds, surface)) continue;
                 chosen.push(materialized);
                 chosenIds.add(materialized.id);
                 if (chosen.length >= targetQuestionCount) {

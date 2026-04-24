@@ -1,6 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { updateDocument } from '@/lib/appwrite/database';
+import { getDocument, updateDocument } from '@/lib/appwrite/database';
 import { getRequestUser } from '@/lib/request-auth';
+
+function safeParseObject(value: unknown): Record<string, unknown> {
+    if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+        return value as Record<string, unknown>;
+    }
+    if (typeof value === 'string') {
+        try {
+            const parsed = JSON.parse(value);
+            return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
+                ? parsed as Record<string, unknown>
+                : {};
+        } catch {
+            return {};
+        }
+    }
+    return {};
+}
 
 /**
  * POST /api/practice/save-progress
@@ -22,10 +39,16 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Missing sessionId' }, { status: 400 });
         }
 
+        const existing = await getDocument('generatedSessions', sessionId) as Record<string, unknown> | null;
+        const content = safeParseObject(existing?.content);
+
         // Save partial results + current position
         await updateDocument('generatedSessions', sessionId, {
-            partialResults: JSON.stringify(results || []),
-            currentIndex: currentIndex ?? 0,
+            content: JSON.stringify({
+                ...content,
+                partialResults: results || [],
+                currentIndex: currentIndex ?? 0,
+            }),
             status: 'in_progress',
         });
 
