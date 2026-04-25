@@ -13,7 +13,9 @@
     "test:coverage": "jest --coverage",
     "relay": "npx tsx relay-server.ts",
     "build:functions": "node scripts/build-functions.mjs",
-    "setup:exercise-v3-appwrite": "node scripts/setup-exercise-v3-appwrite.js"
+    "setup:exercise-v3-appwrite": "node scripts/setup-exercise-v3-appwrite.js",
+    "setup:native-vocab-appwrite": "node scripts/setup-native-vocab-appwrite.js",
+    "seed:native-word-pool": "node scripts/seed-native-word-pool.js"
   },
   "dependencies": {
     "@google/genai": "^1.38.0",

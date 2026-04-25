@@ -3,6 +3,25 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 
+type LearningGoal = 'natural_english' | 'beautiful_english';
+
+const LEARNING_GOALS: Array<{
+    id: LearningGoal;
+    title: string;
+    description: string;
+}> = [
+    {
+        id: 'natural_english',
+        title: 'Be more natural in English',
+        description: 'Read, notice, and practice phrases that make your English feel fluent in context.',
+    },
+    {
+        id: 'beautiful_english',
+        title: 'Use English more beautifully',
+        description: 'Build a sharper, more literary vocabulary with uncommon words and elegant usage.',
+    },
+];
+
 const FEED_TOPICS = [
     { id: 'technology', label: 'Technology' },
     { id: 'science', label: 'Science' },
@@ -21,6 +40,7 @@ interface TopicPickerProps {
 
 export function TopicPicker({ userId, onComplete }: TopicPickerProps) {
     const [selected, setSelected] = useState<Set<string>>(new Set());
+    const [learningGoal, setLearningGoal] = useState<LearningGoal | null>(null);
     const [saving, setSaving] = useState(false);
 
     const toggle = (topicId: string) => {
@@ -36,7 +56,7 @@ export function TopicPicker({ userId, onComplete }: TopicPickerProps) {
     };
 
     const handleSubmit = async () => {
-        if (selected.size < 3) return;
+        if (selected.size < 3 || !learningGoal) return;
         setSaving(true);
 
         try {
@@ -46,7 +66,7 @@ export function TopicPicker({ userId, onComplete }: TopicPickerProps) {
                     'Content-Type': 'application/json',
                     'x-user-id': userId,
                 },
-                body: JSON.stringify({ topics: Array.from(selected) }),
+                body: JSON.stringify({ topics: Array.from(selected), learningGoal }),
             });
 
             if (res.ok) {
@@ -59,7 +79,7 @@ export function TopicPicker({ userId, onComplete }: TopicPickerProps) {
         }
     };
 
-    const canSubmit = selected.size >= 3;
+    const canSubmit = selected.size >= 3 && Boolean(learningGoal);
 
     return (
         <motion.div
@@ -68,20 +88,48 @@ export function TopicPicker({ userId, onComplete }: TopicPickerProps) {
             transition={{ duration: 0.4 }}
             className="flex flex-col items-center justify-center min-h-[60vh] px-6"
         >
-            {/* Header */}
             <div className="text-center mb-12">
                 <h2
                     className="text-[48px] md:text-[56px] font-normal text-neutral-900 leading-none tracking-tight mb-4"
                     style={{ fontFamily: 'var(--font-serif, Georgia, serif)' }}
                 >
-                    What interests you?
+                    What kind of English do you want?
                 </h2>
                 <p className="text-sm text-neutral-400 tracking-[0.08em] uppercase">
-                    Pick at least 3 topics to personalize your feed.
+                    Choose your goal, then pick at least 3 topics.
                 </p>
             </div>
 
-            {/* Topic Selection */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-3xl w-full mb-12">
+                {LEARNING_GOALS.map((goal) => {
+                    const isSelected = learningGoal === goal.id;
+                    return (
+                        <button
+                            key={goal.id}
+                            onClick={() => setLearningGoal(goal.id)}
+                            className={`text-left p-6 border transition-all duration-200 bg-white ${
+                                isSelected
+                                    ? 'border-neutral-900 shadow-[8px_8px_0_rgba(0,0,0,0.08)]'
+                                    : 'border-neutral-200 hover:border-neutral-400'
+                            }`}
+                        >
+                            <span className="block text-[11px] uppercase tracking-[0.16em] text-neutral-400 mb-3">
+                                {goal.id === 'beautiful_english' ? 'Elevated vocabulary' : 'Natural fluency'}
+                            </span>
+                            <span
+                                className="block text-2xl md:text-3xl text-neutral-900 leading-tight mb-3"
+                                style={{ fontFamily: 'var(--font-serif, Georgia, serif)' }}
+                            >
+                                {goal.title}
+                            </span>
+                            <span className="block text-sm leading-6 text-neutral-500">
+                                {goal.description}
+                            </span>
+                        </button>
+                    );
+                })}
+            </div>
+
             <div className="flex flex-wrap justify-center gap-x-6 gap-y-4 max-w-2xl mx-auto mb-16">
                 {FEED_TOPICS.map((topic) => {
                     const isSelected = selected.has(topic.id);
@@ -107,7 +155,7 @@ export function TopicPicker({ userId, onComplete }: TopicPickerProps) {
                 <div className="flex items-center gap-2 text-[11px] text-neutral-400 uppercase tracking-[0.1em] font-medium">
                     <span className="text-neutral-900 font-bold">{selected.size}</span> selected
                     <span className="text-neutral-200">|</span>
-                    <span>{selected.size < 3 ? `${3 - selected.size} more to go` : 'Ready to start'}</span>
+                    <span>{!learningGoal ? 'Pick a goal' : selected.size < 3 ? `${3 - selected.size} more to go` : 'Ready to start'}</span>
                 </div>
                 <button
                     onClick={handleSubmit}

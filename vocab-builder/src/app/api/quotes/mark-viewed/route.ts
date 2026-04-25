@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { markQuotesViewed, boostTopic } from '@/lib/db/quote-feed';
+import { markNativeFeedViewed } from '@/lib/db/native-vocabulary';
 import { getRequestUser } from '@/lib/request-auth';
 
 /**
@@ -23,8 +24,10 @@ export async function POST(request: NextRequest) {
         const idToken = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : undefined;
 
         const body = await request.json();
-        const { quoteIds, boostTopicName, boostTags, dwellSignals } = body as {
+        const { quoteIds, nativeWordKeys, nativeFollowupKeys, boostTopicName, boostTags, dwellSignals } = body as {
             quoteIds?: string[];
+            nativeWordKeys?: string[];
+            nativeFollowupKeys?: string[];
             boostTopicName?: string;
             boostTags?: string[];
             dwellSignals?: Array<{ topic: string; weight: number; tags?: string[] }>;
@@ -33,6 +36,10 @@ export async function POST(request: NextRequest) {
         // Mark quotes as viewed
         if (quoteIds && quoteIds.length > 0) {
             await markQuotesViewed(userId, quoteIds, idToken);
+        }
+
+        if ((nativeWordKeys && nativeWordKeys.length > 0) || (nativeFollowupKeys && nativeFollowupKeys.length > 0)) {
+            await markNativeFeedViewed(userId, nativeWordKeys || [], nativeFollowupKeys || []);
         }
 
         // Boost topic and tags if provided (triggered by ❤️ save)

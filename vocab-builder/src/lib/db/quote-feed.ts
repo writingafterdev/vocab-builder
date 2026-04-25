@@ -11,12 +11,11 @@
 import {
     getDocument,
     setDocument,
-    updateDocument,
     queryCollection,
-    runQuery,
     addDocument,
     serverTimestamp,
 } from '../appwrite/database';
+import { coerceLearningGoal, type LearningGoal } from '@/lib/native-vocabulary/policy';
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -41,6 +40,7 @@ export interface QuoteFeedState {
     viewedQuoteIds: string[];
     topicScores: Record<string, number>;
     hasCompletedOnboarding: boolean;
+    learningGoal: LearningGoal;
     updatedAt: string;
 }
 
@@ -124,6 +124,7 @@ export async function getQuoteFeedState(userId: string, idToken?: string): Promi
             viewedQuoteIds: [],
             topicScores: {},
             hasCompletedOnboarding: false,
+            learningGoal: 'natural_english',
             updatedAt: serverTimestamp(),
         };
     }
@@ -132,6 +133,7 @@ export async function getQuoteFeedState(userId: string, idToken?: string): Promi
         viewedQuoteIds: (doc.viewedQuoteIds as string[]) || [],
         topicScores: (doc.topicScores as Record<string, number>) || {},
         hasCompletedOnboarding: (doc.hasCompletedOnboarding as boolean) || false,
+        learningGoal: coerceLearningGoal(doc.learningGoal),
         updatedAt: (doc.updatedAt as string) || serverTimestamp(),
     };
 }
@@ -142,7 +144,11 @@ export async function getQuoteFeedState(userId: string, idToken?: string): Promi
  * Mark quotes as viewed (FIFO capped at VIEWED_CAP)
  * Appends new IDs and trims oldest if over cap
  */
-export async function markQuotesViewed(userId: string, quoteIds: string[], idToken?: string): Promise<void> {
+export async function markQuotesViewed(
+    userId: string,
+    quoteIds: string[],
+    idToken?: string
+): Promise<void> {
     const state = await getQuoteFeedState(userId, idToken);
     
     // Append new IDs (deduplicate)
@@ -160,6 +166,7 @@ export async function markQuotesViewed(userId: string, quoteIds: string[], idTok
         viewedQuoteIds: trimmed,
         topicScores: state.topicScores,
         hasCompletedOnboarding: state.hasCompletedOnboarding,
+        learningGoal: state.learningGoal,
         updatedAt: serverTimestamp(),
     }, idToken);
 }
@@ -210,7 +217,11 @@ export async function boostTopic(userId: string, topic: string, weight: number =
  * Save topic picker selections (onboarding)
  * Each selected topic gets an initial boost of 5
  */
-export async function saveTopicPickerChoices(userId: string, selectedTopics: string[]): Promise<void> {
+export async function saveTopicPickerChoices(
+    userId: string,
+    selectedTopics: string[],
+    learningGoal: LearningGoal = 'natural_english'
+): Promise<void> {
     const state = await getQuoteFeedState(userId);
     
     const topicScores: Record<string, number> = { ...state.topicScores };
@@ -223,6 +234,7 @@ export async function saveTopicPickerChoices(userId: string, selectedTopics: str
         viewedQuoteIds: state.viewedQuoteIds,
         topicScores,
         hasCompletedOnboarding: true,
+        learningGoal: coerceLearningGoal(learningGoal),
         updatedAt: serverTimestamp(),
     });
 }
@@ -246,6 +258,7 @@ export async function getPersonalizedFeed(
 ): Promise<{
     quotes: QuoteBankEntry[];
     needsOnboarding: boolean;
+    learningGoal: LearningGoal;
 }> {
     const [state, allQuotes] = await Promise.all([
         getQuoteFeedState(userId),
@@ -254,7 +267,7 @@ export async function getPersonalizedFeed(
 
     // Check onboarding
     if (!state.hasCompletedOnboarding) {
-        return { quotes: [], needsOnboarding: true };
+        return { quotes: [], needsOnboarding: true, learningGoal: state.learningGoal };
     }
 
     // Filter out viewed quotes and prune by explicit topic filters from the Swiper UI
@@ -380,5 +393,6 @@ export async function getPersonalizedFeed(
     return {
         quotes: [...boosted, ...rest],
         needsOnboarding: false,
+        learningGoal: state.learningGoal,
     };
 }

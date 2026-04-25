@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getPersonalizedFeed } from '@/lib/db/quote-feed';
 import { queryCollection, runQuery } from '@/lib/appwrite/database';
 import { getRequestUser } from '@/lib/request-auth';
+import { getNativeWordsForFeed } from '@/lib/db/native-vocabulary';
 
 interface QuoteResponse {
     id: string;
@@ -50,9 +51,19 @@ export async function GET(request: NextRequest) {
         if (feed.needsOnboarding) {
             return NextResponse.json({
                 quotes: [],
+                nativeWords: [],
                 needsOnboarding: true,
+                learningGoal: feed.learningGoal,
             });
         }
+
+        const nativeWords = deckId
+            ? []
+            : await getNativeWordsForFeed(
+                userId,
+                feed.learningGoal,
+                feed.learningGoal === 'beautiful_english' ? 24 : 5
+            );
 
         // If we have enough quotes in the bank (or if a specific deck is requested), use them
         if (feed.quotes.length >= 5 || deckId) {
@@ -70,7 +81,12 @@ export async function GET(request: NextRequest) {
                 vocabularyData: q.vocabularyData,
             }));
 
-            return NextResponse.json({ quotes, needsOnboarding: false });
+            return NextResponse.json({
+                quotes,
+                nativeWords,
+                needsOnboarding: false,
+                learningGoal: feed.learningGoal,
+            });
         }
 
         // ─── Fallback: legacy behavior (extract from posts) ───
@@ -170,7 +186,12 @@ export async function GET(request: NextRequest) {
         const shuffledArticle = articleQuotes.sort(() => Math.random() - 0.5).slice(0, 40);
         const combined = [...generatedQuotes, ...shuffledArticle].slice(0, 50);
 
-        return NextResponse.json({ quotes: combined, needsOnboarding: false });
+        return NextResponse.json({
+            quotes: combined,
+            nativeWords,
+            needsOnboarding: false,
+            learningGoal: feed.learningGoal,
+        });
     } catch (error) {
         console.error('Error fetching quotes:', error);
         return NextResponse.json({ error: 'Failed to fetch quotes' }, { status: 500 });

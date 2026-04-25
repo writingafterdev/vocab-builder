@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { motion } from 'framer-motion';
 import {
@@ -17,6 +16,7 @@ import { getArticlesReadToday } from '@/lib/article-tracking';
 import { SKILL_AXIS_META } from '@/lib/exercise/config';
 import type { SkillAxis } from '@/lib/db/types';
 import { authFromUser, clientApiJson } from '@/lib/client-api';
+import { usePracticeLauncher } from '@/hooks/use-practice-launcher';
 
 // ─── Types ────────────────────────────────────────────
 interface DashPhrase {
@@ -82,7 +82,7 @@ function ActivityMap({ data }: { data: number[] }) {
 // ─── Main Dashboard ───────────────────────────────────
 export default function DashboardPage() {
     const { user } = useAuth();
-    const router = useRouter();
+    const { launchPractice, launching: launchingPractice } = usePracticeLauncher();
     const [loading, setLoading] = useState(true);
     const [allPhrases, setAllPhrases] = useState<DashPhrase[]>([]);
     const [dueCount, setDueCount] = useState(0);
@@ -409,18 +409,20 @@ export default function DashboardPage() {
                                 whileTap={{ scale: 0.98 }}
                                 className="mt-8"
                             >
-                                <Link
-                                    href="/practice"
-                                    className="group relative w-full py-3.5 bg-neutral-900 text-white text-sm font-bold uppercase tracking-[0.1em] text-center hover:bg-neutral-800 transition-colors flex items-center justify-center gap-2 overflow-hidden"
+                                <button
+                                    type="button"
+                                    onClick={() => void launchPractice()}
+                                    disabled={launchingPractice}
+                                    className="group relative w-full py-3.5 bg-neutral-900 text-white text-sm font-bold uppercase tracking-[0.1em] text-center hover:bg-neutral-800 transition-colors flex items-center justify-center gap-2 overflow-hidden disabled:opacity-60 disabled:cursor-not-allowed"
                                 >
                                     {/* Shimmer effect inside button on hover */}
                                     <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent group-hover:translate-x-full transition-transform duration-1000 ease-in-out" />
 
                                     <span className="relative z-10 flex items-center justify-center gap-2">
-                                        Start Session
+                                        {launchingPractice ? 'Loading Session' : 'Start Session'}
                                         <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
                                     </span>
-                                </Link>
+                                </button>
                             </motion.div>
                         </div>
                     </div>

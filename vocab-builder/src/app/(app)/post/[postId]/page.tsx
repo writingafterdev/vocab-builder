@@ -36,6 +36,7 @@ import { useGlobalDictionary, getWordAtPosition } from '@/hooks/use-global-dicti
 import { GlobalPhraseData, RedditComment } from '@/lib/db/types';
 import { RedditCommentTree } from '@/components/reddit-comment-tree';
 import { ArticleReader } from '@/components/article-reader';
+import { usePracticeLauncher } from '@/hooks/use-practice-launcher';
 
 const ADMIN_EMAIL = 'ducanhcontactonfb@gmail.com';
 
@@ -587,6 +588,7 @@ function ExpandedSidebar({
 }
 
 export default function PostPage() {
+    const { launchPractice } = usePracticeLauncher();
     const params = useParams();
     const postId = params.postId as string;
     const isInvalidPostRoute = !postId || postId === 'null' || postId === 'undefined';
@@ -1138,7 +1140,7 @@ export default function PostPage() {
                         <ArrowRight className="w-4 h-4" />
                     </button>
                     <button
-                        onClick={() => window.location.href = '/practice'}
+                        onClick={() => void launchPractice()}
                         className="w-full text-neutral-400 px-6 py-3 text-xs font-medium uppercase tracking-[0.08em] hover:text-neutral-600 transition-colors"
                     >
                         Go to Practice Room

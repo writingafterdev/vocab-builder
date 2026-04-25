@@ -16,10 +16,29 @@ import { useTTS } from '@/hooks/use-tts';
 import type { FeedCard } from '@/lib/db/types';
 import { authFromUserId, clientApiFetch } from '@/lib/client-api';
 
+type LearningGoal = 'natural_english' | 'beautiful_english';
+
+interface NativeWordCardData {
+    wordKey: string;
+    word: string;
+    definition: string;
+    vibe: string;
+    register: string;
+    difficulty: string;
+    tags: string[];
+    example: string;
+    followupText: string;
+    qualityScore?: number;
+}
+
+interface NativeContextCardData extends NativeWordCardData {
+    text: string;
+}
+
 interface DeckItem {
     id: string;
-    type: 'quote' | 'quiz';
-    data: any; // Quote | FeedCard
+    type: 'quote' | 'quiz' | 'native_word' | 'native_context';
+    data: any; // Quote | FeedCard | NativeWordCardData | NativeContextCardData
     quizState?: {
         hasAnswered: boolean;
         result: 'correct' | 'wrong' | null;
@@ -94,6 +113,170 @@ function highlightQuoteText(rawText: string, phrases: string[]): string {
     return html;
 }
 
+function nativeWordToDeckItem(word: NativeWordCardData): DeckItem {
+    return {
+        id: `native-word-${word.wordKey}`,
+        type: 'native_word',
+        data: word,
+    };
+}
+
+function nativeContextToDeckItem(word: NativeWordCardData): DeckItem {
+    return {
+        id: `native-context-${word.wordKey}`,
+        type: 'native_context',
+        data: {
+            ...word,
+            text: word.followupText,
+        },
+    };
+}
+
+function buildMixedDeck(
+    quotes: Quote[],
+    nativeWords: NativeWordCardData[],
+    learningGoal: LearningGoal
+): DeckItem[] {
+    const quoteItems = quotes.map((q) => ({
+        id: q.id,
+        type: 'quote' as const,
+        data: q,
+    }));
+
+    if (nativeWords.length === 0) return quoteItems;
+
+    if (learningGoal === 'beautiful_english') {
+        const result: DeckItem[] = [];
+        let quoteIndex = 0;
+
+        nativeWords.forEach((word, index) => {
+            result.push(nativeWordToDeckItem(word));
+
+            const gap = 2 + (index % 3);
+            for (let i = 0; i < gap && quoteIndex < quoteItems.length; i++) {
+                result.push(quoteItems[quoteIndex]);
+                quoteIndex += 1;
+            }
+
+            result.push(nativeContextToDeckItem(word));
+        });
+
+        return [...result, ...quoteItems.slice(quoteIndex)];
+    }
+
+    const result: DeckItem[] = [];
+    let wordIndex = 0;
+    quoteItems.forEach((quote, index) => {
+        result.push(quote);
+        if ((index + 1) % 8 === 0 && wordIndex < nativeWords.length) {
+            result.push(nativeWordToDeckItem(nativeWords[wordIndex]));
+            wordIndex += 1;
+        }
+    });
+
+    return [...result, ...nativeWords.slice(wordIndex).map(nativeWordToDeckItem)];
+}
+
+function toggleSetValue(set: Set<string>, value: string): Set<string> {
+    const next = new Set(set);
+    if (next.has(value)) {
+        next.delete(value);
+    } else {
+        next.add(value);
+    }
+    return next;
+}
+
+function renderNativeContextText(text: string, word: string): string {
+    const escapedText = decodeHtmlEntities(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    const escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return escapedText.replace(
+        new RegExp(`\\b(${escapedWord})\\b`, 'gi'),
+        '<mark class="bg-amber-100/80 text-neutral-950 border-b border-amber-300 px-1 rounded-sm">$1</mark>'
+    );
+}
+
+function NativeWordCard({ word, isTop }: { word: NativeWordCardData; isTop: boolean }) {
+    return (
+        <div
+            className="w-full h-[500px] md:h-[280px] bg-[#fffdf8] border border-neutral-200 flex flex-col justify-between transition-shadow duration-300 relative overflow-hidden"
+            style={{
+                boxShadow: isTop
+                    ? '0 8px 30px -5px rgba(0,0,0,0.12)'
+                    : '0 2px 10px rgba(0,0,0,0.05)',
+            }}
+        >
+            <div className="absolute top-4 left-4 z-10">
+                <span className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-800 bg-amber-50 border border-amber-200 rounded-sm">
+                    ✦ Beautiful Word
+                </span>
+            </div>
+
+            <div className="flex-1 flex flex-col justify-center px-8 sm:px-10 md:px-14 pt-12 text-center">
+                <p className="text-[11px] uppercase tracking-[0.18em] text-neutral-400 mb-4">
+                    {word.vibe}
+                </p>
+                <h3
+                    className="text-[48px] md:text-[72px] leading-none tracking-tight text-neutral-950"
+                    style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
+                >
+                    {word.word}
+                </h3>
+                <p className="mt-6 mx-auto max-w-xl text-xl md:text-2xl leading-snug text-neutral-800">
+                    {word.definition}
+                </p>
+                <p className="mt-6 mx-auto max-w-lg text-sm md:text-base leading-7 text-neutral-500 italic">
+                    “{word.example}”
+                </p>
+            </div>
+
+            <div className="border-t border-neutral-100 px-8 py-4 flex items-center justify-between text-[11px] uppercase tracking-[0.16em]">
+                <span className="text-neutral-400">{word.register}</span>
+                <span className="text-amber-700 font-bold">{word.difficulty}</span>
+            </div>
+        </div>
+    );
+}
+
+function NativeContextCard({ word, isTop }: { word: NativeContextCardData; isTop: boolean }) {
+    return (
+        <div
+            className="w-full h-[500px] md:h-[280px] bg-white border border-neutral-200 flex flex-col justify-center transition-shadow duration-300 relative"
+            style={{
+                boxShadow: isTop
+                    ? '0 8px 30px -5px rgba(0,0,0,0.12)'
+                    : '0 2px 10px rgba(0,0,0,0.05)',
+            }}
+        >
+            <div className="absolute top-4 left-4 z-10">
+                <span className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-neutral-700 bg-neutral-100 border border-neutral-200 rounded-sm">
+                    ✦ In Context
+                </span>
+            </div>
+
+            <div className="flex-1 flex items-center justify-center p-8 sm:p-10 md:p-14">
+                <div className="w-full text-center">
+                    <p
+                        className="text-2xl md:text-4xl md:leading-[1.4] tracking-tight text-neutral-900"
+                        style={{ fontFamily: 'var(--font-serif), Georgia, serif' }}
+                        dangerouslySetInnerHTML={{
+                            __html: renderNativeContextText(word.text, word.word),
+                        }}
+                    />
+                </div>
+            </div>
+
+            <div className="border-t border-neutral-100 px-8 py-4 flex items-center justify-between text-[11px] uppercase tracking-[0.16em]">
+                <span className="text-neutral-400">afterglow</span>
+                <span className="text-amber-700 font-bold">{word.word}</span>
+            </div>
+        </div>
+    );
+}
+
 const FEED_TOPICS = [
     { id: 'technology', label: 'Technology', emoji: '💻' },
     { id: 'science', label: 'Science', emoji: '🔬' },
@@ -111,6 +294,7 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
     const [loading, setLoading] = useState(true);
     const [activeIndex, setActiveIndex] = useState(0);
     const [savedQuotes, setSavedQuotes] = useState<Set<string>>(new Set());
+    const [savedNativeWords, setSavedNativeWords] = useState<Set<string>>(new Set());
     const [phase, setPhase] = useState<'idle' | 'sending-to-back' | 'bringing-to-front'>('idle');
     const [needsOnboarding, setNeedsOnboarding] = useState(false);
     const [internalSelectedTopics, setInternalSelectedTopics] = useState<string[]>([]);
@@ -129,6 +313,8 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
 
     // View tracking: buffer IDs and flush every 5 swipes or on unmount
     const viewedBufferRef = useRef<string[]>([]);
+    const viewedNativeWordBufferRef = useRef<string[]>([]);
+    const viewedNativeFollowupBufferRef = useRef<string[]>([]);
     const FLUSH_EVERY = 5;
 
     // Dwell-time tracking: implicit preference signal
@@ -161,9 +347,20 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
     // Flush viewed buffer to API (includes dwell-time signals)
     const flushViewedBuffer = useCallback(async (topicBoost?: string, tagsBoost?: string[]) => {
         const ids = [...viewedBufferRef.current];
+        const nativeWordKeys = [...viewedNativeWordBufferRef.current];
+        const nativeFollowupKeys = [...viewedNativeFollowupBufferRef.current];
         const dwellSignals = [...dwellSignalBufferRef.current];
-        if (ids.length === 0 && !topicBoost && (!tagsBoost || tagsBoost.length === 0) && dwellSignals.length === 0) return;
+        if (
+            ids.length === 0 &&
+            nativeWordKeys.length === 0 &&
+            nativeFollowupKeys.length === 0 &&
+            !topicBoost &&
+            (!tagsBoost || tagsBoost.length === 0) &&
+            dwellSignals.length === 0
+        ) return;
         viewedBufferRef.current = [];
+        viewedNativeWordBufferRef.current = [];
+        viewedNativeFollowupBufferRef.current = [];
         dwellSignalBufferRef.current = [];
 
         try {
@@ -172,6 +369,8 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
                 auth: authFromUserId(userId, true),
                 json: {
                     quoteIds: ids,
+                    nativeWordKeys,
+                    nativeFollowupKeys,
                     boostTopicName: topicBoost,
                     boostTags: tagsBoost,
                     dwellSignals: dwellSignals.length > 0 ? dwellSignals : undefined,
@@ -181,6 +380,8 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
             console.error('[ViewTracking] Flush failed:', err);
             // Put IDs back in buffer
             viewedBufferRef.current = [...ids, ...viewedBufferRef.current];
+            viewedNativeWordBufferRef.current = [...nativeWordKeys, ...viewedNativeWordBufferRef.current];
+            viewedNativeFollowupBufferRef.current = [...nativeFollowupKeys, ...viewedNativeFollowupBufferRef.current];
             dwellSignalBufferRef.current = [...dwellSignals, ...dwellSignalBufferRef.current];
         }
     }, [userId]);
@@ -188,7 +389,11 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
     // Flush on unmount
     useEffect(() => {
         return () => {
-            if (viewedBufferRef.current.length > 0) {
+            if (
+                viewedBufferRef.current.length > 0 ||
+                viewedNativeWordBufferRef.current.length > 0 ||
+                viewedNativeFollowupBufferRef.current.length > 0
+            ) {
                 flushViewedBuffer();
             }
         };
@@ -214,13 +419,11 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
                 if (data.needsOnboarding) return;
                 
                 const fetchedQuotes = data.quotes || [];
-                const newItems: DeckItem[] = fetchedQuotes
-                    .filter((q: any) => !masterQuotesRef.current.some(d => d.id === q.id))
-                    .map((q: any) => ({
-                        id: q.id,
-                        type: 'quote' as const,
-                        data: q
-                    }));
+                const nativeWords = data.nativeWords || [];
+                const learningGoal = (data.learningGoal || 'natural_english') as LearningGoal;
+                const fetchedItems = buildMixedDeck(fetchedQuotes, nativeWords, learningGoal);
+                const newItems: DeckItem[] = fetchedItems
+                    .filter((q: DeckItem) => !masterQuotesRef.current.some(d => d.id === q.id));
 
                 // Add to master cache
                 masterQuotesRef.current = [...masterQuotesRef.current, ...newItems];
@@ -231,7 +434,7 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
         } catch (error) {
             console.error('Failed to fetch more quotes:', error);
         }
-    }, [userId, loading, selectedTopics]);
+    }, [userId, loading, selectedTopics, deckId]);
 
     // Background fetch trigger for infinite doomscrolling
     useEffect(() => {
@@ -253,12 +456,13 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
                     url.searchParams.set('explicitTopics', selectedTopics.join(','));
                 }
 
-                const [quotesRes, savedRes] = await Promise.all([
+                const [quotesRes, savedRes, nativeSavedRes] = await Promise.all([
                     clientApiFetch(url.toString(), {
                         auth,
                         cache: 'no-store'
                     }),
-                    clientApiFetch('/api/user/saved-quote-ids', { auth })
+                    clientApiFetch('/api/user/saved-quote-ids', { auth }),
+                    clientApiFetch('/api/user/saved-native-word-ids', { auth })
                 ]);
 
                 if (!cancelled) {
@@ -273,13 +477,11 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
                         }
 
                         const fetchedQuotes = data.quotes || [];
-                        const newItems: DeckItem[] = fetchedQuotes
-                            .filter((q: any) => !masterQuotesRef.current.some(d => d.id === q.id))
-                            .map((q: any) => ({
-                                id: q.id,
-                                type: 'quote' as const,
-                                data: q
-                            }));
+                        const nativeWords = data.nativeWords || [];
+                        const learningGoal = (data.learningGoal || 'natural_english') as LearningGoal;
+                        const fetchedItems = buildMixedDeck(fetchedQuotes, nativeWords, learningGoal);
+                        const newItems: DeckItem[] = fetchedItems
+                            .filter((q: DeckItem) => !masterQuotesRef.current.some(d => d.id === q.id));
 
                         // Add to master cache
                         masterQuotesRef.current = [...masterQuotesRef.current, ...newItems];
@@ -290,6 +492,7 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
                             setDeck(newItems);
                         } else if (selectedTopics.length > 0) {
                             const filtered = masterQuotesRef.current.filter(d => {
+                                if (d.type !== 'quote') return true;
                                 const topic = (d.data as any)?.topic;
                                 return topic && selectedTopics.includes(topic);
                             });
@@ -303,6 +506,12 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
                         const data = await savedRes.json();
                         if (data.quoteIds) {
                             setSavedQuotes(new Set(data.quoteIds));
+                        }
+                    }
+                    if (nativeSavedRes.ok) {
+                        const data = await nativeSavedRes.json();
+                        if (data.wordKeys) {
+                            setSavedNativeWords(new Set(data.wordKeys));
                         }
                     }
                 }
@@ -335,6 +544,7 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
         // Instantly filter from master cache
         if (selectedTopics.length > 0) {
             const filtered = masterQuotesRef.current.filter(d => {
+                if (d.type !== 'quote') return true;
                 const topic = (d.data as any)?.topic;
                 return topic && selectedTopics.includes(topic);
             });
@@ -423,6 +633,18 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
             if (viewedBufferRef.current.length >= FLUSH_EVERY) {
                 flushViewedBuffer();
             }
+        } else if (currentItem?.type === 'native_word') {
+            const word = currentItem.data as NativeWordCardData;
+            viewedNativeWordBufferRef.current.push(word.wordKey);
+            if (viewedNativeWordBufferRef.current.length >= FLUSH_EVERY) {
+                flushViewedBuffer();
+            }
+        } else if (currentItem?.type === 'native_context') {
+            const word = currentItem.data as NativeContextCardData;
+            viewedNativeFollowupBufferRef.current.push(word.wordKey);
+            if (viewedNativeFollowupBufferRef.current.length >= FLUSH_EVERY) {
+                flushViewedBuffer();
+            }
         }
 
         // Instantly reset drag position so the phase animation takes over cleanly
@@ -490,15 +712,56 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
     const handleSave = async (e?: React.MouseEvent) => {
         if (e) e.stopPropagation();
         const currentItem = deck[activeIndex];
-        if (currentItem?.type !== 'quote' || !userId) return;
+        if (!currentItem || !userId) return;
+
+        if (currentItem.type === 'native_word' || currentItem.type === 'native_context') {
+            const word = currentItem.data as NativeWordCardData;
+            setSavedNativeWords(prev => {
+                return toggleSetValue(prev, word.wordKey);
+            });
+
+            try {
+                const res = await clientApiFetch('/api/user/save-native-word', {
+                    method: 'POST',
+                    auth: authFromUserId(userId),
+                    json: {
+                        word,
+                        sourceCardId: currentItem.id,
+                    },
+                });
+
+                if (!res.ok) {
+                    const data = await res.json();
+                    import('sonner').then(({ toast }) => toast.error(data.error || 'Failed to save word'));
+                    setSavedNativeWords(prev => {
+                        return toggleSetValue(prev, word.wordKey);
+                    });
+                } else {
+                    const data = await res.json();
+                    setSavedNativeWords(prev => {
+                        const next = new Set(prev);
+                        if (data.isSaved) next.add(word.wordKey);
+                        else next.delete(word.wordKey);
+                        return next;
+                    });
+                }
+            } catch (error) {
+                console.error('Failed to save native word:', error);
+                import('sonner').then(({ toast }) => toast.error('Check your connection'));
+                setSavedNativeWords(prev => {
+                    return toggleSetValue(prev, word.wordKey);
+                });
+            }
+            return;
+        }
+
+        if (currentItem.type !== 'quote') return;
         
         const quote = currentItem.data as Quote;
         
         // Optimistic update
         setSavedQuotes(prev => {
-            const next = new Set(prev);
-            next.has(quote.id) ? next.delete(quote.id) : next.add(quote.id);
-            return next;
+            return toggleSetValue(prev, quote.id);
         });
 
         // API call
@@ -530,9 +793,7 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
                 import('sonner').then(({ toast }) => toast.error(data.error || 'Failed to save quote'));
                 // Revert state
                 setSavedQuotes(prev => {
-                    const next = new Set(prev);
-                    next.has(quote.id) ? next.delete(quote.id) : next.add(quote.id);
-                    return next;
+                    return toggleSetValue(prev, quote.id);
                 });
             }
         } catch (error) {
@@ -540,9 +801,7 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
             import('sonner').then(({ toast }) => toast.error('Check your connection'));
             // Revert state
             setSavedQuotes(prev => {
-                const next = new Set(prev);
-                next.has(quote.id) ? next.delete(quote.id) : next.add(quote.id);
-                return next;
+                return toggleSetValue(prev, quote.id);
             });
         }
     };
@@ -681,7 +940,11 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
     if (deck.length === 0) return null;
 
     const currentTop = deck[activeIndex];
-    const isSaved = currentTop?.type === 'quote' ? savedQuotes.has(currentTop.id) : false;
+    const isSaved = currentTop?.type === 'quote'
+        ? savedQuotes.has(currentTop.id)
+        : currentTop?.type === 'native_word' || currentTop?.type === 'native_context'
+            ? savedNativeWords.has((currentTop.data as NativeWordCardData).wordKey)
+            : false;
 
 
     // Determine what each card's target position should be
@@ -791,6 +1054,10 @@ export function QuoteSwiper({ userId, preGeneratedQuestions, externalTopics, onT
                                     }}
                                     onFixIt={(sessionId) => router.push(`/practice/session/${sessionId}`)}
                                 />
+                            ) : item.type === 'native_word' ? (
+                                <NativeWordCard word={item.data as NativeWordCardData} isTop={isTop} />
+                            ) : item.type === 'native_context' ? (
+                                <NativeContextCard word={item.data as NativeContextCardData} isTop={isTop} />
                             ) : (
                                 /* Regular Quote Card */
                                 <div

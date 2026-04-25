@@ -14,6 +14,7 @@ import { useDictionaryStore } from '@/stores/dictionary-store';
 import { ArrowLeft, Volume2, Bookmark, ArrowLeftRight, Loader2, Sparkles, MessageSquare } from 'lucide-react';
 import { BookOpen, BookmarkSimple, PencilSimple, SquaresFour, User, Gear } from '@phosphor-icons/react';
 import { authFromUserId, clientApiFetch } from '@/lib/client-api';
+import { usePracticeLauncher } from '@/hooks/use-practice-launcher';
 
 type ReadingMode = 'immersed' | 'swipe';
 
@@ -58,6 +59,7 @@ export function ArticleReadingMode({
 }: ArticleReadingModeProps) {
     const router = useRouter();
     const pathname = usePathname();
+    const { launchPractice } = usePracticeLauncher();
     const [mode, setMode] = useState<ReadingMode>('immersed');
     const [currentSection, setCurrentSection] = useState(0);
     const [vocabPopup, setVocabPopup] = useState<VocabPopupState | null>(null);
@@ -145,7 +147,7 @@ export function ArticleReadingMode({
     const navDockItems: DockItem[] = [
         { href: '/dashboard', icon: <SquaresFour className="w-5 h-5" weight={isActive('/dashboard') ? 'fill' : 'regular'} />, label: 'Dashboard', isActive: isActive('/dashboard') },
         { href: '/feed', icon: <BookOpen className="w-5 h-5" weight={isActive('/feed') ? 'fill' : 'regular'} />, label: 'Library', isActive: isActive('/feed') },
-        { href: '/practice', icon: <PencilSimple className="w-5 h-5" weight={isActive('/practice') ? 'fill' : 'regular'} />, label: 'Practice', isActive: isActive('/practice') },
+        { href: '/practice', icon: <PencilSimple className="w-5 h-5" weight={isActive('/practice') ? 'fill' : 'regular'} />, label: 'Practice', isActive: isActive('/practice'), onClick: () => { void launchPractice(); } },
         { href: '/vocab', icon: <BookmarkSimple className="w-5 h-5" weight={isActive('/vocab') ? 'fill' : 'regular'} />, label: 'Vocab Bank', isActive: isActive('/vocab') },
         { href: '/settings', icon: <Gear className="w-5 h-5" weight={isActive('/settings') ? 'fill' : 'regular'} />, label: 'Settings', isActive: isActive('/settings') },
     ];

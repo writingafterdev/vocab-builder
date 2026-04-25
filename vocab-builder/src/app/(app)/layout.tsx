@@ -31,9 +31,11 @@ import { EditorialLoader } from '@/components/ui/editorial-loader';
 import { useOnlineStatus } from '@/hooks/use-online-status';
 import { DictionaryWidget } from '@/components/vocab/DictionaryWidget';
 import { useDictionaryStore } from '@/stores/dictionary-store';
+import { usePracticeLauncher } from '@/hooks/use-practice-launcher';
 
 export default function AppLayout({ children }: { children: ReactNode }) {
     const { user, profile, loading, signOut } = useAuth();
+    const { launchPractice } = usePracticeLauncher();
     const router = useRouter();
     const pathname = usePathname();
     useOnlineStatus(); // Show toast on offline/online
@@ -112,7 +114,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             icon: <PencilSimple className="w-5 h-5" weight={isActive('/practice') ? 'fill' : 'regular'} />,
             label: 'Practice',
             isActive: isActive('/practice'),
-            showBadge: hasPendingPractice && !isActive('/practice')
+            showBadge: hasPendingPractice && !isActive('/practice'),
+            onClick: () => { void launchPractice(); }
         },
         {
             href: '/vocab',

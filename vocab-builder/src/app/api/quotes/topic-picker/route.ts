@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { saveTopicPickerChoices } from '@/lib/db/quote-feed';
+import { coerceLearningGoal } from '@/lib/native-vocabulary/policy';
 import { getRequestUser } from '@/lib/request-auth';
 
 /**
@@ -18,7 +19,7 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { topics } = body as { topics?: string[] };
+        const { topics, learningGoal } = body as { topics?: string[]; learningGoal?: string };
 
         if (!topics || topics.length < 3) {
             return NextResponse.json(
@@ -27,7 +28,7 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        await saveTopicPickerChoices(userId, topics);
+        await saveTopicPickerChoices(userId, topics, coerceLearningGoal(learningGoal));
 
         return NextResponse.json({ success: true });
     } catch (error) {

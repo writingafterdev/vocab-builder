@@ -20,6 +20,7 @@ import { useConfirm } from '@/components/confirm-dialog';
 import { SpeakButton } from '@/hooks/use-text-to-speech';
 import { EditorialLoader } from '@/components/ui/editorial-loader';
 import ImportVocabModal from '@/components/vocab/ImportVocabModal';
+import { usePracticeLauncher } from '@/hooks/use-practice-launcher';
 
 const VocabGraph = dynamic(() => import('@/components/vocab/vocab-graph'), {
     ssr: false,
@@ -585,6 +586,7 @@ function DetailModal({
 export default function VocabBankPage() {
     const { user, loading: authLoading } = useAuth();
     const router = useRouter();
+    const { launchPractice, launching: launchingPractice } = usePracticeLauncher();
     const [phrases, setPhrases] = useState<Phrase[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
@@ -867,11 +869,12 @@ export default function VocabBankPage() {
                             <p className="text-neutral-400 text-sm mt-1">Master your saved vocabulary with an immersive practice session.</p>
                         </div>
                         <button
-                            onClick={() => router.push('/practice')}
-                            className="bg-white text-neutral-900 px-5 py-2.5 rounded-md text-sm font-bold uppercase tracking-[0.08em] hover:bg-neutral-100 transition-colors flex items-center gap-2 flex-shrink-0"
+                            onClick={() => void launchPractice()}
+                            disabled={launchingPractice}
+                            className="bg-white text-neutral-900 px-5 py-2.5 rounded-md text-sm font-bold uppercase tracking-[0.08em] hover:bg-neutral-100 transition-colors flex items-center gap-2 flex-shrink-0 disabled:opacity-60 disabled:cursor-not-allowed"
                         >
                             <Play className="w-4 h-4" fill="currentColor" />
-                            Start Practice
+                            {launchingPractice ? 'Loading Session' : 'Start Practice'}
                         </button>
                     </div>
                 </div>
